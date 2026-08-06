@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: harness-agent
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/diet_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.diet.model
+  configuration:
+    map-underscore-to-camel-case: true
+server:
+  port: 8080
+agentscope:
+  deepseek:
+    api-key: ${DEEPSEEK_API_KEY:}
+    base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+diet:
+  llm:
+    main-model: ${DEEPSEEK_MAIN_MODEL:deepseek-chat}
+    light-model: ${DEEPSEEK_LIGHT_MODEL:deepseek-chat}
+  session:
+    max-history-turns: 10
+logging:
+  level:
+    com.diet: INFO

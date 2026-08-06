@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-07-24T00:00:00.000Z" agent="Codex" version="24.7.17" type="device" pages="3">
+  <diagram id="architecture" name="01-总体架构">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="a-title" value="Diet Agent 项目总体架构" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1;fontColor=#1F2937;" vertex="1" parent="1">
+          <mxGeometry x="500" y="20" width="600" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-subtitle" value="Spring Boot 3.3 · Java 21 · AgentScope · MyBatis · MySQL · DeepSeek" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#6B7280;" vertex="1" parent="1">
+          <mxGeometry x="430" y="60" width="740" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="a-client-lane" value="客户端 / 展示层" style="swimlane;html=1;startSize=36;horizontal=1;collapsible=0;rounded=1;arcSize=8;fillColor=#F5F5F5;strokeColor=#666666;fontStyle=1;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="30" y="110" width="220" height="790" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-client-user" value="&lt;b&gt;用户&lt;/b&gt;&lt;br&gt;饮食对话 / 菜单维护 / Trace 标注 / 评估" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;" vertex="1" parent="a-client-lane">
+          <mxGeometry x="20" y="60" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-client-spa" value="&lt;b&gt;单页 Web UI&lt;/b&gt;&lt;br&gt;index.html&lt;br&gt;app.js + api.js + app.css" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;" vertex="1" parent="a-client-lane">
+          <mxGeometry x="20" y="190" width="180" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-client-feature" value="&lt;b&gt;前端功能&lt;/b&gt;&lt;br&gt;• 推荐聊天&lt;br&gt;• 个人/公共餐食&lt;br&gt;• Trace 查询与标注&lt;br&gt;• 评估报告" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF2F8;strokeColor=#6C8EBF;align=left;spacingLeft=12;fontSize=12;" vertex="1" parent="a-client-lane">
+          <mxGeometry x="20" y="350" width="180" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-client-header" value="所有 API 请求携带&lt;br&gt;&lt;b&gt;X-User-Id&lt;/b&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;" vertex="1" parent="a-client-lane">
+          <mxGeometry x="35" y="570" width="150" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="a-api-lane" value="HTTP 接口层" style="swimlane;html=1;startSize=36;horizontal=1;collapsible=0;rounded=1;arcSize=8;fillColor=#F5F5F5;strokeColor=#666666;fontStyle=1;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="280" y="110" width="250" height="790" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-api-chat" value="&lt;b&gt;DietChatController&lt;/b&gt;&lt;br&gt;POST /chat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=13;" vertex="1" parent="a-api-lane">
+          <mxGeometry x="20" y="55" width="210" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-api-session" value="&lt;b&gt;SessionController&lt;/b&gt;&lt;br&gt;POST /sessions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=13;" vertex="1" parent="a-api-lane">
+          <mxGeometry x="20" y="145" width="210" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-api-meal" value="&lt;b&gt;MealController&lt;/b&gt;&lt;br&gt;/meals/personal · /meals/public" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=13;" vertex="1" parent="a-api-lane">
+          <mxGeometry x="20" y="235" width="210" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-api-slot" value="&lt;b&gt;SlotOptionController&lt;/b&gt;&lt;br&gt;GET /slot-options" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=13;" vertex="1" parent="a-api-lane">
+          <mxGeometry x="20" y="330" width="210" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-api-feedback" value="&lt;b&gt;FeedbackController&lt;/b&gt;&lt;br&gt;POST /feedback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=13;" vertex="1" parent="a-api-lane">
+          <mxGeometry x="20" y="420" width="210" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-api-trace" value="&lt;b&gt;AgentTraceController&lt;/b&gt;&lt;br&gt;/debug/traces · 标签维护" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=13;" vertex="1" parent="a-api-lane">
+          <mxGeometry x="20" y="510" width="210" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-api-eval" value="&lt;b&gt;EvaluationController&lt;/b&gt;&lt;br&gt;POST /evaluations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=13;" vertex="1" parent="a-api-lane">
+          <mxGeometry x="20" y="605" width="210" height="65" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="a-core-lane" value="业务编排与领域服务" style="swimlane;html=1;startSize=36;horizontal=1;collapsible=0;rounded=1;arcSize=8;fillColor=#F5F5F5;strokeColor=#666666;fontStyle=1;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="560" y="110" width="530" height="790" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-core-orch" value="&lt;b&gt;DietOrchestratorService&lt;/b&gt;&lt;br&gt;会话级锁 · 状态机 · 意图路由 · 推荐主链路 · 统一落库" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=14;fontStyle=1;" vertex="1" parent="a-core-lane">
+          <mxGeometry x="20" y="55" width="490" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-core-state" value="&lt;b&gt;会话与状态&lt;/b&gt;&lt;br&gt;SessionService&lt;br&gt;SessionStateService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2F0D9;strokeColor=#82B366;fontSize=12;" vertex="1" parent="a-core-lane">
+          <mxGeometry x="20" y="175" width="145" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-core-intent" value="&lt;b&gt;意图 / 槽位&lt;/b&gt;&lt;br&gt;IntentAgentService&lt;br&gt;IntentReviseService&lt;br&gt;SlotMergeService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2F0D9;strokeColor=#82B366;fontSize=12;" vertex="1" parent="a-core-lane">
+          <mxGeometry x="192" y="175" width="145" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-core-meal" value="&lt;b&gt;推荐流水线&lt;/b&gt;&lt;br&gt;ClarifyAgentService&lt;br&gt;MealSearchService&lt;br&gt;MealRankService&lt;br&gt;RecommendResponseAgentService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2F0D9;strokeColor=#82B366;fontSize=12;" vertex="1" parent="a-core-lane">
+          <mxGeometry x="365" y="175" width="145" height="125" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-core-meal-crud" value="&lt;b&gt;餐食与槽位配置&lt;/b&gt;&lt;br&gt;MealService&lt;br&gt;SlotOptionService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2F0D9;strokeColor=#82B366;fontSize=12;" vertex="1" parent="a-core-lane">
+          <mxGeometry x="20" y="335" width="145" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-core-risk" value="&lt;b&gt;风险守卫&lt;/b&gt;&lt;br&gt;RiskGuardService&lt;br&gt;高风险输入拦截 + 最终回复复检" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=12;" vertex="1" parent="a-core-lane">
+          <mxGeometry x="192" y="335" width="145" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-core-trace" value="&lt;b&gt;链路追踪&lt;/b&gt;&lt;br&gt;AgentTraceService&lt;br&gt;事件、Agent 调用、耗时、异常" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="a-core-lane">
+          <mxGeometry x="365" y="335" width="145" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-core-feedback" value="&lt;b&gt;反馈与离线评估&lt;/b&gt;&lt;br&gt;FeedbackService&lt;br&gt;EvaluationService&lt;br&gt;EvaluationJudgeService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="a-core-lane">
+          <mxGeometry x="105" y="480" width="150" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-core-model" value="&lt;b&gt;DTO / Domain Model&lt;/b&gt;&lt;br&gt;ChatRequest/Response · SessionState · SlotBundle&lt;br&gt;IntentResult · MealItem · RecommendResult · EvaluationReport" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=12;" vertex="1" parent="a-core-lane">
+          <mxGeometry x="280" y="480" width="230" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-core-rule" value="Worker Agent 只产出结构化结果；&lt;b&gt;Orchestrator 是 SessionState 的唯一编排写入者&lt;/b&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;" vertex="1" parent="a-core-lane">
+          <mxGeometry x="80" y="625" width="370" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="a-agent-lane" value="AgentScope / LLM 层" style="swimlane;html=1;startSize=36;horizontal=1;collapsible=0;rounded=1;arcSize=8;fillColor=#F5F5F5;strokeColor=#666666;fontStyle=1;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="110" width="210" height="790" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-agent-factory" value="&lt;b&gt;AgentFactory&lt;/b&gt;&lt;br&gt;按 session + promptVersion 缓存&lt;br&gt;LRU 上限 1000 组" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="a-agent-lane">
+          <mxGeometry x="15" y="55" width="180" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-agent-intent" value="IntentAgent&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;deepseek-chat&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="a-agent-lane">
+          <mxGeometry x="15" y="175" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-agent-clarify" value="ClarifyAgent&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;deepseek-chat&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="a-agent-lane">
+          <mxGeometry x="15" y="255" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-agent-recommend" value="RecommendResponseAgent&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;deepseek-chat&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="a-agent-lane">
+          <mxGeometry x="15" y="335" width="180" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-agent-judge" value="EvaluationJudgeAgent&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;deepseek-chat · 按次构建&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="a-agent-lane">
+          <mxGeometry x="15" y="420" width="180" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-agent-builder" value="Agent Builders&lt;br&gt;InMemoryMemory&lt;br&gt;PromptLoader" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="a-agent-lane">
+          <mxGeometry x="15" y="520" width="180" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-agent-dashscope" value="&lt;b&gt;OpenAIChatModel&lt;/b&gt;&lt;br&gt;外部 DeepSeek 推理 API" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;" vertex="1" parent="a-agent-lane">
+          <mxGeometry x="25" y="640" width="160" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="a-data-lane" value="数据与资源层" style="swimlane;html=1;startSize=36;horizontal=1;collapsible=0;rounded=1;arcSize=8;fillColor=#F5F5F5;strokeColor=#666666;fontStyle=1;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="110" width="210" height="790" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-data-mybatis" value="&lt;b&gt;MyBatis Mapper&lt;/b&gt;&lt;br&gt;Session · Meal · SlotOption&lt;br&gt;Feedback · AgentTrace" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;" vertex="1" parent="a-data-lane">
+          <mxGeometry x="15" y="55" width="180" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-data-db" value="&lt;b&gt;MySQL / diet_db&lt;/b&gt;&lt;br&gt;diet_sessions&lt;br&gt;diet_messages&lt;br&gt;meal_item&lt;br&gt;diet_slot_option&lt;br&gt;recommend_feedback&lt;br&gt;diet_request_trace" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;" vertex="1" parent="a-data-lane">
+          <mxGeometry x="25" y="185" width="160" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-data-prompts" value="&lt;b&gt;Prompt 资源&lt;/b&gt;&lt;br&gt;intent.txt&lt;br&gt;clarify.txt&lt;br&gt;recommend-response.txt&lt;br&gt;evaluation-judge.txt" style="shape=folder;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;" vertex="1" parent="a-data-lane">
+          <mxGeometry x="15" y="465" width="180" height="125" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-data-config" value="&lt;b&gt;application.yml&lt;/b&gt;&lt;br&gt;端口 8080 · 数据源&lt;br&gt;主/轻模型 · API Key&lt;br&gt;历史轮次" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=12;" vertex="1" parent="a-data-lane">
+          <mxGeometry x="20" y="630" width="170" height="100" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ae-user-spa" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;" edge="1" parent="1" source="a-client-user" target="a-client-spa">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-spa-api" value="REST / JSON" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;fontSize=11;" edge="1" parent="1" source="a-client-spa" target="a-api-chat">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-api-orch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="a-api-chat" target="a-core-orch">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-session-state" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="a-api-session" target="a-core-state">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-meal-service" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="a-api-meal" target="a-core-meal-crud">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-slot-service" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="a-api-slot" target="a-core-meal-crud">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-feedback-service" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="a-api-feedback" target="a-core-feedback">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-trace-service" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="a-api-trace" target="a-core-trace">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-eval-service" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="a-api-eval" target="a-core-feedback">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-orch-state" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="a-core-orch" target="a-core-state">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-orch-intent" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="a-core-orch" target="a-core-intent">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-orch-meal" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="a-core-orch" target="a-core-meal">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-orch-risk" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#B85450;" edge="1" parent="1" source="a-core-orch" target="a-core-risk">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-orch-trace" value="全链路事件" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;fontSize=10;" edge="1" parent="1" source="a-core-orch" target="a-core-trace">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-core-factory" value="调用 Worker Agent" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;fontSize=10;" edge="1" parent="1" source="a-core-intent" target="a-agent-factory">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-meal-factory" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="a-core-meal" target="a-agent-factory">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-eval-judge" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="a-core-feedback" target="a-agent-judge">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-factory-intent" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="a-agent-factory" target="a-agent-intent">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-factory-clarify" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="a-agent-factory" target="a-agent-clarify">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-factory-recommend" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="a-agent-factory" target="a-agent-recommend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-agent-model" value="推理" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82B366;fontSize=10;" edge="1" parent="1" source="a-agent-recommend" target="a-agent-dashscope">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-agent-prompts" value="加载系统提示词" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#D6B656;fontSize=10;" edge="1" parent="1" source="a-agent-builder" target="a-data-prompts">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-service-mapper" value="CRUD / 查询" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#D79B00;fontSize=10;" edge="1" parent="1" source="a-core-meal-crud" target="a-data-mybatis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-state-mapper" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#D79B00;" edge="1" parent="1" source="a-core-state" target="a-data-mybatis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-trace-mapper" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#D79B00;" edge="1" parent="1" source="a-core-trace" target="a-data-mybatis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ae-mapper-db" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#D79B00;" edge="1" parent="1" source="a-data-mybatis" target="a-data-db">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="chat-flow" name="02-核心对话流程">
+    <mxGraphModel dx="1600" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="f-title" value="核心对话状态机与推荐链路" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#1F2937;" vertex="1" parent="1">
+          <mxGeometry x="500" y="20" width="600" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-subtitle" value="入口：POST /api/v1/diet/chat　　核心：DietOrchestratorService.dietChat()" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontColor=#6B7280;" vertex="1" parent="1">
+          <mxGeometry x="450" y="60" width="700" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="f-start" value="用户提交&lt;br&gt;message + sourceMode&lt;br&gt;可选 sessionId" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="130" width="120" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-validate" value="校验请求&lt;br&gt;生成 traceId" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="210" y="145" width="140" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-load" value="加载或创建 SessionState&lt;br&gt;phase / slots / sourceMode&lt;br&gt;lastRecommendations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="400" y="135" width="175" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-lock" value="打开 TraceScope&lt;br&gt;获取 session 级锁&lt;br&gt;同会话串行执行" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="625" y="135" width="170" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-record" value="保存用户消息&lt;br&gt;diet_messages" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="845" y="145" width="150" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-personal" value="PERSONAL 且&lt;br&gt;个人餐食库为空？" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1045" y="125" width="170" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-empty-reply" value="返回“先录入个人餐食”&lt;br&gt;保存状态和助手消息" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="135" width="190" height="105" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="f-intent" value="IntentAgent&lt;br&gt;用户输入 + 已知槽位&lt;br&gt;+ 最近 3 条对话" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="900" y="330" width="180" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-revise" value="IntentReviseService&lt;br&gt;结合历史 phase / slots&lt;br&gt;/ lastRecommendations 修正" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="665" y="325" width="185" height="115" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-route" value="按最终 Intent 路由" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="315" width="170" height="135" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="f-rec" value="MEAL_RECOMMENDATION&lt;br&gt;/ CLARIFY_NEEDED&lt;br&gt;合并历史与本轮槽位" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="95" y="520" width="190" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-adjust" value="MEAL_ADJUST&lt;br&gt;合并槽位&lt;br&gt;排除 lastRecommendations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="330" y="520" width="190" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-plan" value="MEAL_PLAN&lt;br&gt;合并槽位&lt;br&gt;phase = PLAN" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="565" y="520" width="175" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-risk" value="HEALTH_RISK&lt;br&gt;返回保守健康提示&lt;br&gt;不走推荐链路" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="785" y="520" width="175" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-other" value="OTHER&lt;br&gt;返回固定饮食引导&lt;br&gt;不调用 LLM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="520" width="175" height="100" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="f-clarify" value="ClarifyRule + ClarifyAgent&lt;br&gt;槽位是否足够？" style="rhombus;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="95" y="685" width="190" height="135" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-ask" value="phase = CLARIFY&lt;br&gt;保存追问与 missingSlots&lt;br&gt;等待用户下一轮" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="20" y="885" width="190" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-search" value="MealSearchService&lt;br&gt;按 sourceMode + userId&lt;br&gt;+ 7 维 slots 从 DB 召回" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="330" y="700" width="190" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-rank" value="MealRankService&lt;br&gt;槽位命中打分&lt;br&gt;排除已推荐 ID · Top 10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="565" y="700" width="180" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-noresult" value="结果为空？" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="790" y="690" width="150" height="125" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-response-agent" value="RecommendResponseAgent&lt;br&gt;Top 3 + 用户原文 + slots&lt;br&gt;生成理由、口语回复、卡片" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="990" y="700" width="210" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-guard" value="Nutrition Risk Guard&lt;br&gt;检查用户输入 + 最终回复&lt;br&gt;不通过则替换为保守提示" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1245" y="700" width="210" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-empty-result" value="按 PERSONAL / PUBLIC&lt;br&gt;返回不同空结果提示" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="780" y="885" width="170" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-save" value="保存最终状态&lt;br&gt;追加 lastRecommendations&lt;br&gt;保存助手消息" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="885" width="190" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="f-end" value="ChatResponse&lt;br&gt;speechText + displayBlocks&lt;br&gt;+ nextAction + traceId" style="ellipse;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="875" width="150" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="f-trace-bar" value="AgentTraceService 横切全流程：REQUEST_RECEIVED → USER_MESSAGE_RECORDED → INTENT_RECOGNIZED / REVISED → ROUTE_SELECTED → SEARCH / RANK / RESPONSE / GUARD → REQUEST_FINISHED；异常记录 REQUEST_FAILED，TraceScope 关闭时写入 diet_request_trace" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#9673A6;fontSize=12;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="250" y="1025" width="1100" height="55" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="fe-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;" edge="1" parent="1" source="f-start" target="f-validate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="f-validate" target="f-load"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="f-load" target="f-lock"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#D79B00;" edge="1" parent="1" source="f-lock" target="f-record"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#D6B656;" edge="1" parent="1" source="f-record" target="f-personal"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-6" value="是" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#B85450;fontSize=11;" edge="1" parent="1" source="f-personal" target="f-empty-reply"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-7" value="否" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#82B366;fontSize=11;" edge="1" parent="1" source="f-personal" target="f-intent"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="f-intent" target="f-revise"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#D6B656;" edge="1" parent="1" source="f-revise" target="f-route"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-route-rec" value="推荐 / 澄清" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#82B366;fontSize=10;" edge="1" parent="1" source="f-route" target="f-rec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-route-adjust" value="调整" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;fontSize=10;" edge="1" parent="1" source="f-route" target="f-adjust"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-route-plan" value="规划" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;fontSize=10;" edge="1" parent="1" source="f-route" target="f-plan"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-route-risk" value="健康风险" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#B85450;fontSize=10;" edge="1" parent="1" source="f-route" target="f-risk"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-route-other" value="其他" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#666666;fontSize=10;" edge="1" parent="1" source="f-route" target="f-other"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-rec-clarify" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="f-rec" target="f-clarify"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-clarify-ask" value="ASK" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#D6B656;fontSize=11;" edge="1" parent="1" source="f-clarify" target="f-ask"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-clarify-search" value="READY" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#82B366;fontSize=11;" edge="1" parent="1" source="f-clarify" target="f-search"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-adjust-search" value="共用推荐流水线" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;fontSize=10;" edge="1" parent="1" source="f-adjust" target="f-search"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-plan-search" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;" edge="1" parent="1" source="f-plan" target="f-search"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-search-rank" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="f-search" target="f-rank"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-rank-noresult" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#D6B656;" edge="1" parent="1" source="f-rank" target="f-noresult"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-noresult-empty" value="是" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#666666;fontSize=11;" edge="1" parent="1" source="f-noresult" target="f-empty-result"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-noresult-agent" value="否" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;fontSize=11;" edge="1" parent="1" source="f-noresult" target="f-response-agent"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-agent-guard" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#B85450;" edge="1" parent="1" source="f-response-agent" target="f-guard"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-guard-save" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#D79B00;" edge="1" parent="1" source="f-guard" target="f-save"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-empty-save" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#D79B00;" edge="1" parent="1" source="f-empty-result" target="f-save"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-risk-save" value="纯文本完成分支" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#B85450;fontSize=10;" edge="1" parent="1" source="f-risk" target="f-save"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-other-save" value="纯文本完成分支" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#666666;fontSize=10;" edge="1" parent="1" source="f-other" target="f-save"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-emptyreply-end" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#B85450;" edge="1" parent="1" source="f-empty-reply" target="f-end"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-ask-end" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#D6B656;" edge="1" parent="1" source="f-ask" target="f-end"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="fe-save-end" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;" edge="1" parent="1" source="f-save" target="f-end"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="data-evaluation" name="03-数据模型与评估闭环">
+    <mxGraphModel dx="1600" dy="1050" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1050" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="d-title" value="数据模型与 Trace 评估闭环" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#1F2937;" vertex="1" parent="1">
+          <mxGeometry x="500" y="20" width="600" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-db-label" value="MySQL 逻辑数据模型" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=17;fontStyle=1;fontColor=#1F2937;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="300" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-eval-label" value="反馈、标注与离线评估闭环" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=17;fontStyle=1;fontColor=#1F2937;" vertex="1" parent="1">
+          <mxGeometry x="850" y="80" width="350" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-divider" value="" style="shape=line;html=1;strokeColor=#BDBDBD;dashed=1;direction=south;" vertex="1" parent="1">
+          <mxGeometry x="790" y="90" width="10" height="850" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="d-sessions" value="&lt;b&gt;diet_sessions&lt;/b&gt;&lt;br&gt;&lt;div align=&quot;left&quot;&gt;🔑 id varchar(64)&lt;br&gt;user_id bigint&lt;br&gt;phase varchar(64)&lt;br&gt;slots json&lt;br&gt;last_recommendations json&lt;br&gt;created_at / updated_at&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="70" y="150" width="220" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-messages" value="&lt;b&gt;diet_messages&lt;/b&gt;&lt;br&gt;&lt;div align=&quot;left&quot;&gt;🔑 id bigint&lt;br&gt;session_id varchar(64)&lt;br&gt;role varchar(32)&lt;br&gt;content text&lt;br&gt;intent varchar(64)&lt;br&gt;agent_trace_id varchar(128)&lt;br&gt;created_at&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="135" width="240" height="205" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-trace" value="&lt;b&gt;diet_request_trace&lt;/b&gt;&lt;br&gt;&lt;div align=&quot;left&quot;&gt;🔑 id · trace_id (UK)&lt;br&gt;session_id · user_id&lt;br&gt;status · event_count · duration_ms&lt;br&gt;error_message · trace_json&lt;br&gt;expected_intent · expected_slots&lt;br&gt;expected_clarify_action&lt;br&gt;labeled_by / at · label_note&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="420" width="270" height="230" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-meal" value="&lt;b&gt;meal_item&lt;/b&gt;&lt;br&gt;&lt;div align=&quot;left&quot;&gt;🔑 id bigint&lt;br&gt;source_type (PUBLIC/PERSONAL)&lt;br&gt;owner_user_id · name&lt;br&gt;meal_time · mood · scene (json)&lt;br&gt;health_goal · cuisine (json)&lt;br&gt;taste · convenience (json)&lt;br&gt;created_at / updated_at&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="60" y="410" width="250" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-slot" value="&lt;b&gt;diet_slot_option&lt;/b&gt;&lt;br&gt;&lt;div align=&quot;left&quot;&gt;🔑 id bigint&lt;br&gt;slot_name&lt;br&gt;option_value&lt;br&gt;sort_order · enabled&lt;br&gt;created_at / updated_at&lt;br&gt;&lt;br&gt;7 维：mealTime / mood / scene / healthGoal / cuisine / taste / convenience&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="55" y="720" width="260" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-feedback" value="&lt;b&gt;recommend_feedback&lt;/b&gt;&lt;br&gt;&lt;div align=&quot;left&quot;&gt;🔑 id bigint&lt;br&gt;user_id · session_id&lt;br&gt;item_id&lt;br&gt;action · rating · reason&lt;br&gt;created_at&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="430" y="750" width="230" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-note" value="虚线表示代码中的逻辑关联；SQL 脚本当前未声明显式 FOREIGN KEY。" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="960" width="340" height="55" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="de-session-message" value="1 : N 会话消息" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;strokeColor=#D79B00;fontSize=10;" edge="1" parent="1" source="d-sessions" target="d-messages"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="de-session-trace" value="1 : N 请求 Trace" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;strokeColor=#9673A6;dashed=1;fontSize=10;" edge="1" parent="1" source="d-sessions" target="d-trace"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="de-message-trace" value="agent_trace_id" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;endFill=0;strokeColor=#9673A6;dashed=1;fontSize=10;" edge="1" parent="1" source="d-messages" target="d-trace"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="de-session-feedback" value="1 : N 用户反馈" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=ERmany;startArrow=ERone;endFill=0;startFill=0;strokeColor=#6C8EBF;dashed=1;fontSize=10;" edge="1" parent="1" source="d-sessions" target="d-feedback"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="de-meal-feedback" value="item_id" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;endFill=0;strokeColor=#6C8EBF;dashed=1;fontSize=10;" edge="1" parent="1" source="d-meal" target="d-feedback"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="de-slot-meal" value="配置校验 / JSON 槽位" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;endFill=0;strokeColor=#D6B656;dashed=1;fontSize=10;" edge="1" parent="1" source="d-slot" target="d-meal"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="d-eval-trace" value="&lt;b&gt;请求 Trace&lt;/b&gt;&lt;br&gt;状态机事件 · Agent I/O&lt;br&gt;token · latency · fallback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="850" y="150" width="190" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-eval-labels" value="&lt;b&gt;人工标注&lt;/b&gt;&lt;br&gt;expectedIntent&lt;br&gt;expectedSlots&lt;br&gt;expectedClarifyAction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="850" y="300" width="190" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-eval-feedback" value="&lt;b&gt;用户反馈&lt;/b&gt;&lt;br&gt;LIKE / ADOPT / DISLIKE&lt;br&gt;或 1–5 rating" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="850" y="460" width="190" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-eval-service" value="&lt;b&gt;EvaluationService&lt;/b&gt;&lt;br&gt;按时间范围读取 Trace&lt;br&gt;关联同 Session 反馈&lt;br&gt;解析 trace_json 快照" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="275" width="210" height="135" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-rule-metrics" value="&lt;b&gt;规则指标（60%）&lt;/b&gt;&lt;br&gt;意图准确率 · 槽位准确率&lt;br&gt;澄清准确率 · 成本 · 延迟&lt;br&gt;安全 · 幻觉 · 多轮一致性" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="150" width="200" height="135" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-judge" value="&lt;b&gt;可选 LLM Judge（10%）&lt;/b&gt;&lt;br&gt;EvaluationJudgeAgent&lt;br&gt;解释质量 · 自然度&lt;br&gt;deepseek-chat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="335" width="200" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-feedback-score" value="&lt;b&gt;反馈得分（30%）&lt;/b&gt;&lt;br&gt;rating 优先&lt;br&gt;否则 action 映射 0–1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="505" width="200" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-weighted" value="&lt;b&gt;加权综合分&lt;/b&gt;&lt;br&gt;按实际存在的指标权重归一&lt;br&gt;缺失指标不按 0 分处理" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="515" width="210" height="155" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-report" value="&lt;b&gt;EvaluationReport&lt;/b&gt;&lt;br&gt;逐 Trace 结果&lt;br&gt;指标平均值&lt;br&gt;规则 / Judge / 反馈 / 总分" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1165" y="750" width="200" height="125" as="geometry"/>
+        </mxCell>
+        <mxCell id="d-improve" value="&lt;b&gt;改进闭环&lt;/b&gt;&lt;br&gt;标注错误样本 → 调整 Prompt / 规则 / 检索重排&lt;br&gt;→ 再运行对话 → 产生新 Trace → 重新评估" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="930" width="450" height="75" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="dee-trace-service" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;" edge="1" parent="1" source="d-eval-trace" target="d-eval-service"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-label-service" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#D6B656;" edge="1" parent="1" source="d-eval-labels" target="d-eval-service"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-feedback-service" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;" edge="1" parent="1" source="d-eval-feedback" target="d-eval-service"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-service-rule" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#82B366;" edge="1" parent="1" source="d-eval-service" target="d-rule-metrics"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-service-judge" value="includeLlmJudge=true" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;fontSize=10;" edge="1" parent="1" source="d-eval-service" target="d-judge"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-service-feedbackscore" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;" edge="1" parent="1" source="d-eval-service" target="d-feedback-score"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-rule-weighted" value="60%" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#82B366;fontSize=10;" edge="1" parent="1" source="d-rule-metrics" target="d-weighted"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-judge-weighted" value="10%" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;fontSize=10;" edge="1" parent="1" source="d-judge" target="d-weighted"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-feedback-weighted" value="30%" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#6C8EBF;fontSize=10;" edge="1" parent="1" source="d-feedback-score" target="d-weighted"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-weighted-report" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#D79B00;" edge="1" parent="1" source="d-weighted" target="d-report"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-report-improve" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#666666;" edge="1" parent="1" source="d-report" target="d-improve"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="dee-improve-trace" value="新一轮数据" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#9673A6;dashed=1;fontSize=10;" edge="1" parent="1" source="d-improve" target="d-eval-trace"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
