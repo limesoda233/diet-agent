@@ -1,0 +1,877 @@
+[
+  {
+    "groupId": "tag-breakfast",
+    "split": "dev",
+    "slice": "direct_tag",
+    "utterances": [
+      "早餐想吃方便带走的",
+      "早饭推荐能外带的"
+    ],
+    "slots": {
+      "mealTime": [
+        "早餐"
+      ],
+      "convenience": [
+        "外带方便"
+      ]
+    },
+    "preferred": [
+      6,
+      9
+    ],
+    "acceptable": [
+      25
+    ],
+    "rationale": "域内早餐且便携：燕麦杯、三明治优先，水果酸奶杯可接受。粥汤和正餐不满足此次便携早餐组合。"
+  },
+  {
+    "groupId": "tag-spicy",
+    "split": "dev",
+    "slice": "direct_tag",
+    "utterances": [
+      "午餐要川菜麻辣味",
+      "中午想吃麻辣川菜"
+    ],
+    "slots": {
+      "mealTime": [
+        "午餐"
+      ],
+      "cuisine": [
+        "川菜"
+      ],
+      "taste": [
+        "麻辣"
+      ]
+    },
+    "preferred": [
+      4,
+      23
+    ],
+    "rationale": "公共库中麻辣香锅和麻婆豆腐盖饭同时符合餐次、川菜与麻辣。其他餐食不满足完整要求。"
+  },
+  {
+    "groupId": "tag-soup",
+    "split": "dev",
+    "slice": "direct_tag",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "在我的餐食里找晚餐粥汤",
+      "晚餐从个人库推荐粥或汤"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "cuisine": [
+        "粥汤"
+      ]
+    },
+    "preferred": [
+      31,
+      32,
+      43
+    ],
+    "rationale": "个人库晚餐粥汤为冬瓜排骨汤、紫菜虾皮蛋花汤、西红柿牛肉汤。红豆燕麦粥未标晚餐，其他不属于该明确标签组合。"
+  },
+  {
+    "groupId": "tag-noodle",
+    "split": "test",
+    "slice": "direct_tag",
+    "utterances": [
+      "晚饭想吃粉面",
+      "晚上推荐面或米线"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "cuisine": [
+        "粉面"
+      ]
+    },
+    "preferred": [
+      1,
+      14,
+      15,
+      18
+    ],
+    "acceptable": [
+      24
+    ],
+    "rationale": "公共粉面包括番茄面、黑椒意面、鸡肉荞麦面和过桥米线；酸菜炖粉条可接受。其他不属于粉面。"
+  },
+  {
+    "groupId": "warm-solo",
+    "split": "dev",
+    "slice": "paraphrase",
+    "utterances": [
+      "加班回来，想捧一碗热乎的，不用摆一桌",
+      "忙完了就想一人吃碗热汤热面"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "scene": [
+        "加班"
+      ],
+      "convenience": [
+        "一人食"
+      ]
+    },
+    "preferred": [
+      1,
+      2,
+      8,
+      15,
+      18
+    ],
+    "acceptable": [
+      7,
+      22
+    ],
+    "rationale": "单人热汤热面为主要需求，热荞麦面也纳入；粥汤可接受。加班是软场景，缺少加班标签不等于不适合。"
+  },
+  {
+    "groupId": "not-salad",
+    "split": "dev",
+    "slice": "paraphrase",
+    "utterances": [
+      "晚饭别像冷冰冰的健身沙拉，来点家常热食",
+      "晚上想吃热的家常菜，不想吃冷沙拉"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "cuisine": [
+        "家常"
+      ],
+      "healthGoal": [
+        "均衡"
+      ]
+    },
+    "preferred": [
+      1,
+      12,
+      13,
+      22
+    ],
+    "acceptable": [
+      11,
+      21,
+      23,
+      24
+    ],
+    "rationale": "按假设做法选家常热食：番茄面、香菇鸡饭、番茄牛腩饭、豆腐汤优先，蒸鱼虾菜等可接受。冷沙拉以及风味快餐不相关。"
+  },
+  {
+    "groupId": "quick-home",
+    "split": "dev",
+    "slice": "paraphrase",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "家里晚餐随便弄点，不想大动干戈",
+      "下班在家做个省事的晚饭"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "scene": [
+        "家里"
+      ],
+      "convenience": [
+        "快速"
+      ]
+    },
+    "preferred": [
+      26,
+      32,
+      38,
+      40
+    ],
+    "acceptable": [
+      27,
+      39,
+      44
+    ],
+    "rationale": "个人库里葱油面、蛋花汤、豆腐煲、青菜面做法简短，其他快速家常菜可接受；慢炖、烤制、聚餐或仅早餐项不相关。"
+  },
+  {
+    "groupId": "handheld",
+    "split": "test",
+    "slice": "paraphrase",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "早上赶车，想拿在手上吃，不用勺子",
+      "通勤早饭别给汤水，拿着就能吃"
+    ],
+    "slots": {
+      "mealTime": [
+        "早餐"
+      ],
+      "scene": [
+        "通勤"
+      ],
+      "convenience": [
+        "少餐具"
+      ]
+    },
+    "preferred": [
+      34,
+      35,
+      42
+    ],
+    "acceptable": [
+      33
+    ],
+    "rationale": "牛肉卷饼、饭团、蔬菜饼适合手持通勤；韭菜盒子也可接受。汤粥和正餐不符合。"
+  },
+  {
+    "groupId": "many-home",
+    "split": "dev",
+    "slice": "multi_preference",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "周末在家多人晚餐，想吃蒜香的",
+      "周末几个人一起吃晚饭，偏蒜香"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "scene": [
+        "家里",
+        "周末"
+      ],
+      "taste": [
+        "蒜香"
+      ],
+      "convenience": [
+        "多人共享"
+      ]
+    },
+    "preferred": [
+      29,
+      30
+    ],
+    "acceptable": [
+      39
+    ],
+    "rationale": "鸡翅和蒸虾适合分享且蒜香；凉拌鸡丝可作为分享配菜。其他未体现蒜香。"
+  },
+  {
+    "groupId": "work-protein",
+    "split": "dev",
+    "slice": "multi_preference",
+    "utterances": [
+      "午餐在公司吃，想按高蛋白标签找可外带的正餐",
+      "工作日中饭，挑有高蛋白标签又能打包的"
+    ],
+    "slots": {
+      "mealTime": [
+        "午餐"
+      ],
+      "scene": [
+        "工作"
+      ],
+      "healthGoal": [
+        "高蛋白"
+      ],
+      "convenience": [
+        "外带方便"
+      ]
+    },
+    "preferred": [
+      12,
+      17,
+      19,
+      20
+    ],
+    "acceptable": [
+      3,
+      10,
+      13,
+      15,
+      21
+    ],
+    "rationale": "以现有高蛋白标签选择外带正餐：鸡饭叉烧抓饭优先，其他可打包肉菜和面食可接受；意面虽有高蛋白标签但原标签偏堂食。此处不代表实测营养。"
+  },
+  {
+    "groupId": "quiet-soup",
+    "split": "dev",
+    "slice": "multi_preference",
+    "utterances": [
+      "晚饭没胃口，想要咸鲜热汤，最好一人吃",
+      "一个人的晚餐没什么胃口，想喝点咸鲜的"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "mood": [
+        "没胃口"
+      ],
+      "taste": [
+        "咸鲜"
+      ],
+      "convenience": [
+        "一人食"
+      ]
+    },
+    "preferred": [
+      2,
+      8,
+      22
+    ],
+    "acceptable": [
+      1,
+      15,
+      18
+    ],
+    "rationale": "馄饨、鲜虾粥和豆腐汤最接近咸鲜汤水，热面米线也可接受，冷食干饭不相关。"
+  },
+  {
+    "groupId": "prep-dinner",
+    "split": "test",
+    "slice": "multi_preference",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "工作日的晚餐想提前备好，偏酱香或番茄味",
+      "找适合备餐的个人晚餐，喜欢酱香和番茄味"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "convenience": [
+        "适合备餐"
+      ],
+      "taste": [
+        "酱香",
+        "番茄味"
+      ]
+    },
+    "preferred": [
+      36,
+      38
+    ],
+    "acceptable": [
+      43
+    ],
+    "rationale": "照烧便当与番茄豆腐煲适合备餐且味型匹配；番茄牛肉汤可接受。其余缺少这一味型组合。"
+  },
+  {
+    "groupId": "no-beef",
+    "split": "dev",
+    "slice": "excluded_ingredient",
+    "utterances": [
+      "晚饭想吃肉配米饭，不吃牛肉",
+      "晚餐来份肉饭，但牛肉排除"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "healthGoal": [
+        "高蛋白"
+      ]
+    },
+    "excludedIngredients": [
+      "牛肉"
+    ],
+    "requiredIngredients": [
+      "米饭"
+    ],
+    "preferred": [
+      12,
+      17,
+      19,
+      20
+    ],
+    "acceptable": [
+      3,
+      11,
+      23
+    ],
+    "rationale": "非牛肉米饭餐中鸡饭叉烧抓饭优先，鸡胸碗鱼套餐肉末豆腐饭可接受；荞麦面无米饭，不满足必需食材。"
+  },
+  {
+    "groupId": "no-peanut",
+    "split": "dev",
+    "slice": "excluded_ingredient",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "晚饭鸡肉菜，别放花生",
+      "从我的菜里找鸡肉晚餐，排除花生"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "healthGoal": [
+        "高蛋白"
+      ]
+    },
+    "excludedIngredients": [
+      "花生"
+    ],
+    "preferred": [
+      29,
+      36,
+      39
+    ],
+    "rationale": "鸡翅、照烧鸡腿、凉拌鸡丝优先；宫保鸡丁假设配方含花生必须排除。其他不符合鸡肉菜需求。"
+  },
+  {
+    "groupId": "no-shrimp",
+    "split": "dev",
+    "slice": "excluded_ingredient",
+    "utterances": [
+      "晚餐喝热汤，不要虾和虾皮",
+      "晚上要汤水类，虾类都排除"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "cuisine": [
+        "粥汤"
+      ]
+    },
+    "excludedIngredients": [
+      "虾",
+      "虾皮"
+    ],
+    "preferred": [
+      2,
+      22
+    ],
+    "acceptable": [
+      1,
+      7,
+      15,
+      18
+    ],
+    "rationale": "无虾的馄饨和菌菇汤优先；无虾汤面、南瓜粥、米线可接受，仅判断假设主要食材。"
+  },
+  {
+    "groupId": "no-milk",
+    "split": "test",
+    "slice": "excluded_ingredient",
+    "utterances": [
+      "早餐不要牛奶或酸奶，想吃点能顶一顿的",
+      "不吃乳制品，早餐给个正经主食"
+    ],
+    "slots": {
+      "mealTime": [
+        "早餐"
+      ]
+    },
+    "excludedIngredients": [
+      "牛奶",
+      "酸奶",
+      "黄油"
+    ],
+    "preferred": [
+      9,
+      2
+    ],
+    "acceptable": [
+      7,
+      8
+    ],
+    "rationale": "三明治、馄饨为无乳主要食材的早餐主食，南瓜粥虾粥可接受；奶杯酸奶杯排除。不推断面包辅料或过敏原。"
+  },
+  {
+    "groupId": "tomato-egg",
+    "split": "dev",
+    "slice": "required_ingredient",
+    "utterances": [
+      "想做同时有番茄和鸡蛋的面食",
+      "推荐用上西红柿和鸡蛋的主食"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "cuisine": [
+        "家常"
+      ]
+    },
+    "requiredIngredients": [
+      "番茄",
+      "鸡蛋"
+    ],
+    "preferred": [
+      1
+    ],
+    "rationale": "固定公共配方仅番茄鸡蛋面同时包含番茄和鸡蛋。西红柿在输入标注时规范化为番茄。"
+  },
+  {
+    "groupId": "tofu-mushroom",
+    "split": "dev",
+    "slice": "required_ingredient",
+    "utterances": [
+      "要一道豆腐和香菇都用上的菜",
+      "家里豆腐和香菇都想用掉，推荐一个做法"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ]
+    },
+    "requiredIngredients": [
+      "豆腐",
+      "香菇"
+    ],
+    "preferred": [
+      22
+    ],
+    "rationale": "公共固定配方只有豆腐菌菇汤同时含豆腐、香菇，其余相关性为 0。"
+  },
+  {
+    "groupId": "personal-tomato-tofu",
+    "split": "dev",
+    "slice": "required_ingredient",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "我的菜里找能同时用掉番茄和豆腐的",
+      "个人食谱里有番茄加豆腐的做法吗"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "cuisine": [
+        "家常"
+      ]
+    },
+    "requiredIngredients": [
+      "番茄",
+      "豆腐"
+    ],
+    "preferred": [
+      38
+    ],
+    "rationale": "个人固定配方中番茄豆腐煲同时包含两种必需食材，其他不满足。"
+  },
+  {
+    "groupId": "personal-egg-greens",
+    "split": "test",
+    "slice": "required_ingredient",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "我的早餐里，鸡蛋和青菜一起做点什么",
+      "个人库找用鸡蛋加青菜的早饭"
+    ],
+    "slots": {
+      "mealTime": [
+        "早餐"
+      ]
+    },
+    "requiredIngredients": [
+      "鸡蛋",
+      "青菜"
+    ],
+    "preferred": [
+      42
+    ],
+    "rationale": "个人固定配方只有鸡蛋蔬菜饼同时包含鸡蛋和青菜。"
+  },
+  {
+    "groupId": "adjust-breakfast",
+    "split": "dev",
+    "slice": "adjust",
+    "utterances": [
+      "早餐换一批，别再给三明治和燕麦杯",
+      "早饭换掉刚才那两种，仍然要便携"
+    ],
+    "context": [
+      "已推荐燕麦牛奶香蕉杯和全麦鸡蛋三明治；早餐偏好便携。"
+    ],
+    "slots": {
+      "mealTime": [
+        "早餐"
+      ],
+      "convenience": [
+        "外带方便"
+      ]
+    },
+    "excludeMealIds": [
+      6,
+      9
+    ],
+    "preferred": [
+      25
+    ],
+    "rationale": "便携早餐排除已推荐两项后，水果酸奶杯是剩余相关项；不足三项是语料限制。"
+  },
+  {
+    "groupId": "adjust-soup",
+    "split": "dev",
+    "slice": "adjust",
+    "utterances": [
+      "晚餐的汤换一个，不要刚才的菌菇汤",
+      "豆腐菌菇汤吃过了，换个晚餐汤水"
+    ],
+    "context": [
+      "已推荐豆腐菌菇汤，用户想吃晚餐汤水。"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "cuisine": [
+        "粥汤"
+      ]
+    },
+    "excludeMealIds": [
+      22
+    ],
+    "preferred": [
+      2,
+      8
+    ],
+    "acceptable": [
+      1,
+      7,
+      15,
+      18
+    ],
+    "rationale": "排除菌菇汤后，馄饨鲜虾粥优先；无重复的汤面南瓜粥米线可接受。"
+  },
+  {
+    "groupId": "adjust-personal",
+    "split": "dev",
+    "slice": "adjust",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "个人晚餐换一批，鸡翅和蒸虾都不要重复",
+      "我的蒜香晚餐还有其他的吗，刚才两道排除"
+    ],
+    "context": [
+      "已推荐空气炸锅鸡翅、蒜蓉粉丝蒸虾；偏好蒜香晚餐。"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "taste": [
+        "蒜香"
+      ]
+    },
+    "excludeMealIds": [
+      29,
+      30
+    ],
+    "preferred": [
+      39
+    ],
+    "rationale": "个人蒜香晚餐排除鸡翅和蒸虾后，凉拌鸡丝为相关项。"
+  },
+  {
+    "groupId": "adjust-spicy",
+    "split": "test",
+    "slice": "adjust",
+    "utterances": [
+      "麻辣午餐换掉香锅，来别的",
+      "中午的麻辣川菜不要再推荐麻辣香锅"
+    ],
+    "context": [
+      "已推荐麻辣香锅。"
+    ],
+    "slots": {
+      "mealTime": [
+        "午餐"
+      ],
+      "cuisine": [
+        "川菜"
+      ],
+      "taste": [
+        "麻辣"
+      ]
+    },
+    "excludeMealIds": [
+      4
+    ],
+    "preferred": [
+      23
+    ],
+    "rationale": "排除麻辣香锅后，公共麻辣川菜还剩麻婆豆腐盖饭。"
+  },
+  {
+    "groupId": "isolate-personal",
+    "split": "dev",
+    "slice": "isolation",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "只看我的早餐，想吃方便带走的",
+      "个人库里推荐能外带的早饭"
+    ],
+    "slots": {
+      "mealTime": [
+        "早餐"
+      ],
+      "convenience": [
+        "外带方便"
+      ]
+    },
+    "preferred": [
+      34,
+      35,
+      42
+    ],
+    "acceptable": [
+      33
+    ],
+    "rationale": "只允许用户 1 个人库：卷饼饭团蔬菜饼优先、韭菜盒子可接受。公共早餐不能混入。"
+  },
+  {
+    "groupId": "isolate-public",
+    "split": "dev",
+    "slice": "isolation",
+    "utterances": [
+      "公共库里找番茄口味的晚餐",
+      "只用公共餐食，晚饭偏番茄味"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "taste": [
+        "番茄味"
+      ]
+    },
+    "preferred": [
+      1,
+      13
+    ],
+    "rationale": "公共番茄面和番茄牛腩饭优先；个人番茄豆腐煲与牛肉汤不能跨域召回。"
+  },
+  {
+    "groupId": "isolate-empty-owner",
+    "split": "dev",
+    "slice": "isolation",
+    "sourceMode": "PERSONAL",
+    "userId": 2,
+    "utterances": [
+      "我的个人晚餐有什么",
+      "仅从我自己的菜里找晚餐"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ]
+    },
+    "rationale": "用户 2 的固定个人库为空，返回公共菜或用户 1 的菜均为数据域泄漏。"
+  },
+  {
+    "groupId": "isolate-other-owner",
+    "split": "test",
+    "slice": "isolation",
+    "sourceMode": "PERSONAL",
+    "userId": 3,
+    "utterances": [
+      "我的早餐里有三明治吗",
+      "仅查我个人的三明治早餐"
+    ],
+    "slots": {
+      "mealTime": [
+        "早餐"
+      ],
+      "convenience": [
+        "外带方便"
+      ]
+    },
+    "rationale": "用户 3 固定个人库为空，不能借用公共三明治或用户 1 的便携早餐。"
+  },
+  {
+    "groupId": "empty-lobster",
+    "split": "dev",
+    "slice": "no_match",
+    "utterances": [
+      "晚餐一定要有龙虾",
+      "想吃含龙虾的晚饭"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ],
+      "cuisine": [
+        "海鲜"
+      ]
+    },
+    "requiredIngredients": [
+      "龙虾"
+    ],
+    "rationale": "全部固定公共配方无龙虾，任何返回都不满足明确食材要求。"
+  },
+  {
+    "groupId": "empty-oat-milk",
+    "split": "dev",
+    "slice": "no_match",
+    "utterances": [
+      "找用燕麦奶做的早餐",
+      "早餐必须含燕麦奶，不是牛奶"
+    ],
+    "slots": {
+      "mealTime": [
+        "早餐"
+      ]
+    },
+    "requiredIngredients": [
+      "燕麦奶"
+    ],
+    "excludedIngredients": [
+      "牛奶"
+    ],
+    "rationale": "语料无燕麦奶；燕麦与牛奶不是燕麦奶。没有合适条目。"
+  },
+  {
+    "groupId": "empty-exhausted",
+    "split": "dev",
+    "slice": "no_match",
+    "utterances": [
+      "便携早餐都换过了，还有新的么",
+      "这三种早餐都不要，再找能外带的"
+    ],
+    "context": [
+      "已推荐燕麦杯、三明治、水果酸奶杯。"
+    ],
+    "slots": {
+      "mealTime": [
+        "早餐"
+      ],
+      "convenience": [
+        "外带方便"
+      ]
+    },
+    "excludeMealIds": [
+      6,
+      9,
+      25
+    ],
+    "rationale": "固定公共便携早餐均已排除，不应重复或改荐汤粥冒充满足便携。"
+  },
+  {
+    "groupId": "empty-personal-duck",
+    "split": "test",
+    "slice": "no_match",
+    "sourceMode": "PERSONAL",
+    "utterances": [
+      "我的菜里找鸭肉晚餐",
+      "个人库有用鸭肉做的晚饭吗"
+    ],
+    "slots": {
+      "mealTime": [
+        "晚餐"
+      ]
+    },
+    "requiredIngredients": [
+      "鸭肉"
+    ],
+    "rationale": "全部固定个人配方无鸭肉，没有相关项。"
+  }
+]

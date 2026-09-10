@@ -1,0 +1,2393 @@
+{
+  "version": "1.0",
+  "annotationStatus": "draft",
+  "meals": [
+    {
+      "id": 1,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "番茄鸡蛋面",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐",
+          "三餐"
+        ],
+        "mood": [
+          "疲惫",
+          "低落"
+        ],
+        "scene": [
+          "工作",
+          "校园",
+          "家里"
+        ],
+        "healthGoal": [
+          "清淡",
+          "养胃",
+          "易消化"
+        ],
+        "cuisine": [
+          "家常",
+          "粉面"
+        ],
+        "taste": [
+          "清淡",
+          "番茄味"
+        ],
+        "convenience": [
+          "快速",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-06-28T17:37:55",
+      "ingredients": [
+        "番茄",
+        "鸡蛋",
+        "面条"
+      ],
+      "description": "热汤面，番茄酸香，单人一碗",
+      "preparation": "炒番茄鸡蛋，加水煮面",
+      "provenance": {
+        "seedFile": "diet_db.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 2,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "清汤馄饨",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "午餐",
+          "晚餐",
+          "三餐"
+        ],
+        "mood": [
+          "疲惫",
+          "没胃口"
+        ],
+        "scene": [
+          "工作",
+          "校园",
+          "家里"
+        ],
+        "healthGoal": [
+          "清淡",
+          "养胃",
+          "暖胃"
+        ],
+        "cuisine": [
+          "小吃",
+          "粥汤"
+        ],
+        "taste": [
+          "清淡",
+          "咸鲜"
+        ],
+        "convenience": [
+          "快速",
+          "少餐具"
+        ]
+      },
+      "updatedAt": "2026-06-28T17:37:55",
+      "ingredients": [
+        "猪肉",
+        "小麦面皮"
+      ],
+      "description": "热汤馄饨，猪肉馅，汤水较多",
+      "preparation": "包猪肉馄饨，煮熟配清汤",
+      "provenance": {
+        "seedFile": "diet_db.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 3,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "鸡胸肉轻食碗",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "平静",
+          "想放松"
+        ],
+        "scene": [
+          "工作",
+          "运动后"
+        ],
+        "healthGoal": [
+          "减脂",
+          "高蛋白",
+          "低油",
+          "均衡"
+        ],
+        "cuisine": [
+          "轻食"
+        ],
+        "taste": [
+          "清淡",
+          "咸鲜"
+        ],
+        "convenience": [
+          "快速",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-06-28T17:37:55",
+      "ingredients": [
+        "鸡胸肉",
+        "米饭",
+        "西兰花"
+      ],
+      "description": "鸡肉搭配米饭和蔬菜的一人份餐碗",
+      "preparation": "煎熟鸡胸肉，搭配米饭和焯西兰花",
+      "provenance": {
+        "seedFile": "diet_db.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 4,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "麻辣香锅",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐",
+          "夜宵"
+        ],
+        "mood": [
+          "开心",
+          "想奖励自己"
+        ],
+        "scene": [
+          "周末",
+          "聚餐",
+          "夜宵"
+        ],
+        "healthGoal": [
+          "均衡",
+          "补能"
+        ],
+        "cuisine": [
+          "川菜",
+          "小吃"
+        ],
+        "taste": [
+          "麻辣",
+          "烟火气"
+        ],
+        "convenience": [
+          "慢享",
+          "多人共享"
+        ]
+      },
+      "updatedAt": "2026-06-28T17:37:55",
+      "ingredients": [
+        "牛肉",
+        "虾",
+        "土豆",
+        "花生",
+        "辣椒"
+      ],
+      "description": "麻辣干锅，多种荤素混合，适合分享",
+      "preparation": "将食材做熟后与辣椒、花生炒拌",
+      "provenance": {
+        "seedFile": "diet_db.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 5,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "土豆炖牛肉",
+      "slots": {
+        "mealTime": [
+          "晚餐"
+        ],
+        "mood": [
+          "平静"
+        ],
+        "scene": [
+          "校园"
+        ],
+        "healthGoal": [
+          "补能"
+        ],
+        "cuisine": [
+          "湘菜"
+        ],
+        "taste": [
+          "辣"
+        ],
+        "convenience": []
+      },
+      "updatedAt": "2026-07-01T23:22:49",
+      "ingredients": [
+        "土豆",
+        "牛肉",
+        "辣椒"
+      ],
+      "description": "土豆牛肉炖菜，热食，微辣",
+      "preparation": "牛肉炖软后加入土豆和辣椒",
+      "provenance": {
+        "seedFile": "diet_db.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 6,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "燕麦牛奶香蕉杯",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "加餐"
+        ],
+        "mood": [
+          "疲惫",
+          "没胃口"
+        ],
+        "scene": [
+          "工作",
+          "校园",
+          "通勤"
+        ],
+        "healthGoal": [
+          "均衡",
+          "补能",
+          "易消化"
+        ],
+        "cuisine": [
+          "轻食",
+          "甜品"
+        ],
+        "taste": [
+          "甜",
+          "奶香"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "少餐具"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "燕麦",
+        "牛奶",
+        "香蕉"
+      ],
+      "description": "冷食早餐杯，甜味，可以携带",
+      "preparation": "燕麦浸泡牛奶后加香蕉",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 7,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "小米南瓜粥",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "晚餐",
+          "夜宵"
+        ],
+        "mood": [
+          "疲惫",
+          "没胃口",
+          "平静"
+        ],
+        "scene": [
+          "家里",
+          "工作"
+        ],
+        "healthGoal": [
+          "清淡",
+          "养胃",
+          "易消化",
+          "暖胃"
+        ],
+        "cuisine": [
+          "家常",
+          "粥汤"
+        ],
+        "taste": [
+          "甜",
+          "奶香"
+        ],
+        "convenience": [
+          "快速",
+          "一人食",
+          "少餐具"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "小米",
+        "南瓜"
+      ],
+      "description": "温热粥，南瓜自然甜味",
+      "preparation": "小米和南瓜加水煮粥",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 8,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "鲜虾蔬菜粥",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "没胃口"
+        ],
+        "scene": [
+          "家里",
+          "工作"
+        ],
+        "healthGoal": [
+          "清淡",
+          "高蛋白",
+          "均衡",
+          "易消化"
+        ],
+        "cuisine": [
+          "粥汤",
+          "海鲜"
+        ],
+        "taste": [
+          "咸鲜",
+          "鲜香"
+        ],
+        "convenience": [
+          "快速",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "虾",
+        "米饭",
+        "青菜"
+      ],
+      "description": "温热咸粥，虾仁和青菜搭配",
+      "preparation": "米煮粥后加入虾仁、青菜煮熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 9,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "全麦鸡蛋三明治",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "早午餐",
+          "加餐"
+        ],
+        "mood": [
+          "疲惫",
+          "开心"
+        ],
+        "scene": [
+          "工作",
+          "校园",
+          "通勤"
+        ],
+        "healthGoal": [
+          "减脂",
+          "高蛋白",
+          "均衡",
+          "补能"
+        ],
+        "cuisine": [
+          "轻食",
+          "西餐",
+          "快餐"
+        ],
+        "taste": [
+          "咸鲜",
+          "奶香"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "少餐具",
+          "适合边走边吃"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "全麦面包",
+        "鸡蛋",
+        "生菜"
+      ],
+      "description": "便携三明治，适合早餐",
+      "preparation": "熟鸡蛋和生菜夹入全麦面包",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 10,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "牛肉蔬菜沙拉",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "平静",
+          "想放松"
+        ],
+        "scene": [
+          "工作",
+          "运动后"
+        ],
+        "healthGoal": [
+          "减脂",
+          "高蛋白",
+          "均衡",
+          "低油",
+          "控碳水"
+        ],
+        "cuisine": [
+          "轻食",
+          "西餐"
+        ],
+        "taste": [
+          "咸鲜",
+          "鲜香"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "一人食",
+          "适合备餐"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "牛肉",
+        "生菜",
+        "番茄"
+      ],
+      "description": "冷食蔬菜沙拉，搭配熟牛肉",
+      "preparation": "牛肉煎熟切片，与蔬菜拌匀",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 11,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "清蒸鲈鱼套餐",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "平静",
+          "没胃口"
+        ],
+        "scene": [
+          "家里",
+          "工作",
+          "聚餐"
+        ],
+        "healthGoal": [
+          "清淡",
+          "高蛋白",
+          "低油",
+          "低盐",
+          "均衡"
+        ],
+        "cuisine": [
+          "粤菜",
+          "海鲜"
+        ],
+        "taste": [
+          "咸鲜",
+          "鲜香"
+        ],
+        "convenience": [
+          "堂食舒服",
+          "多人共享"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "鲈鱼",
+        "米饭",
+        "青菜"
+      ],
+      "description": "热食鱼肉套餐，清蒸做法",
+      "preparation": "清蒸鲈鱼，搭配米饭与青菜",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 12,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "香菇鸡肉饭",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "压力大"
+        ],
+        "scene": [
+          "工作",
+          "校园",
+          "加班"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "均衡",
+          "补能"
+        ],
+        "cuisine": [
+          "家常",
+          "快餐"
+        ],
+        "taste": [
+          "咸鲜",
+          "酱香"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "香菇",
+        "鸡肉",
+        "米饭"
+      ],
+      "description": "温热盖饭，鸡肉菌菇搭配，方便打包",
+      "preparation": "香菇鸡肉烧熟后盖在米饭上",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 13,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "番茄牛腩饭",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "低落",
+          "想奖励自己"
+        ],
+        "scene": [
+          "工作",
+          "家里",
+          "加班"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "补能",
+          "暖胃"
+        ],
+        "cuisine": [
+          "家常",
+          "快餐"
+        ],
+        "taste": [
+          "番茄味",
+          "酱香"
+        ],
+        "convenience": [
+          "快速",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "番茄",
+        "牛肉",
+        "米饭"
+      ],
+      "description": "番茄牛腩热盖饭，酸香",
+      "preparation": "番茄牛腩炖熟，搭配米饭",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 14,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "黑椒牛肉意面",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "开心",
+          "想奖励自己"
+        ],
+        "scene": [
+          "工作",
+          "周末",
+          "聚餐"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "补能"
+        ],
+        "cuisine": [
+          "西餐",
+          "粉面"
+        ],
+        "taste": [
+          "咸鲜",
+          "酱香"
+        ],
+        "convenience": [
+          "堂食舒服",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "牛肉",
+        "青椒",
+        "黑胡椒",
+        "意大利面"
+      ],
+      "description": "黑椒牛肉热意面，椒香",
+      "preparation": "牛肉青椒炒熟，加入煮熟意面与黑胡椒拌匀",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 15,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "日式鸡肉荞麦面",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "平静",
+          "想放松"
+        ],
+        "scene": [
+          "工作",
+          "校园",
+          "运动后"
+        ],
+        "healthGoal": [
+          "减脂",
+          "高蛋白",
+          "低油",
+          "均衡"
+        ],
+        "cuisine": [
+          "日料",
+          "粉面"
+        ],
+        "taste": [
+          "咸鲜",
+          "鲜香"
+        ],
+        "convenience": [
+          "快速",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "鸡肉",
+        "荞麦面",
+        "海苔"
+      ],
+      "description": "鸡肉荞麦热汤面，咸鲜",
+      "preparation": "鸡肉充分煮熟，加入荞麦面煮熟，配海苔",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 16,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "韩式石锅拌饭",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "开心",
+          "想奖励自己"
+        ],
+        "scene": [
+          "周末",
+          "聚餐",
+          "校园"
+        ],
+        "healthGoal": [
+          "均衡",
+          "补能"
+        ],
+        "cuisine": [
+          "韩餐"
+        ],
+        "taste": [
+          "微辣",
+          "酱香"
+        ],
+        "convenience": [
+          "堂食舒服",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "牛肉",
+        "鸡蛋",
+        "米饭",
+        "青菜",
+        "辣椒"
+      ],
+      "description": "石锅热拌饭，荤素混合微辣",
+      "preparation": "肉蛋蔬菜做熟，与米饭辣酱拌匀",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 17,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "咖喱鸡肉饭",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "低落"
+        ],
+        "scene": [
+          "工作",
+          "校园",
+          "加班"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "补能",
+          "均衡"
+        ],
+        "cuisine": [
+          "东南亚菜",
+          "快餐"
+        ],
+        "taste": [
+          "咖喱味",
+          "咸鲜"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "鸡肉",
+        "土豆",
+        "米饭",
+        "咖喱"
+      ],
+      "description": "热咖喱饭，味道浓郁，适合一人食",
+      "preparation": "鸡肉土豆煮咖喱，配米饭",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 18,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "云南过桥米线",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐",
+          "夜宵"
+        ],
+        "mood": [
+          "疲惫",
+          "想放松"
+        ],
+        "scene": [
+          "旅行",
+          "周末",
+          "独处"
+        ],
+        "healthGoal": [
+          "补能",
+          "暖胃"
+        ],
+        "cuisine": [
+          "云南菜",
+          "粉面"
+        ],
+        "taste": [
+          "鲜香",
+          "微辣"
+        ],
+        "convenience": [
+          "堂食舒服",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "鸡肉",
+        "米线",
+        "青菜"
+      ],
+      "description": "热汤米线，汤水充足",
+      "preparation": "米线、肉片和蔬菜在汤中充分煮熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 19,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "粤式叉烧饭",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "开心",
+          "想奖励自己"
+        ],
+        "scene": [
+          "工作",
+          "周末",
+          "聚餐"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "补能"
+        ],
+        "cuisine": [
+          "粤菜",
+          "快餐"
+        ],
+        "taste": [
+          "甜",
+          "酱香"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "猪肉",
+        "米饭"
+      ],
+      "description": "甜咸酱香叉烧饭，可打包",
+      "preparation": "猪肉烤制成叉烧，切片配米饭",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 20,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "新疆鸡肉抓饭",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "开心"
+        ],
+        "scene": [
+          "旅行",
+          "聚餐",
+          "工作"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "补能"
+        ],
+        "cuisine": [
+          "新疆菜"
+        ],
+        "taste": [
+          "咸鲜",
+          "油香"
+        ],
+        "convenience": [
+          "外带方便",
+          "多人共享"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "鸡肉",
+        "胡萝卜",
+        "米饭"
+      ],
+      "description": "鸡肉抓饭，热食，适合分享",
+      "preparation": "鸡肉胡萝卜和米饭焖熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 21,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "蒜香虾仁西兰花",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "平静",
+          "想放松"
+        ],
+        "scene": [
+          "家里",
+          "工作",
+          "运动后"
+        ],
+        "healthGoal": [
+          "减脂",
+          "高蛋白",
+          "低油",
+          "控碳水"
+        ],
+        "cuisine": [
+          "家常",
+          "海鲜"
+        ],
+        "taste": [
+          "蒜香",
+          "鲜香"
+        ],
+        "convenience": [
+          "快速",
+          "一人食",
+          "适合备餐"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "虾",
+        "西兰花",
+        "大蒜"
+      ],
+      "description": "蒜香虾仁配蔬菜，热食家常菜",
+      "preparation": "虾仁与西兰花焯熟后加蒜炒匀",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 22,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "豆腐菌菇汤",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐",
+          "夜宵"
+        ],
+        "mood": [
+          "没胃口",
+          "平静",
+          "疲惫"
+        ],
+        "scene": [
+          "家里",
+          "工作"
+        ],
+        "healthGoal": [
+          "清淡",
+          "低油",
+          "易消化",
+          "暖胃"
+        ],
+        "cuisine": [
+          "素食",
+          "粥汤",
+          "家常"
+        ],
+        "taste": [
+          "咸鲜",
+          "鲜香"
+        ],
+        "convenience": [
+          "快速",
+          "少餐具",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "豆腐",
+        "香菇"
+      ],
+      "description": "豆腐菌菇热汤，无肉配方",
+      "preparation": "豆腐香菇加水煮汤",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 23,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "麻婆豆腐盖饭",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "烦躁",
+          "开心",
+          "想奖励自己"
+        ],
+        "scene": [
+          "校园",
+          "工作",
+          "加班"
+        ],
+        "healthGoal": [
+          "补能"
+        ],
+        "cuisine": [
+          "川菜",
+          "快餐"
+        ],
+        "taste": [
+          "麻辣",
+          "油香"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "豆腐",
+        "猪肉",
+        "米饭",
+        "辣椒"
+      ],
+      "description": "麻辣豆腐盖饭，配方包含肉末",
+      "preparation": "肉末豆腐加辣椒烧熟后盖饭",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 24,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "东北酸菜炖粉条",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "想放松"
+        ],
+        "scene": [
+          "家里",
+          "周末",
+          "聚餐"
+        ],
+        "healthGoal": [
+          "补能",
+          "暖胃"
+        ],
+        "cuisine": [
+          "东北菜",
+          "家常",
+          "粉面"
+        ],
+        "taste": [
+          "酸甜",
+          "咸鲜"
+        ],
+        "convenience": [
+          "慢享",
+          "多人共享"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "酸菜",
+        "粉条",
+        "猪肉"
+      ],
+      "description": "酸菜炖粉条，热炖菜，配方包含猪肉",
+      "preparation": "酸菜、猪肉和粉条炖熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 25,
+      "sourceMode": "PUBLIC",
+      "ownerUserId": null,
+      "name": "水果酸奶杯",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "下午茶",
+          "加餐"
+        ],
+        "mood": [
+          "开心",
+          "没胃口",
+          "想奖励自己"
+        ],
+        "scene": [
+          "工作",
+          "校园",
+          "通勤"
+        ],
+        "healthGoal": [
+          "减脂",
+          "低油",
+          "低糖",
+          "易消化"
+        ],
+        "cuisine": [
+          "轻食",
+          "甜品"
+        ],
+        "taste": [
+          "酸甜",
+          "奶香"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "少餐具"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "酸奶",
+        "苹果",
+        "草莓"
+      ],
+      "description": "冷食水果酸奶杯，酸甜，便携",
+      "preparation": "水果切块拌入酸奶",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 26,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "私房葱油拌面",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐",
+          "夜宵"
+        ],
+        "mood": [
+          "疲惫",
+          "想放松"
+        ],
+        "scene": [
+          "家里",
+          "独处"
+        ],
+        "healthGoal": [
+          "补能"
+        ],
+        "cuisine": [
+          "江浙菜",
+          "家常",
+          "粉面"
+        ],
+        "taste": [
+          "咸鲜",
+          "油香"
+        ],
+        "convenience": [
+          "快速",
+          "一人食",
+          "少餐具"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "面条",
+        "葱"
+      ],
+      "description": "葱油干拌面，热食，少餐具",
+      "preparation": "葱熬油，拌入煮熟的面条",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 27,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "家常青椒肉丝饭",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "开心"
+        ],
+        "scene": [
+          "家里",
+          "工作"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "补能"
+        ],
+        "cuisine": [
+          "家常",
+          "快餐"
+        ],
+        "taste": [
+          "微辣",
+          "咸鲜"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "适合备餐"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "青椒",
+        "猪肉",
+        "米饭"
+      ],
+      "description": "青椒肉丝盖饭，微辣，可备餐",
+      "preparation": "青椒肉丝炒熟，配米饭",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 28,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "低油版宫保鸡丁",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "开心",
+          "想奖励自己"
+        ],
+        "scene": [
+          "家里",
+          "周末"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "低油",
+          "均衡"
+        ],
+        "cuisine": [
+          "川菜",
+          "家常"
+        ],
+        "taste": [
+          "微辣",
+          "酸甜"
+        ],
+        "convenience": [
+          "适合备餐",
+          "多人共享"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "鸡肉",
+        "花生",
+        "黄瓜",
+        "辣椒"
+      ],
+      "description": "宫保鸡丁，酸甜微辣，配方含花生",
+      "preparation": "鸡丁黄瓜炒熟，加花生和调味汁",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 29,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "空气炸锅鸡翅",
+      "slots": {
+        "mealTime": [
+          "晚餐",
+          "夜宵",
+          "加餐"
+        ],
+        "mood": [
+          "开心",
+          "想奖励自己"
+        ],
+        "scene": [
+          "家里",
+          "周末",
+          "聚餐"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "补能"
+        ],
+        "cuisine": [
+          "家常",
+          "烧烤"
+        ],
+        "taste": [
+          "酱香",
+          "蒜香"
+        ],
+        "convenience": [
+          "慢享",
+          "多人共享",
+          "少餐具"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "鸡翅",
+        "大蒜"
+      ],
+      "description": "蒜香烤鸡翅，适合分享",
+      "preparation": "鸡翅腌制后空气炸锅烤熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 30,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "蒜蓉粉丝蒸虾",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "平静",
+          "想奖励自己"
+        ],
+        "scene": [
+          "家里",
+          "周末",
+          "聚餐"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "低油"
+        ],
+        "cuisine": [
+          "粤菜",
+          "海鲜"
+        ],
+        "taste": [
+          "蒜香",
+          "鲜香"
+        ],
+        "convenience": [
+          "慢享",
+          "多人共享"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "虾",
+        "粉丝",
+        "大蒜"
+      ],
+      "description": "热蒸虾，蒜香，搭配粉丝",
+      "preparation": "虾与粉丝加蒜蓉蒸熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 31,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "冬瓜排骨汤",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "没胃口",
+          "平静"
+        ],
+        "scene": [
+          "家里",
+          "周末"
+        ],
+        "healthGoal": [
+          "清淡",
+          "高蛋白",
+          "降火",
+          "暖胃"
+        ],
+        "cuisine": [
+          "家常",
+          "粥汤"
+        ],
+        "taste": [
+          "咸鲜",
+          "鲜香"
+        ],
+        "convenience": [
+          "慢享",
+          "多人共享",
+          "适合备餐"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "冬瓜",
+        "猪排骨"
+      ],
+      "description": "冬瓜排骨热汤，适合多人分享",
+      "preparation": "排骨炖熟后加冬瓜",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 32,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "紫菜虾皮蛋花汤",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "没胃口"
+        ],
+        "scene": [
+          "家里",
+          "工作"
+        ],
+        "healthGoal": [
+          "清淡",
+          "易消化",
+          "暖胃"
+        ],
+        "cuisine": [
+          "家常",
+          "粥汤"
+        ],
+        "taste": [
+          "咸鲜",
+          "鲜香"
+        ],
+        "convenience": [
+          "快速",
+          "少餐具",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "紫菜",
+        "虾皮",
+        "鸡蛋"
+      ],
+      "description": "热蛋花汤，做法较快，配方含虾皮",
+      "preparation": "水煮紫菜虾皮，加入蛋液煮熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 33,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "韭菜鸡蛋盒子",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "早午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "开心",
+          "想放松"
+        ],
+        "scene": [
+          "家里",
+          "周末"
+        ],
+        "healthGoal": [
+          "补能"
+        ],
+        "cuisine": [
+          "家常",
+          "小吃"
+        ],
+        "taste": [
+          "咸鲜",
+          "油香"
+        ],
+        "convenience": [
+          "外带方便",
+          "多人共享"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "韭菜",
+        "鸡蛋",
+        "小麦面皮"
+      ],
+      "description": "韭菜鸡蛋馅面食，便携",
+      "preparation": "面皮包韭菜熟鸡蛋后煎熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 34,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "自制牛肉卷饼",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "午餐",
+          "加餐"
+        ],
+        "mood": [
+          "疲惫",
+          "开心"
+        ],
+        "scene": [
+          "通勤",
+          "工作",
+          "校园"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "均衡",
+          "补能"
+        ],
+        "cuisine": [
+          "家常",
+          "快餐"
+        ],
+        "taste": [
+          "酱香",
+          "咸鲜"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "适合边走边吃"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "牛肉",
+        "小麦面皮",
+        "生菜"
+      ],
+      "description": "便携牛肉卷饼，适合通勤",
+      "preparation": "熟牛肉生菜卷入饼皮",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 35,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "金枪鱼饭团",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "午餐",
+          "加餐"
+        ],
+        "mood": [
+          "平静",
+          "没胃口"
+        ],
+        "scene": [
+          "通勤",
+          "校园",
+          "旅行"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "低油",
+          "均衡"
+        ],
+        "cuisine": [
+          "日料",
+          "海鲜"
+        ],
+        "taste": [
+          "咸鲜",
+          "鲜香"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "少餐具",
+          "适合边走边吃"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "金枪鱼",
+        "米饭",
+        "海苔"
+      ],
+      "description": "金枪鱼饭团，便携，少餐具",
+      "preparation": "熟金枪鱼包入米饭并裹上海苔",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 36,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "照烧鸡腿便当",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "开心"
+        ],
+        "scene": [
+          "工作",
+          "校园",
+          "加班"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "均衡",
+          "补能"
+        ],
+        "cuisine": [
+          "日料",
+          "快餐"
+        ],
+        "taste": [
+          "甜",
+          "酱香"
+        ],
+        "convenience": [
+          "外带方便",
+          "一人食",
+          "适合备餐"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "鸡腿",
+        "米饭",
+        "西兰花"
+      ],
+      "description": "酱香鸡腿便当，适合备餐",
+      "preparation": "鸡腿煎熟刷酱，配米饭西兰花",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 37,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "香煎三文鱼",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "平静",
+          "想奖励自己"
+        ],
+        "scene": [
+          "家里",
+          "周末",
+          "运动后"
+        ],
+        "healthGoal": [
+          "减脂",
+          "高蛋白",
+          "低油",
+          "控碳水"
+        ],
+        "cuisine": [
+          "西餐",
+          "海鲜"
+        ],
+        "taste": [
+          "咸鲜",
+          "奶香"
+        ],
+        "convenience": [
+          "慢享",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "三文鱼",
+        "黄油"
+      ],
+      "description": "香煎鱼肉，热食，配方包含黄油",
+      "preparation": "三文鱼用黄油煎熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 38,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "番茄豆腐煲",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "没胃口",
+          "平静"
+        ],
+        "scene": [
+          "家里",
+          "工作"
+        ],
+        "healthGoal": [
+          "清淡",
+          "低油",
+          "易消化"
+        ],
+        "cuisine": [
+          "家常",
+          "素食"
+        ],
+        "taste": [
+          "番茄味",
+          "鲜香"
+        ],
+        "convenience": [
+          "快速",
+          "一人食",
+          "适合备餐"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "番茄",
+        "豆腐"
+      ],
+      "description": "番茄豆腐热煲，无肉配方",
+      "preparation": "番茄炒软后加入豆腐炖熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 39,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "凉拌鸡丝",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "没胃口",
+          "烦躁"
+        ],
+        "scene": [
+          "家里",
+          "工作",
+          "运动后"
+        ],
+        "healthGoal": [
+          "减脂",
+          "高蛋白",
+          "低油",
+          "控碳水"
+        ],
+        "cuisine": [
+          "川菜",
+          "轻食"
+        ],
+        "taste": [
+          "微辣",
+          "蒜香"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "适合备餐"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "鸡肉",
+        "黄瓜",
+        "大蒜",
+        "辣椒"
+      ],
+      "description": "凉拌鸡丝，冷食，蒜香微辣",
+      "preparation": "鸡肉煮熟撕丝，与黄瓜调味拌匀",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 40,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "香菇青菜面",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "没胃口",
+          "平静"
+        ],
+        "scene": [
+          "家里",
+          "独处"
+        ],
+        "healthGoal": [
+          "清淡",
+          "低油",
+          "易消化",
+          "暖胃"
+        ],
+        "cuisine": [
+          "素食",
+          "家常",
+          "粉面"
+        ],
+        "taste": [
+          "咸鲜",
+          "鲜香"
+        ],
+        "convenience": [
+          "快速",
+          "一人食",
+          "少餐具"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "香菇",
+        "青菜",
+        "面条"
+      ],
+      "description": "菌菇青菜热汤面，无肉配方",
+      "preparation": "香菇青菜煮汤，加入面条煮熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 41,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "红豆燕麦粥",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "下午茶",
+          "夜宵"
+        ],
+        "mood": [
+          "疲惫",
+          "低落",
+          "没胃口"
+        ],
+        "scene": [
+          "家里",
+          "工作"
+        ],
+        "healthGoal": [
+          "养胃",
+          "补能",
+          "易消化",
+          "暖胃"
+        ],
+        "cuisine": [
+          "甜品",
+          "粥汤"
+        ],
+        "taste": [
+          "甜",
+          "奶香"
+        ],
+        "convenience": [
+          "快速",
+          "少餐具",
+          "适合备餐"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "红豆",
+        "燕麦"
+      ],
+      "description": "红豆燕麦热粥，无奶配方",
+      "preparation": "红豆煮软，加入燕麦煮粥",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 42,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "鸡蛋蔬菜饼",
+      "slots": {
+        "mealTime": [
+          "早餐",
+          "早午餐",
+          "加餐"
+        ],
+        "mood": [
+          "疲惫",
+          "开心"
+        ],
+        "scene": [
+          "家里",
+          "通勤"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "均衡",
+          "补能"
+        ],
+        "cuisine": [
+          "家常",
+          "小吃"
+        ],
+        "taste": [
+          "咸鲜",
+          "油香"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "适合边走边吃"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "鸡蛋",
+        "青菜",
+        "面粉"
+      ],
+      "description": "便携鸡蛋蔬菜饼，适合早餐",
+      "preparation": "鸡蛋蔬菜和面粉调糊后煎熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 43,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "西红柿牛肉汤",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "疲惫",
+          "没胃口"
+        ],
+        "scene": [
+          "家里",
+          "周末"
+        ],
+        "healthGoal": [
+          "高蛋白",
+          "养胃",
+          "补能",
+          "暖胃"
+        ],
+        "cuisine": [
+          "家常",
+          "粥汤"
+        ],
+        "taste": [
+          "番茄味",
+          "咸鲜"
+        ],
+        "convenience": [
+          "慢享",
+          "多人共享",
+          "适合备餐"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "番茄",
+        "牛肉"
+      ],
+      "description": "番茄牛肉热汤，适合分享",
+      "preparation": "牛肉炖软后加入番茄",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 44,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "酸辣土豆丝盖饭",
+      "slots": {
+        "mealTime": [
+          "午餐",
+          "晚餐"
+        ],
+        "mood": [
+          "烦躁",
+          "开心"
+        ],
+        "scene": [
+          "校园",
+          "工作",
+          "家里"
+        ],
+        "healthGoal": [
+          "补能"
+        ],
+        "cuisine": [
+          "家常",
+          "快餐"
+        ],
+        "taste": [
+          "酸甜",
+          "微辣"
+        ],
+        "convenience": [
+          "快速",
+          "外带方便",
+          "一人食"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "土豆",
+        "辣椒",
+        "米饭"
+      ],
+      "description": "酸辣土豆丝盖饭，无肉配方",
+      "preparation": "土豆丝加辣椒炒熟，配米饭",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    },
+    {
+      "id": 45,
+      "sourceMode": "PERSONAL",
+      "ownerUserId": 1,
+      "name": "自制蔬菜火锅",
+      "slots": {
+        "mealTime": [
+          "晚餐",
+          "夜宵"
+        ],
+        "mood": [
+          "开心",
+          "想放松",
+          "想奖励自己"
+        ],
+        "scene": [
+          "家里",
+          "周末",
+          "聚餐"
+        ],
+        "healthGoal": [
+          "均衡",
+          "低油"
+        ],
+        "cuisine": [
+          "火锅",
+          "素食"
+        ],
+        "taste": [
+          "鲜香",
+          "微辣"
+        ],
+        "convenience": [
+          "慢享",
+          "多人共享",
+          "堂食舒服"
+        ]
+      },
+      "updatedAt": "2026-09-01T00:00:00",
+      "ingredients": [
+        "白菜",
+        "香菇",
+        "豆腐",
+        "辣椒"
+      ],
+      "description": "蔬菜豆腐火锅，无肉配方，适合多人",
+      "preparation": "蔬菜豆腐在微辣汤底中煮熟",
+      "provenance": {
+        "seedFile": "add_40_meal_items.sql",
+        "recipeStatus": "synthetic_recipe_assumption",
+        "annotationAuthor": "assistant"
+      }
+    }
+  ],
+  "ingredientVocabulary": [
+    "三文鱼",
+    "全麦面包",
+    "冬瓜",
+    "南瓜",
+    "咖喱",
+    "土豆",
+    "大蒜",
+    "小米",
+    "小麦面皮",
+    "意大利面",
+    "海苔",
+    "燕麦",
+    "燕麦奶",
+    "牛奶",
+    "牛肉",
+    "猪排骨",
+    "猪肉",
+    "生菜",
+    "番茄",
+    "白菜",
+    "米线",
+    "米饭",
+    "粉丝",
+    "粉条",
+    "紫菜",
+    "红豆",
+    "胡萝卜",
+    "花生",
+    "苹果",
+    "草莓",
+    "荞麦面",
+    "葱",
+    "虾",
+    "虾皮",
+    "西兰花",
+    "豆腐",
+    "辣椒",
+    "酸奶",
+    "酸菜",
+    "金枪鱼",
+    "青椒",
+    "青菜",
+    "面条",
+    "面粉",
+    "韭菜",
+    "香菇",
+    "香蕉",
+    "鲈鱼",
+    "鸡翅",
+    "鸡肉",
+    "鸡胸肉",
+    "鸡腿",
+    "鸡蛋",
+    "鸭肉",
+    "黄油",
+    "黄瓜",
+    "黑胡椒",
+    "龙虾"
+  ]
+}
