@@ -9,6 +9,9 @@ import com.diet.model.SlotBundle;
 import com.diet.enums.SourceMode;
 import com.diet.service.slot.SlotOptionService;
 import com.diet.util.JsonService;
+import com.diet.service.retrieval.JdbcMealRetrievalStore;
+import com.diet.service.retrieval.RetrievalProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
@@ -27,18 +30,27 @@ public class MealService {
     private final MealMapper mealMapper;
     private final SlotOptionService slotOptionService;
     private final JsonService jsonService;
+    private final JdbcMealRetrievalStore retrievalStore;
+    private final RetrievalProperties retrievalProperties;
     public MealService(MealMapper mealMapper, SlotOptionService slotOptionService, JsonService jsonService) {
+        this(mealMapper, slotOptionService, jsonService, null, new RetrievalProperties());
+    }
+    @Autowired
+    public MealService(MealMapper mealMapper, SlotOptionService slotOptionService, JsonService jsonService,
+                       JdbcMealRetrievalStore retrievalStore, RetrievalProperties retrievalProperties) {
         this.mealMapper = mealMapper;
         this.slotOptionService = slotOptionService;
         this.jsonService = jsonService;
+        this.retrievalStore = retrievalStore;
+        this.retrievalProperties = retrievalProperties;
     }
 
     public List<MealItem> findPersonalMeals(Long userId) {
-        return mealMapper.findPersonalMeals(userId).stream().map(this::toMealItem).toList();
+        return attachKnowledge(mealMapper.findPersonalMeals(userId).stream().map(this::toMealItem).toList());
     }
 
     public List<MealItem> findPublicMeals() {
-        return mealMapper.findPublicMeals().stream().map(this::toMealItem).toList();
+        return attachKnowledge(mealMapper.findPublicMeals().stream().map(this::toMealItem).toList());
     }
 
     /**
@@ -54,7 +66,8 @@ public class MealService {
         validateMealRequest(request);
         MealItemRow row = toRow(null, SourceMode.PERSONAL, userId, request);
         mealMapper.insert(row);
-        return toMealItem(row);
+        saveKnowledgeAndEnqueue(row.getId(), request);
+        return attachKnowledge(List.of(toMealItem(row))).get(0);
     }
 
     @Transactional
@@ -65,7 +78,8 @@ public class MealService {
         if (updated == 0) {
             throw new DietException("个人餐食不存在或无权限修改");
         }
-        return toMealItem(mealMapper.findPersonalById(mealId, userId));
+        saveKnowledgeAndEnqueue(mealId, request);
+        return attachKnowledge(List.of(toMealItem(mealMapper.findPersonalById(mealId, userId)))).get(0);
     }
 
     @Transactional
@@ -74,6 +88,7 @@ public class MealService {
         if (deleted == 0) {
             throw new DietException("个人餐食不存在或无权限删除");
         }
+        if (retrievalProperties.isEnabled()) { retrievalStore.deleteKnowledge(mealId); retrievalStore.enqueue(mealId); }
     }
 
     /**
@@ -102,11 +117,29 @@ public class MealService {
         if (request == null || request.name() == null || request.name().isBlank()) {
             throw new DietException("餐食名称不能为空");
         }
+        if (request.knowledgeProvided() && !retrievalProperties.isEnabled()) throw new DietException("请先完成知识库迁移并启用 diet.retrieval.enabled");
+        if (request.knowledge() != null && !"USER_PROVIDED".equals(request.knowledge().sourceType())) throw new DietException("个人录入的知识来源必须为 USER_PROVIDED");
         SlotBundle slots = request.toSlots();
         if (slots.mealTime().isEmpty()) {
             throw new DietException("餐次至少选择一个标签");
         }
         slotOptionService.validate(slots);
+    }
+
+    private void saveKnowledgeAndEnqueue(Long id, MealRequest request) {
+        if (!retrievalProperties.isEnabled()) return;
+        if (request.knowledgeProvided()) retrievalStore.saveKnowledge(id, request.knowledge());
+        retrievalStore.enqueue(id);
+    }
+
+    private List<MealItem> attachKnowledge(List<MealItem> items) {
+        if (!retrievalProperties.isEnabled() || items.isEmpty()) return items;
+        var documents = retrievalStore.find(items.stream().map(MealItem::id).toList());
+        return items.stream().map(item -> {
+            var document = documents.get(item.id());
+            if (document != null && document.meal().sourceType() == item.sourceType() && java.util.Objects.equals(document.meal().ownerUserId(), item.ownerUserId())) item.knowledge(document.knowledge());
+            return item;
+        }).toList();
     }
 
     private MealItemRow toRow(Long id, SourceMode sourceMode, Long ownerUserId, MealRequest request) {

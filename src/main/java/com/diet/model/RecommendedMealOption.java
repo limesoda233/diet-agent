@@ -1,6 +1,7 @@
 package com.diet.model;
 
 import com.diet.enums.SourceMode;
+import com.diet.service.retrieval.MealKnowledge;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -25,6 +26,12 @@ public class RecommendedMealOption {
     private double matchScore;
     /** 餐食原始槽位，用于前端卡片和 Trace。 */
     private SlotBundle matchedSlots;
+    private MealKnowledge knowledge;
+
+    public RecommendedMealOption(Long itemId, SourceMode sourceType, String name, String reason,
+                                 double matchScore, SlotBundle matchedSlots) {
+        this(itemId, sourceType, name, reason, matchScore, matchedSlots, null);
+    }
 }
 
 

@@ -63,7 +63,8 @@ final class RetrievalReport {
         StringBuilder md=new StringBuilder("# 餐食检索基线报告\n\n");
         md.append("标注状态：").append(counts).append("。draft 是助手初稿，尚未经用户复核；成绩仅适用于这份固定语料。\n\n");
         metadata.forEach((k,v)->md.append("- ").append(k).append(": ").append(v).append('\n'));
-        md.append("\n质量指标使用每条查询第一次测量的排名；延迟分位数使用全部重复测量，口径为本地检索与排序，不含 LLM。排名波动保存在 JSON。\n\n");
+        md.append("\n质量指标使用每条查询第一次测量的排名；排名波动保存在 JSON。延迟口径：")
+                .append(metadata.getOrDefault("latencyDescription","全部重复测量的本地检索与排序，不含 LLM。" )).append("\n\n");
         md.append("相关性均值分母为有效相关查询；无匹配正确率分母为无相关项查询。P@3 始终以 3 为分母。\n\n");
         md.append("| 集合 / 切片 | 查询 | 有效相关查询 | 无相关项 | Recall@50 | Recall@3 | P@3 | nDCG@3 | MRR@3 | 无匹配正确率 | P95 ms |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
         bySplit.forEach((k,s)->tableRow(md,k,s)); bySlice.forEach((k,s)->tableRow(md,k,s));
@@ -74,7 +75,8 @@ final class RetrievalReport {
                 .append("。insufficientRate 另衡量返回量低于 min(3, 相关总数) 的比例。\n");
         md.append("\n## 明确约束违规\n\n| 类型 | 违规结果 | 返回结果分母 | 受影响查询 | 查询分母 |\n| --- | ---: | ---: | ---: | ---: |\n");
         summarize(rows).violations().forEach((k,v)->md.append("| ").append(k).append(" | ").append(v.results()).append(" | ").append(v.resultDenominator()).append(" | ").append(v.affectedQueries()).append(" | ").append(v.queryDenominator()).append(" |\n"));
-        md.append("\n## 能力缺口及失败样例\n\n当前基线不消费原始语义、必需/禁用食材，下面的限制由评测记录，未通过后置过滤隐藏。配方为假设，不构成过敏原保障。\n\n");
+        md.append("\n## 能力缺口及失败样例\n\n").append(metadata.getOrDefault("capabilityDescription","当前基线不消费原始语义、必需/禁用食材，下面的限制由评测记录，未通过后置过滤隐藏。"))
+                .append("配方为假设，不构成过敏原保障。\n\n");
         for(var row:rows) if(row.score().expectedEmpty()&&!row.score().returnedEmpty() || !row.score().expectedEmpty() && row.score().recall3()<1 || row.score().violations().values().stream().anyMatch(v->!v.isEmpty())) {
             md.append("- **").append(row.query().id()).append("**：").append(row.query().utterance()).append("；Top3=").append(row.top()).append("；理由：").append(row.query().rationale()).append("；能力缺口=").append(row.capabilityGaps()).append('\n');
         }

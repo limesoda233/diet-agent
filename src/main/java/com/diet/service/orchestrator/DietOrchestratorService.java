@@ -31,6 +31,7 @@ import com.diet.service.session.SessionService;
 import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
+import com.diet.service.retrieval.*;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -116,6 +117,8 @@ public class DietOrchestratorService {
      * 链路追踪服务，记录状态机事件和 Agent 调用到 agent_traces 表。
      */
     private final AgentTraceService agentTraceService;
+    private final MealRetrievalService retrievalService;
+    private final ConstraintParser constraintParser;
 
     /**
      * 会话级锁 Map，key=sessionId，value=锁对象，保证同 session 串行写状态。
@@ -138,7 +141,9 @@ public class DietOrchestratorService {
             RecommendResponseAgentService recommendResponseAgentService,
             MealService mealService,
             RiskGuardService riskGuardService,
-            AgentTraceService agentTraceService
+            AgentTraceService agentTraceService,
+            MealRetrievalService retrievalService,
+            ConstraintParser constraintParser
     ) {
         this.sessionService = sessionService;                           // 注入消息落库服务
         this.sessionStateService = sessionStateService;                 // 注入会话状态服务
@@ -153,6 +158,8 @@ public class DietOrchestratorService {
         this.mealService = mealService;                                 // 注入餐食服务
         this.riskGuardService = riskGuardService;             // 注入健康守卫
         this.agentTraceService = agentTraceService;                     // 注入链路追踪服务
+        this.retrievalService = retrievalService;
+        this.constraintParser = constraintParser;
     }
 
     /**
@@ -235,10 +242,22 @@ public class DietOrchestratorService {
         // Trace 事件：INTENT_REVISED | 阶段 INTENT | 输入=矫正前 rawIntent | 输出=矫正后 intent
         agentTraceService.recordEvent("INTENT_REVISED", "INTENT", rawIntent, intent);
 
+        if (intent.intent() != Intent.HEALTH_RISK && intent.intent() != Intent.OTHER) {
+            try {
+                state = state.withRetrieval(constraintParser.resolveContext(request.message(), state.retrieval(), request.context(),
+                        intent.intent() == Intent.MEAL_ADJUST || state.phase() == SessionPhase.CLARIFY));
+                agentTraceService.recordEvent("RETRIEVAL_CONSTRAINTS_RESOLVED", "RETRIEVAL", request.message(), state.retrieval());
+            } catch (IllegalArgumentException invalid) {
+                if(state.retrieval().pendingConstraintText().isBlank()) state=state.withRetrieval(state.retrieval().pending(request.message()));
+                return completeAsk(sessionId, traceId, state, ClarifyResult.ask(invalid.getMessage(), List.of("retrievalConstraints")));
+            }
+        }
+
         // Trace 事件：ROUTE_SELECTED | 阶段 ROUTE | 输入=最终 intent | 输出=路由目标 intent 枚举名
         agentTraceService.recordEvent("ROUTE_SELECTED", "ROUTE", intent, Map.of("route", intent.intent()));
 
         // 按最终意图枚举分发到对应分支处理器
+        try {
         return switch (intent.intent()) {
             // 推荐或需澄清：走推荐主链路（澄清由 ClarifyAgent 内部决定）
             case MEAL_RECOMMENDATION, CLARIFY_NEEDED ->
@@ -252,6 +271,9 @@ public class DietOrchestratorService {
             // 其他无关饮食的内容：返回固定引导文案
             case OTHER -> handleChitchat(sessionId, traceId, state);
         };
+        } catch (IllegalArgumentException invalid) {
+            return completeAsk(sessionId, traceId, state, ClarifyResult.ask(invalid.getMessage(), List.of("retrievalConstraints")));
+        }
     }
 
     /**
@@ -347,7 +369,7 @@ public class DietOrchestratorService {
             String traceId,
             SessionState state) {
         MealPlanService.PlanResult plan = mealPlanService.buildPlan(
-                sessionId, userId, userInput, state.sourceMode(), state.slots());
+                sessionId, userId, userInput, state.sourceMode(), state.slots(), state.retrieval());
 
         agentTraceService.recordEvent(
                 plan.recommend().recommendations().isEmpty() ? "NO_MEAL_PLAN_MATCHED" : "MEAL_PLAN_BUILT",
@@ -414,20 +436,23 @@ public class DietOrchestratorService {
      * 完整推荐流水线：检索 → 重排 → LLM 生成理由与口语回复 → Guard 审查 → 持久化并返回。
      */
     private ChatResponse completeRecommendation(String sessionId, Long userId, String userInput, String traceId, SessionState state, List<Long> excludeMealIds) {
-        // 构造检索请求：sourceMode + userId + 当前 slots + excludeMealIds（检索层暂不使用 exclude，在 Rank 层过滤）
-        List<MealItem> candidates = mealSearchService.search(new MealSearchRequest(state.sourceMode(), userId, state.slots(), excludeMealIds));
+        var retrieval = retrievalService.retrieve(new MealRetrievalRequest(state.retrieval().queryText(), state.sourceMode(), userId,
+                state.slots(), excludeMealIds, state.retrieval().constraints()));
+        List<MealItem> candidates = retrieval.candidates();
         // Trace 事件：MEAL_SEARCHED | 阶段 SEARCH | 输入=slots | 输出=候选数量+candidates 列表
         agentTraceService.recordEvent("MEAL_SEARCHED", "SEARCH", state.slots(), Map.of("candidateCount", candidates.size(), "candidates", candidates));
 
         // 构造排序请求：候选列表 + slots + excludeMealIds，返回 top10
-        List<MealItem> ranked = mealRankService.rank(new MealRankRequest(candidates, state.slots(), excludeMealIds));
+        List<MealItem> ranked = retrieval.ranked();
         // Trace 事件：MEAL_RANKED | 阶段 RANK | 输入=excludeMealIds | 输出=重排后数量+ranked 列表
         agentTraceService.recordEvent("MEAL_RANKED", "RANK", Map.of("excludeMealIds", excludeMealIds), Map.of("rankedCount", ranked.size(), "ranked", ranked));
 
         // 结果为空时，按 sourceMode 返回不同的空库提示文案
         if (ranked.isEmpty()) {
             // PERSONAL 模式提示补充饭堂菜或切 PUBLIC；PUBLIC 模式提示补充槽位
-            ResponseResult empty = ResponseResult.textOnly(state.sourceMode() == SourceMode.PERSONAL
+            ResponseResult empty = ResponseResult.textOnly(!state.retrieval().constraints().isEmpty()
+                    ? "当前记录中没有能核对并满足这些限制的餐食。部分餐食的食材信息可能尚未补全，你可以补充记录或明确调整限制。"
+                    : state.sourceMode() == SourceMode.PERSONAL
                     ? "你当前的个人餐食库里暂时没有匹配的餐食，可以补充更多饭堂菜，或者切换到公共餐食数据试试。"
                     : "公共餐食库里暂时没有很匹配的结果，你可以切换个人模式补充餐次、口味或想吃的菜系。");
             // Trace 事件：NO_MEAL_MATCHED | 阶段 RECOMMEND | 输入=state | 输出=空结果提示文案

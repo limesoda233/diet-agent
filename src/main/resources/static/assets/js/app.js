@@ -464,7 +464,7 @@
                         <h3>${escapeHtml(meal.name)}</h3>
                         <p class="muted">${escapeHtml(meal.sourceType || "")}</p>
                     </div>
-                    ${meal.matchScore ? `<span class="score">匹配 ${Math.round(meal.matchScore * 100)}%</span>` : ""}
+                    ${meal.matchScore ? `<span class="score">推荐候选</span>` : ""}
                 </header>
                 <div class="chips">${mealTags(meal).map((tag) => `<span class="chip selected">${escapeHtml(tag)}</span>`).join("")}</div>
                 ${editable ? `

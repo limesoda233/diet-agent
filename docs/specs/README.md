@@ -18,7 +18,7 @@
 | 002 | 原始查询与约束、结构化与语义召回、融合重排、索引同步、回退、Trace | 同版本语料对比；权限和明确约束不能被放宽 |
 | 003 | 食谱/替换工具、MCP Server、AgentScope 客户端、调用记录 | 协议联调、来源可见、禁用食材校验、失败回退 |
 
-第一阶段已完成工程验收，见 [001 验收记录](001-meal-retrieval-evaluation/acceptance.md) 与 [运行说明](001-meal-retrieval-evaluation/runbook.md)。第二阶段已形成 [002 混合 RAG 规格草案](002-hybrid-meal-rag/spec.md)，待审阅后编写实现任务；第三阶段进入实施前形成独立详细规格。
+第一阶段已完成工程验收，见 [001 验收记录](001-meal-retrieval-evaluation/acceptance.md)。第二阶段已实现混合检索工程版本，见 [002 验收记录](002-hybrid-meal-rag/acceptance.md) 与 [运行说明](002-hybrid-meal-rag/runbook.md)；真实云 embedding 效果仍待 RAG-10，最终 Qdrant 复测受 Docker 启动故障影响。第三阶段形成独立的 [003 食谱与替换 MCP 草案](003-recipe-substitution-mcp/spec.md)，尚未实现。
 
 ## 开发约束
 

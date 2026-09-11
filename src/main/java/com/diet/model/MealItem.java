@@ -1,6 +1,7 @@
 package com.diet.model;
 
 import com.diet.enums.SourceMode;
+import com.diet.service.retrieval.MealKnowledge;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -15,6 +16,11 @@ public class MealItem {
     private String name;
     private SlotBundle slots;
     private double matchScore;
+    private MealKnowledge knowledge;
+
+    public MealItem(Long id, SourceMode sourceType, Long ownerUserId, String name, SlotBundle slots, double matchScore) {
+        this(id, sourceType, ownerUserId, name, slots, matchScore, null);
+    }
 
     public double matchScore() {
         return matchScore;

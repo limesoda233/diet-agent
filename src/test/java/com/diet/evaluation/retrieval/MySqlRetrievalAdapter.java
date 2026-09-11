@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 final class MySqlRetrievalAdapter implements RetrievalStrategy {
+    Connection evaluationConnection() { return connection; }
     private final Connection connection;
     private final SqlSession session;
     private final MealSearchService search;

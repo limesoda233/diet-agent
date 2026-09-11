@@ -11,6 +11,8 @@ import com.diet.model.RecommendedMealOption;
 import com.diet.model.ResponseResult;
 import com.diet.model.SlotBundle;
 import com.diet.service.recommend.RecommendResponseAgentService;
+import com.diet.service.retrieval.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -29,6 +31,15 @@ public class MealPlanService {
     private final MealSearchService mealSearchService;
     private final MealRankService mealRankService;
     private final RecommendResponseAgentService recommendResponseAgentService;
+    private final MealRetrievalService retrievalService;
+
+    @Autowired
+    public MealPlanService(MealRetrievalService retrievalService, RecommendResponseAgentService recommendResponseAgentService) {
+        this.retrievalService = retrievalService;
+        this.recommendResponseAgentService = recommendResponseAgentService;
+        this.mealSearchService = null;
+        this.mealRankService = null;
+    }
 
     public MealPlanService(
             MealSearchService mealSearchService,
@@ -37,6 +48,7 @@ public class MealPlanService {
         this.mealSearchService = mealSearchService;
         this.mealRankService = mealRankService;
         this.recommendResponseAgentService = recommendResponseAgentService;
+        this.retrievalService = null;
     }
 
     /**
@@ -48,6 +60,11 @@ public class MealPlanService {
             String userInput,
             SourceMode sourceMode,
             SlotBundle baseSlots) {
+        return buildPlan(sessionId, userId, userInput, sourceMode, baseSlots, new RetrievalContext(userInput, MealConstraints.empty(), "legacy"));
+    }
+
+    public PlanResult buildPlan(String sessionId, Long userId, String userInput, SourceMode sourceMode,
+                                SlotBundle baseSlots, RetrievalContext context) {
         SlotBundle safeBaseSlots = baseSlots == null ? SlotBundle.empty() : baseSlots;
         List<MealPlanBlock> blocks = new ArrayList<>();
         List<RecommendedMealOption> recommendations = new ArrayList<>();
@@ -59,10 +76,13 @@ public class MealPlanService {
             SlotBundle mealSlots = withMealTime(safeBaseSlots, mealTime);
             List<Long> excludeIds = List.copyOf(selectedIds);
 
-            List<MealItem> candidates = mealSearchService.search(
-                    new MealSearchRequest(sourceMode, userId, mealSlots, excludeIds));
-            List<MealItem> ranked = mealRankService.rank(
-                    new MealRankRequest(candidates, mealSlots, excludeIds));
+            List<MealItem> ranked;
+            if (retrievalService != null) {
+                ranked = retrievalService.retrieve(new MealRetrievalRequest(context.queryText(), sourceMode, userId, mealSlots, excludeIds, context.constraints())).ranked();
+            } else {
+                List<MealItem> candidates = mealSearchService.search(new MealSearchRequest(sourceMode, userId, mealSlots, excludeIds));
+                ranked = mealRankService.rank(new MealRankRequest(candidates, mealSlots, excludeIds));
+            }
 
             RecommendResponseAgentService.Result generated = recommendResponseAgentService.recommendAndRespond(
                     sessionId, userInput, sourceMode, mealSlots, ranked);

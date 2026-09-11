@@ -6,6 +6,7 @@ import java.util.List;
 import com.diet.enums.Intent;
 import com.diet.enums.SessionPhase;
 import com.diet.enums.SourceMode;
+import com.diet.service.retrieval.RetrievalContext;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -32,6 +33,18 @@ public class SessionState {
     private SlotBundle slots;
     /** 本会话已推荐过的餐食 ID（累积），用于“换一批”时排除重复。 */
     private List<Long> lastRecommendations;
+    private RetrievalContext retrieval;
+
+    public SessionState(String sessionId, Long userId, SessionPhase phase, SourceMode sourceMode,
+                        Intent currentIntent, SlotBundle slots, List<Long> lastRecommendations) {
+        this(sessionId, userId, phase, sourceMode, currentIntent, slots, lastRecommendations, RetrievalContext.empty());
+    }
+
+    public RetrievalContext retrieval() { return retrieval == null ? RetrievalContext.empty() : retrieval; }
+
+    public SessionState withRetrieval(RetrievalContext context) {
+        return new SessionState(sessionId, userId, phase, sourceMode, currentIntent, slots, lastRecommendations, context);
+    }
 
     /**
      * 创建一个新的空状态。
@@ -51,22 +64,22 @@ public class SessionState {
 
     /** 返回更新阶段后的新状态。 */
     public SessionState withPhase(SessionPhase newPhase) {
-        return new SessionState(sessionId, userId, newPhase, sourceMode, currentIntent, slots, lastRecommendations);
+        return new SessionState(sessionId, userId, newPhase, sourceMode, currentIntent, slots, lastRecommendations, retrieval());
     }
 
     /** 返回更新意图后的新状态。 */
     public SessionState withIntent(Intent newIntent) {
-        return new SessionState(sessionId, userId, phase, sourceMode, newIntent, slots, lastRecommendations);
+        return new SessionState(sessionId, userId, phase, sourceMode, newIntent, slots, lastRecommendations, retrieval());
     }
 
     /** 返回更新槽位后的新状态。 */
     public SessionState withSlots(SlotBundle newSlots) {
-        return new SessionState(sessionId, userId, phase, sourceMode, currentIntent, newSlots, lastRecommendations);
+        return new SessionState(sessionId, userId, phase, sourceMode, currentIntent, newSlots, lastRecommendations, retrieval());
     }
 
     /** 返回更新推荐历史后的新状态（覆盖）。 */
     public SessionState withLastRecommendations(List<Long> newLastRecommendations) {
-        return new SessionState(sessionId, userId, phase, sourceMode, currentIntent, slots, newLastRecommendations == null ? List.of() : List.copyOf(newLastRecommendations));
+        return new SessionState(sessionId, userId, phase, sourceMode, currentIntent, slots, newLastRecommendations == null ? List.of() : List.copyOf(newLastRecommendations), retrieval());
     }
 
     /** 将本轮推荐 ID 追加到累积历史，去重并保持插入顺序。 */
@@ -76,11 +89,11 @@ public class SessionState {
         }
         LinkedHashSet<Long> merged = new LinkedHashSet<>(lastRecommendations == null ? List.of() : lastRecommendations);
         merged.addAll(newIds);
-        return new SessionState(sessionId, userId, phase, sourceMode, currentIntent, slots, List.copyOf(merged));
+        return new SessionState(sessionId, userId, phase, sourceMode, currentIntent, slots, List.copyOf(merged), retrieval());
     }
 
     /** 返回更新数据源模式后的新状态，主要用于首次绑定 sourceMode。 */
     public SessionState withSourceMode(SourceMode newSourceMode) {
-        return new SessionState(sessionId, userId, phase, newSourceMode, currentIntent, slots, lastRecommendations);
+        return new SessionState(sessionId, userId, phase, newSourceMode, currentIntent, slots, lastRecommendations, retrieval());
     }
 }

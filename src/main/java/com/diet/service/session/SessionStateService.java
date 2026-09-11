@@ -8,6 +8,7 @@ import com.diet.model.SessionRow;
 import com.diet.model.SessionState;
 import com.diet.model.SlotBundle;
 import com.diet.enums.SourceMode;
+import com.diet.service.retrieval.RetrievalContext;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -123,7 +124,8 @@ public class SessionStateService {
                     sourceMode,                              // PERSONAL / PUBLIC
                     currentIntent,                           // 当前意图
                     slots,                                   // 槽位
-                    parseLongList(row.getLastRecommendations()) // 上轮推荐 ID 列表
+                    parseLongList(row.getLastRecommendations()), // 上轮推荐 ID 列表
+                    meta.hasNonNull("retrieval") ? objectMapper.treeToValue(meta.get("retrieval"), RetrievalContext.class) : RetrievalContext.empty()
             );
         } catch (Exception e) {
             throw new DietException("会话状态解析失败", e);
@@ -158,6 +160,7 @@ public class SessionStateService {
         ObjectNode meta = objectMapper.createObjectNode();
         meta.put("sourceMode", state.sourceMode() == null ? null : state.sourceMode().name());
         meta.put("currentIntent", state.currentIntent() == null ? null : state.currentIntent().name());
+        meta.set("retrieval", objectMapper.valueToTree(state.retrieval()));
         root.set("_meta", meta);
         return root.toString();
     }
