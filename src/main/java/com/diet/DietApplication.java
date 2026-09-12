@@ -16,6 +16,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class DietApplication {
 
     public static void main(String[] args) {
+        if(args.length==1 && args[0].equals("--recipe-mcp-server")) {
+            try { com.diet.service.cooking.RecipeMcpServer.run(); }
+            catch(Exception failure) { System.err.println("Recipe MCP server stopped: "+failure.getClass().getSimpleName()); System.exit(1); }
+            return;
+        }
         SpringApplication.run(DietApplication.class, args);
     }
 }

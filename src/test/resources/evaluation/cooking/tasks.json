@@ -1,0 +1,365 @@
+[
+  {
+    "id": "cooking_1",
+    "message": "用番茄和鸡蛋找食谱",
+    "context": {},
+    "expectedAction": "search",
+    "expectedText": "缺少",
+    "expectedIds": [
+      "recipe_01"
+    ],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_2",
+    "message": "番茄炒蛋怎么做",
+    "context": {},
+    "expectedAction": "detail",
+    "expectedText": "炒软番茄",
+    "expectedIds": [
+      "recipe_01"
+    ],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_3",
+    "message": "recipe_03怎么做",
+    "context": {},
+    "expectedAction": "detail",
+    "expectedText": "香菇",
+    "expectedIds": [
+      "recipe_03"
+    ],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_4",
+    "message": "recipe_08里的牛奶可以用什么替换",
+    "context": {},
+    "expectedAction": "substitute",
+    "expectedText": "燕麦奶",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_5",
+    "message": "recipe_03里的香菇可以用什么替换",
+    "context": {},
+    "expectedAction": "substitute",
+    "expectedText": "青菜",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_6",
+    "message": "recipe_01里的鸡蛋可以用什么替换",
+    "context": {},
+    "expectedAction": "substitute",
+    "expectedText": "没有适用",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_7",
+    "message": "用西红柿和鸡蛋找食谱",
+    "context": {},
+    "expectedAction": "search",
+    "expectedText": "recipe_01",
+    "expectedIds": [
+      "recipe_01"
+    ],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_8",
+    "message": "recipe_09怎么做",
+    "context": {},
+    "expectedAction": "detail",
+    "expectedText": "南瓜",
+    "expectedIds": [
+      "recipe_09"
+    ],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_9",
+    "message": "recipe_12怎么做",
+    "context": {},
+    "expectedAction": "detail",
+    "expectedText": "大蒜",
+    "expectedIds": [
+      "recipe_12"
+    ],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_10",
+    "message": "用燕麦找食谱",
+    "context": {},
+    "expectedAction": "search",
+    "expectedText": "recipe_08",
+    "expectedIds": [
+      "recipe_08"
+    ],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_11",
+    "message": "晚餐吃什么",
+    "context": {},
+    "expectedAction": "none",
+    "expectedText": "",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_12",
+    "message": "今天的天气怎样",
+    "context": {},
+    "expectedAction": "none",
+    "expectedText": "",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_13",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "search",
+        "requiredIngredients": [
+          "豆腐"
+        ]
+      }
+    },
+    "expectedAction": "search",
+    "expectedText": "recipe_03",
+    "expectedIds": [
+      "recipe_03",
+      "recipe_07"
+    ],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_14",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "search",
+        "query": "番茄炒蛋",
+        "excludedIngredients": [
+          "鸡蛋"
+        ]
+      }
+    },
+    "expectedAction": "search",
+    "expectedText": "没有找到",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_15",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "detail",
+        "recipeId": "recipe_08"
+      }
+    },
+    "expectedAction": "reject",
+    "expectedText": "reject",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [
+      "牛奶"
+    ],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_16",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "substitute",
+        "recipeId": "recipe_08",
+        "ingredient": "牛奶"
+      }
+    },
+    "expectedAction": "substitute",
+    "expectedText": "燕麦奶",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [
+      "牛奶"
+    ],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_17",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "substitute",
+        "recipeId": "recipe_03",
+        "ingredient": "香菇"
+      }
+    },
+    "expectedAction": "substitute",
+    "expectedText": "没有适用",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [
+      "豆腐"
+    ],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_18",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "substitute",
+        "recipeId": "recipe_03",
+        "ingredient": "香菇",
+        "availableIngredients": [
+          "胡萝卜"
+        ]
+      }
+    },
+    "expectedAction": "substitute",
+    "expectedText": "没有适用",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_19",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "detail",
+        "recipeId": "recipe_99"
+      }
+    },
+    "expectedAction": "reject",
+    "expectedText": "reject",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_20",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "search",
+        "limit": "3"
+      }
+    },
+    "expectedAction": "reject",
+    "expectedText": "reject",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_21",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "search",
+        "userId": 2
+      }
+    },
+    "expectedAction": "reject",
+    "expectedText": "reject",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_22",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "search",
+        "availableIngredients": [
+          "神秘菌"
+        ]
+      }
+    },
+    "expectedAction": "reject",
+    "expectedText": "reject",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_23",
+    "message": "汤怎么做",
+    "context": {},
+    "expectedAction": "detail",
+    "expectedText": "有多个匹配",
+    "expectedIds": [
+      "recipe_03",
+      "recipe_04",
+      "recipe_10"
+    ],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {}
+  },
+  {
+    "id": "cooking_24",
+    "message": "做饭请求",
+    "context": {
+      "cookingRequest": {
+        "action": "detail",
+        "recipeId": "recipe_01"
+      }
+    },
+    "expectedAction": "reject",
+    "expectedText": "reject",
+    "expectedIds": [],
+    "requiredIngredients": [],
+    "excludedIngredients": [],
+    "requiredSlots": {
+      "taste": [
+        "辣"
+      ]
+    }
+  }
+]

@@ -1,0 +1,227 @@
+[
+  {
+    "recipeId": "recipe_01",
+    "name": "番茄炒蛋",
+    "ingredients": [
+      "番茄",
+      "鸡蛋",
+      "食用油",
+      "盐"
+    ],
+    "steps": [
+      "番茄洗净切块，鸡蛋打散。",
+      "锅中放食用油，将蛋液炒至凝固后盛出。",
+      "炒软番茄，加入鸡蛋翻炒至熟，用盐调味。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/01",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_02",
+    "name": "青菜鸡蛋面",
+    "ingredients": [
+      "青菜",
+      "鸡蛋",
+      "面条",
+      "水",
+      "盐"
+    ],
+    "steps": [
+      "青菜洗净，鸡蛋打散。",
+      "水煮开后下面条，煮至接近熟。",
+      "加入青菜和蛋液，继续煮至全部熟透，用盐调味。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/02",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_03",
+    "name": "香菇豆腐汤",
+    "ingredients": [
+      "香菇",
+      "豆腐",
+      "水",
+      "盐"
+    ],
+    "steps": [
+      "香菇洗净切片，豆腐切块。",
+      "将香菇加入水中煮熟，再放入豆腐。",
+      "继续煮至食材熟透，用盐调味。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/03",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_04",
+    "name": "胡萝卜土豆汤",
+    "ingredients": [
+      "胡萝卜",
+      "土豆",
+      "水",
+      "盐"
+    ],
+    "steps": [
+      "胡萝卜和土豆洗净去皮切块。",
+      "加水煮至块状食材软熟。",
+      "用盐调味后盛出。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/04",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_05",
+    "name": "黄瓜生菜沙拉",
+    "ingredients": [
+      "黄瓜",
+      "生菜",
+      "食用油",
+      "盐"
+    ],
+    "steps": [
+      "黄瓜和生菜用清洁流水洗净，沥水。",
+      "黄瓜切片，生菜撕小块。",
+      "拌入食用油和盐，现拌现吃。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/05",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_06",
+    "name": "青椒鸡肉",
+    "ingredients": [
+      "青椒",
+      "鸡肉",
+      "食用油",
+      "盐"
+    ],
+    "steps": [
+      "青椒洗净切块，鸡肉切小块。",
+      "锅中加油，将鸡肉炒至熟透。",
+      "加入青椒继续炒熟，用盐调味。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/06",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_07",
+    "name": "西兰花豆腐",
+    "ingredients": [
+      "西兰花",
+      "豆腐",
+      "食用油",
+      "盐",
+      "水"
+    ],
+    "steps": [
+      "西兰花洗净分小朵，用水煮熟沥出。",
+      "豆腐切块，放入加油的锅中煎至表面定型。",
+      "加入西兰花翻炒至热透，用盐调味。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/07",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_08",
+    "name": "牛奶燕麦",
+    "ingredients": [
+      "牛奶",
+      "燕麦"
+    ],
+    "steps": [
+      "将燕麦与牛奶放入锅中。",
+      "小火搅拌加热，煮至燕麦熟软。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/08",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_09",
+    "name": "南瓜小米粥",
+    "ingredients": [
+      "南瓜",
+      "小米",
+      "水"
+    ],
+    "steps": [
+      "南瓜去皮去籽切块，小米淘洗。",
+      "加水煮开，转小火煮至小米与南瓜软熟。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/09",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_10",
+    "name": "白菜粉丝汤",
+    "ingredients": [
+      "白菜",
+      "粉丝",
+      "水",
+      "盐"
+    ],
+    "steps": [
+      "白菜洗净切段，粉丝按包装说明处理。",
+      "锅中水煮开，加入白菜煮熟。",
+      "放入粉丝继续煮熟，用盐调味。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/10",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_11",
+    "name": "鸡蛋炒饭",
+    "ingredients": [
+      "鸡蛋",
+      "米饭",
+      "食用油",
+      "盐"
+    ],
+    "steps": [
+      "鸡蛋打散，米饭打松。",
+      "锅中放油，将鸡蛋炒至凝固。",
+      "加入妥善冷藏的熟米饭，翻炒至充分热透，用盐调味。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/11",
+    "version": "1",
+    "status": "example_unverified"
+  },
+  {
+    "recipeId": "recipe_12",
+    "name": "蒜香青菜",
+    "ingredients": [
+      "青菜",
+      "大蒜",
+      "食用油",
+      "盐"
+    ],
+    "steps": [
+      "青菜洗净沥水，大蒜切碎。",
+      "锅中加油，放蒜碎炒出香味。",
+      "加入青菜炒熟，用盐调味。"
+    ],
+    "sourceType": "LOCAL_EXAMPLE",
+    "sourceReference": "local:recipes/v1/12",
+    "version": "1",
+    "status": "example_unverified"
+  }
+]

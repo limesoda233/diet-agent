@@ -119,6 +119,10 @@ public class DietOrchestratorService {
     private final AgentTraceService agentTraceService;
     private final MealRetrievalService retrievalService;
     private final ConstraintParser constraintParser;
+    private com.diet.service.cooking.CookingService cookingService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setCookingService(com.diet.service.cooking.CookingService cookingService) { this.cookingService=cookingService; }
 
     /**
      * 会话级锁 Map，key=sessionId，value=锁对象，保证同 session 串行写状态。
@@ -221,6 +225,25 @@ public class DietOrchestratorService {
 
         // Trace 事件：USER_MESSAGE_RECORDED | 阶段 SESSION | 输入=用户原文 | 输出=sessionId+sourceMode
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", request.message(), Map.of("sessionId", sessionId, "sourceMode", sourceMode));
+
+        if(cookingService!=null && cookingService.matches(request.message(),request.context())) {
+            if(!cookingService.enabled()) return completeTextOnly(sessionId,traceId,state,Intent.OTHER,
+                    ResponseResult.textOnly("食谱工具尚未启用，请启用 diet.cooking.enabled 后再使用。"));
+            try {
+                var resolved=constraintParser.resolveContext(request.message(),state.retrieval(),request.context(),false);
+                state=state.withRetrieval(new RetrievalContext(state.retrieval().queryText(),resolved.constraints(),resolved.source()));
+            } catch(IllegalArgumentException invalid) {
+                if(state.retrieval().pendingConstraintText().isBlank()) state=state.withRetrieval(state.retrieval().pending(request.message()));
+                return completeAsk(sessionId,traceId,state,ClarifyResult.ask(invalid.getMessage(),List.of("retrievalConstraints")));
+            }
+            try {
+                var cookingRequest=cookingService.route(request.message(),request.context());
+                var response=cookingService.respond(cookingRequest,state.retrieval().constraints());
+                return completeTextOnly(sessionId,traceId,state,Intent.OTHER,ResponseResult.textOnly(response));
+            } catch(IllegalArgumentException invalid) {
+                return completeAsk(sessionId,traceId,state,ClarifyResult.ask(invalid.getMessage(),List.of("cookingRequest")));
+            }
+        }
 
         // PERSONAL 模式且用户尚未录入任何个人餐食时，提前返回引导文案，跳过后续检索
         if (sourceMode == SourceMode.PERSONAL && !mealService.hasPersonalMeals(userId)) {
