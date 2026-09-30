@@ -1,14 +1,14 @@
 # Diet Agent 规格驱动开发
 
-日期：2026-09-10。
+日期：2026-09-30。
 
 ## 已确认决策
 
 - 采用 Spec-Driven Development：规格 → 验收标准 → 实现任务 → 代码与测试 → 验收记录。
-- 顺序：餐食检索评测 → 混合 RAG → 食谱与食材替换 MCP。
-- 保留 Java、Spring Boot、AgentScope、MyBatis、MySQL；增加本地 Qdrant 和可配置的云 embedding API。用户尚未选择 embedding 服务商。
+- 阶段 004 的当前方向覆盖阶段 002/003 的产品方向：餐食推荐只走 MySQL，RAG 只检索公共菜谱，MCP 调整为后续的视频教学搜索能力。
+- 保留 Java、Spring Boot、AgentScope、MyBatis、MySQL；菜谱 RAG 使用 Lucene BM25、本地 Qdrant 和可配置的 AgentScope embedding 适配器，开发环境优先本地 Ollama。
 - 评测从仓库的 45 道种子餐食建立独立快照，不依赖或改写当前用户数据库。
-- MCP 服务在家做饭场景：按已有食材找食谱、查询做法、寻找替代食材。营养 MCP 与 agentic RAG 不在本轮范围。
+- 用户个人餐食做法保存在 MySQL `meal_knowledge`，不进入公共向量库。视频 MCP 本轮只做 disabled/fake provider 契约。
 
 ## 阶段交付
 
@@ -17,8 +17,9 @@
 | 001 | 固定语料、可复核标注、真实 MySQL 检索基线、分切片报告 | 可复现、指标正确、限制与标注状态明确 |
 | 002 | 原始查询与约束、结构化与语义召回、融合重排、索引同步、回退、Trace | 同版本语料对比；权限和明确约束不能被放宽 |
 | 003 | 食谱/替换工具、MCP Server、AgentScope 客户端、调用记录 | 协议联调、来源可见、禁用食材校验、失败回退 |
+| 004 | 移除餐食 RAG；HowToCook 菜谱 RAG、并行混合检索、评测与视频 MCP 边界 | MySQL 推荐独立可用；菜谱召回、忠实度、引用、拒答和并行性能可复现 |
 
-第一阶段已完成工程验收，见 [001 验收记录](001-meal-retrieval-evaluation/acceptance.md)。第二阶段已实现混合检索工程版本，见 [002 验收记录](002-hybrid-meal-rag/acceptance.md) 与 [运行说明](002-hybrid-meal-rag/runbook.md)；真实云 embedding 效果仍待 RAG-10，最终 Qdrant 复测受 Docker 启动故障影响。第三阶段已实现独立食谱/替换 MCP、本地示例数据和固定任务评测，见 [003 规格](003-recipe-substitution-mcp/spec.md)、[运行说明](003-recipe-substitution-mcp/runbook.md) 和 [验收记录](003-recipe-substitution-mcp/acceptance.md)。
+第一阶段已完成工程验收，见 [001 验收记录](001-meal-retrieval-evaluation/acceptance.md)。阶段 002 和 003 是已完成的实验实现，其与当前需求冲突的部分将在阶段 004 移除或替换，Git 历史保留原实验记录。当前设计见 [004 菜谱 RAG 规格](004-recipe-rag/spec.md)。
 
 ## 开发约束
 
