@@ -35,7 +35,6 @@ import com.diet.service.session.SessionService;
 import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
-import com.diet.service.retrieval.*;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -121,7 +120,6 @@ public class DietOrchestratorService {
      * 链路追踪服务，记录状态机事件和 Agent 调用到 agent_traces 表。
      */
     private final AgentTraceService agentTraceService;
-    private final MealRetrievalService retrievalService;
     private final ConstraintParser constraintParser;
     private com.diet.service.cooking.CookingService cookingService;
 
@@ -150,7 +148,6 @@ public class DietOrchestratorService {
             MealService mealService,
             RiskGuardService riskGuardService,
             AgentTraceService agentTraceService,
-            MealRetrievalService retrievalService,
             ConstraintParser constraintParser
     ) {
         this.sessionService = sessionService;                           // 注入消息落库服务
@@ -166,7 +163,6 @@ public class DietOrchestratorService {
         this.mealService = mealService;                                 // 注入餐食服务
         this.riskGuardService = riskGuardService;             // 注入健康守卫
         this.agentTraceService = agentTraceService;                     // 注入链路追踪服务
-        this.retrievalService = retrievalService;
         this.constraintParser = constraintParser;
     }
 
@@ -463,14 +459,14 @@ public class DietOrchestratorService {
      * 完整推荐流水线：检索 → 重排 → LLM 生成理由与口语回复 → Guard 审查 → 持久化并返回。
      */
     private ChatResponse completeRecommendation(String sessionId, Long userId, String userInput, String traceId, SessionState state, List<Long> excludeMealIds) {
-        var retrieval = retrievalService.retrieve(new MealRetrievalRequest(state.mealConstraintContext().queryText(), state.sourceMode(), userId,
-                state.slots(), excludeMealIds, state.mealConstraintContext().constraints()));
-        List<MealItem> candidates = retrieval.candidates();
+        List<MealItem> candidates = mealSearchService.search(new MealSearchRequest(
+                state.sourceMode(), userId, state.slots(), excludeMealIds,
+                state.mealConstraintContext().constraints()));
         // Trace 事件：MEAL_SEARCHED | 阶段 SEARCH | 输入=slots | 输出=候选数量+candidates 列表
         agentTraceService.recordEvent("MEAL_SEARCHED", "SEARCH", state.slots(), Map.of("candidateCount", candidates.size(), "candidates", candidates));
 
         // 构造排序请求：候选列表 + slots + excludeMealIds，返回 top10
-        List<MealItem> ranked = retrieval.ranked();
+        List<MealItem> ranked = mealRankService.rank(new MealRankRequest(candidates, state.slots(), excludeMealIds));
         // Trace 事件：MEAL_RANKED | 阶段 RANK | 输入=excludeMealIds | 输出=重排后数量+ranked 列表
         agentTraceService.recordEvent("MEAL_RANKED", "RANK", Map.of("excludeMealIds", excludeMealIds), Map.of("rankedCount", ranked.size(), "ranked", ranked));
 

@@ -189,7 +189,7 @@ git commit -m "refactor: separate meal knowledge from retrieval"
 - Consumes: Task 1 `MealSearchRequest.constraints` 和 `MealKnowledgeRepository`。
 - Produces: 推荐主链仅调用 `MealSearchService.search` + `MealRankService.rank`；数据库迁移只删除旧派生表。
 
-- [ ] **Step 1: 写无向量依赖推荐与迁移保留数据测试**
+- [x] **Step 1: 写无向量依赖推荐与迁移保留数据测试**
 
 ```java
 assertThat(context.containsBean("mealRetrievalService")).isFalse();
@@ -198,13 +198,13 @@ assertThat(query("select preparation from meal_knowledge where meal_id=9"))
         .isEqualTo("保留的用户做法");
 ```
 
-- [ ] **Step 2: 运行测试并确认仍存在旧 Bean/迁移**
+- [x] **Step 2: 运行测试并确认仍存在旧 Bean/迁移**
 
 Run: `mvn -Dtest=MySqlOnlyRecommendationTest,RemoveMealRagMigrationTest test`
 
 Expected: FAIL，旧 `MealRetrievalService` 仍注册，清理迁移尚不存在。
 
-- [ ] **Step 3: 改写推荐调用并删除旧代码**
+- [x] **Step 3: 改写推荐调用并删除旧代码**
 
 ```java
 List<MealItem> candidates = mealSearchService.search(
@@ -220,13 +220,13 @@ DROP TABLE IF EXISTS meal_index_progress;
 DROP TABLE IF EXISTS meal_index_task;
 ```
 
-- [ ] **Step 4: 运行推荐、会话、阶段 001 与迁移测试**
+- [x] **Step 4: 运行推荐、会话、阶段 001 与迁移测试**
 
 Run: `mvn -Dtest=MySqlOnlyRecommendationTest,RemoveMealRagMigrationTest,MealPlanServiceTest,RetrievalBaselineEvaluationTest,RetrievalMetricsTest,RetrievalReportTest test`
 
 Expected: PASS；源码中不再有 `MealRetrievalService`、餐食 embedding 或餐食 Qdrant Bean。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add -A src/main/java/com/diet/service/retrieval src/test/java/com/diet/service/retrieval src/test/java/com/diet/evaluation/retrieval docs/specs/002-hybrid-meal-rag src/main/java/com/diet/service/meal src/main/java/com/diet/service/orchestrator src/main/resources

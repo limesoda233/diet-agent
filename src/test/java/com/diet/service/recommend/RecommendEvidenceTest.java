@@ -1,4 +1,4 @@
-package com.diet.service.retrieval;
+package com.diet.service.recommend;
 
 import com.diet.service.meal.knowledge.MealKnowledge;
 
@@ -17,7 +17,7 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-class RetrievalEvidenceTest {
+class RecommendEvidenceTest {
     @Test void sendsOnlyTopThreeEvidenceAndPreservesOrderDespiteFabricatedModelIds() {
         var factory=mock(AgentFactory.class); var trace=mock(AgentTraceService.class);
         var agent=mock(ReActAgent.class,RETURNS_DEEP_STUBS);

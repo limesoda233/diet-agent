@@ -1,4 +1,4 @@
-package com.diet.service.retrieval;
+package com.diet.service.meal;
 
 import com.diet.model.MealRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
