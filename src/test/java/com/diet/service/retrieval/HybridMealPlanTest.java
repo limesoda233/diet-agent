@@ -1,5 +1,9 @@
 package com.diet.service.retrieval;
 
+import com.diet.service.meal.constraint.MealConstraintContext;
+
+import com.diet.service.meal.constraint.MealConstraints;
+
 import com.diet.enums.SourceMode;
 import com.diet.model.*;
 import com.diet.service.meal.MealPlanService;
@@ -26,7 +30,7 @@ class HybridMealPlanTest {
             var recommendation=new RecommendedMealOption(meal.id(),meal.sourceType(),meal.name(),"匹配",meal.matchScore(),meal.slots());
             return new RecommendResponseAgentService.Result(new RecommendResult(List.of(recommendation),false),new ResponseResult("餐食",List.of(MealResponse.from(meal)),"WAIT_USER"));
         });
-        service.buildPlan("s",1L,"三餐",SourceMode.PUBLIC,SlotBundle.empty(),new RetrievalContext("热食",constraints,"rule"));
+        service.buildPlan("s",1L,"三餐",SourceMode.PUBLIC,SlotBundle.empty(),new MealConstraintContext("热食",constraints,"rule"));
         var capture=ArgumentCaptor.forClass(MealRetrievalRequest.class); verify(retrieval,times(3)).retrieve(capture.capture());
         assertThat(capture.getAllValues()).allSatisfy(r->assertThat(r.constraints()).isEqualTo(constraints));
         assertThat(capture.getAllValues().get(2).excludeMealIds()).containsExactly(1L,2L);

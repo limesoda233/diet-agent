@@ -1,5 +1,9 @@
 package com.diet.service.meal;
 
+import com.diet.service.meal.constraint.MealConstraintContext;
+
+import com.diet.service.meal.constraint.MealConstraints;
+
 import com.diet.enums.SourceMode;
 import com.diet.model.MealItem;
 import com.diet.model.MealPlanBlock;
@@ -60,11 +64,11 @@ public class MealPlanService {
             String userInput,
             SourceMode sourceMode,
             SlotBundle baseSlots) {
-        return buildPlan(sessionId, userId, userInput, sourceMode, baseSlots, new RetrievalContext(userInput, MealConstraints.empty(), "legacy"));
+        return buildPlan(sessionId, userId, userInput, sourceMode, baseSlots, new MealConstraintContext(userInput, MealConstraints.empty(), "legacy"));
     }
 
     public PlanResult buildPlan(String sessionId, Long userId, String userInput, SourceMode sourceMode,
-                                SlotBundle baseSlots, RetrievalContext context) {
+                                SlotBundle baseSlots, MealConstraintContext context) {
         SlotBundle safeBaseSlots = baseSlots == null ? SlotBundle.empty() : baseSlots;
         List<MealPlanBlock> blocks = new ArrayList<>();
         List<RecommendedMealOption> recommendations = new ArrayList<>();

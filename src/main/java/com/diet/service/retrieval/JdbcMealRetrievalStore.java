@@ -1,5 +1,9 @@
 package com.diet.service.retrieval;
 
+import com.diet.service.meal.constraint.IngredientCatalog;
+
+import com.diet.service.meal.knowledge.MealKnowledge;
+
 import com.diet.enums.SourceMode;
 import com.diet.model.*;
 import com.fasterxml.jackson.core.type.TypeReference;

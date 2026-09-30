@@ -1,7 +1,7 @@
 package com.diet.model;
 
 import com.diet.enums.SourceMode;
-import com.diet.service.retrieval.MealKnowledge;
+import com.diet.service.meal.knowledge.MealKnowledge;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -26,7 +26,3 @@ public class MealItem {
         return matchScore;
     }
 }
-
-
-
-

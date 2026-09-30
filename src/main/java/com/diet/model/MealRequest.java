@@ -5,7 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
-import com.diet.service.retrieval.MealKnowledge;
+import com.diet.service.meal.knowledge.MealKnowledge;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -44,7 +44,3 @@ public class MealRequest {
         return new SlotBundle(mealTime, mood, scene, healthGoal, cuisine, taste, convenience);
     }
 }
-
-
-
-

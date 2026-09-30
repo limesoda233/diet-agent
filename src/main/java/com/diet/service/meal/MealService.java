@@ -7,10 +7,10 @@ import com.diet.model.MealItemRow;
 import com.diet.model.MealRequest;
 import com.diet.model.SlotBundle;
 import com.diet.enums.SourceMode;
+import com.diet.service.meal.constraint.MealConstraints;
+import com.diet.service.meal.knowledge.MealKnowledgeRepository;
 import com.diet.service.slot.SlotOptionService;
 import com.diet.util.JsonService;
-import com.diet.service.retrieval.JdbcMealRetrievalStore;
-import com.diet.service.retrieval.RetrievalProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,19 +30,17 @@ public class MealService {
     private final MealMapper mealMapper;
     private final SlotOptionService slotOptionService;
     private final JsonService jsonService;
-    private final JdbcMealRetrievalStore retrievalStore;
-    private final RetrievalProperties retrievalProperties;
+    private final MealKnowledgeRepository knowledgeRepository;
     public MealService(MealMapper mealMapper, SlotOptionService slotOptionService, JsonService jsonService) {
-        this(mealMapper, slotOptionService, jsonService, null, new RetrievalProperties());
+        this(mealMapper, slotOptionService, jsonService, null);
     }
     @Autowired
     public MealService(MealMapper mealMapper, SlotOptionService slotOptionService, JsonService jsonService,
-                       JdbcMealRetrievalStore retrievalStore, RetrievalProperties retrievalProperties) {
+                       MealKnowledgeRepository knowledgeRepository) {
         this.mealMapper = mealMapper;
         this.slotOptionService = slotOptionService;
         this.jsonService = jsonService;
-        this.retrievalStore = retrievalStore;
-        this.retrievalProperties = retrievalProperties;
+        this.knowledgeRepository = knowledgeRepository;
     }
 
     public List<MealItem> findPersonalMeals(Long userId) {
@@ -66,7 +64,7 @@ public class MealService {
         validateMealRequest(request);
         MealItemRow row = toRow(null, SourceMode.PERSONAL, userId, request);
         mealMapper.insert(row);
-        saveKnowledgeAndEnqueue(row.getId(), request);
+        saveKnowledge(row.getId(), request);
         return attachKnowledge(List.of(toMealItem(row))).get(0);
     }
 
@@ -78,7 +76,7 @@ public class MealService {
         if (updated == 0) {
             throw new DietException("个人餐食不存在或无权限修改");
         }
-        saveKnowledgeAndEnqueue(mealId, request);
+        saveKnowledge(mealId, request);
         return attachKnowledge(List.of(toMealItem(mealMapper.findPersonalById(mealId, userId)))).get(0);
     }
 
@@ -88,7 +86,7 @@ public class MealService {
         if (deleted == 0) {
             throw new DietException("个人餐食不存在或无权限删除");
         }
-        if (retrievalProperties.isEnabled()) { retrievalStore.deleteKnowledge(mealId); retrievalStore.enqueue(mealId); }
+        if (knowledgeRepository != null) knowledgeRepository.delete(mealId);
     }
 
     /**
@@ -96,20 +94,25 @@ public class MealService {
      * 由 MealSearchService#search 调用；MySQL JSON_OVERLAPS 召回后 Java 侧 overlap 打分。
      */
     public List<MealItem> search(SourceMode sourceMode, Long userId, SlotBundle slots) {
-        // MyBatis 执行 JSON_OVERLAPS 检索，7 维槽位各传 JSON 数组，最多拉 SEARCH_LIMIT=50 条
+        return search(sourceMode, userId, slots, MealConstraints.empty());
+    }
+
+    public List<MealItem> search(SourceMode sourceMode, Long userId, SlotBundle slots, MealConstraints constraints) {
+        MealConstraints safeConstraints = constraints == null ? MealConstraints.empty() : constraints;
         List<MealItemRow> rows = mealMapper.search(
-                sourceMode,                                      // PERSONAL 或 PUBLIC，决定查哪张数据
-                userId,                                          // PERSONAL 时过滤 owner_user_id
-                jsonService.toJsonArray(slots.mealTime()),       // 餐次标签 JSON 数组
-                jsonService.toJsonArray(slots.mood()),           // 心情标签 JSON 数组
-                jsonService.toJsonArray(slots.scene()),          // 场景标签 JSON 数组
-                jsonService.toJsonArray(slots.healthGoal()),     // 健康目标 JSON 数组
-                jsonService.toJsonArray(slots.cuisine()),        // 菜系 JSON 数组
-                jsonService.toJsonArray(slots.taste()),          // 口味 JSON 数组
-                jsonService.toJsonArray(slots.convenience()),    // 便捷性 JSON 数组
-                SEARCH_LIMIT                                     // DB 层最多返回 50 行
+                sourceMode,
+                userId,
+                jsonService.toJsonArray(slots.mealTime()),
+                jsonService.toJsonArray(slots.mood()),
+                jsonService.toJsonArray(slots.scene()),
+                jsonService.toJsonArray(slots.healthGoal()),
+                jsonService.toJsonArray(slots.cuisine()),
+                jsonService.toJsonArray(slots.taste()),
+                jsonService.toJsonArray(slots.convenience()),
+                jsonService.toJsonArray(safeConstraints.requiredIngredients()),
+                jsonService.toJsonArray(safeConstraints.excludedIngredients()),
+                SEARCH_LIMIT
         );
-        // Row → MealItem
         return rows.stream().map(this::toMealItem).toList();
     }
 
@@ -117,7 +120,6 @@ public class MealService {
         if (request == null || request.name() == null || request.name().isBlank()) {
             throw new DietException("餐食名称不能为空");
         }
-        if (request.knowledgeProvided() && !retrievalProperties.isEnabled()) throw new DietException("请先完成知识库迁移并启用 diet.retrieval.enabled");
         if (request.knowledge() != null && !"USER_PROVIDED".equals(request.knowledge().sourceType())) throw new DietException("个人录入的知识来源必须为 USER_PROVIDED");
         SlotBundle slots = request.toSlots();
         if (slots.mealTime().isEmpty()) {
@@ -126,18 +128,17 @@ public class MealService {
         slotOptionService.validate(slots);
     }
 
-    private void saveKnowledgeAndEnqueue(Long id, MealRequest request) {
-        if (!retrievalProperties.isEnabled()) return;
-        if (request.knowledgeProvided()) retrievalStore.saveKnowledge(id, request.knowledge());
-        retrievalStore.enqueue(id);
+    private void saveKnowledge(Long id, MealRequest request) {
+        if (request.knowledgeProvided() && knowledgeRepository != null) {
+            knowledgeRepository.save(id, request.knowledge());
+        }
     }
 
     private List<MealItem> attachKnowledge(List<MealItem> items) {
-        if (!retrievalProperties.isEnabled() || items.isEmpty()) return items;
-        var documents = retrievalStore.find(items.stream().map(MealItem::id).toList());
+        if (knowledgeRepository == null || items.isEmpty()) return items;
+        var knowledgeByMealId = knowledgeRepository.findByMealIds(items.stream().map(MealItem::id).toList());
         return items.stream().map(item -> {
-            var document = documents.get(item.id());
-            if (document != null && document.meal().sourceType() == item.sourceType() && java.util.Objects.equals(document.meal().ownerUserId(), item.ownerUserId())) item.knowledge(document.knowledge());
+            item.knowledge(knowledgeByMealId.get(item.id()));
             return item;
         }).toList();
     }

@@ -1,5 +1,11 @@
 package com.diet.service.cooking;
 
+import com.diet.service.meal.constraint.MealConstraintContext;
+
+import com.diet.service.meal.constraint.IngredientCatalog;
+
+import com.diet.service.meal.constraint.ConstraintParser;
+
 import com.diet.enums.*;
 import com.diet.model.*;
 import com.diet.service.clarify.ClarifyAgentService;
@@ -34,7 +40,7 @@ class CookingOrchestratorTest {
         var saved=ArgumentCaptor.forClass(SessionState.class); verify(states).save(saved.capture());
         assertThat(saved.getValue().lastRecommendations()).containsExactly(7L);
         verifyNoInteractions(intent,meals,retrieval);
-        when(states.loadOrCreate("s",1L,SourceMode.PERSONAL)).thenReturn(state.withRetrieval(RetrievalContext.empty().pending("必须含西虹柿")));
+        when(states.loadOrCreate("s",1L,SourceMode.PERSONAL)).thenReturn(state.withMealConstraintContext(MealConstraintContext.empty().pending("必须含西虹柿")));
         assertThat(service.dietChat(1L,new ChatRequest("s","番茄炒蛋怎么做",SourceMode.PERSONAL,Map.of())).responseType()).isEqualTo("CLARIFY");
     }
 }

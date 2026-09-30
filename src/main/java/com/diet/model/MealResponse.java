@@ -3,7 +3,7 @@ package com.diet.model;
 import java.util.List;
 
 import com.diet.enums.SourceMode;
-import com.diet.service.retrieval.MealKnowledge;
+import com.diet.service.meal.knowledge.MealKnowledge;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 
 import lombok.AllArgsConstructor;
@@ -54,7 +54,3 @@ public class MealResponse {
         );
     }
 }
-
-
-
-

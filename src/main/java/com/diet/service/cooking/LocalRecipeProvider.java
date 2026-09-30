@@ -1,6 +1,6 @@
 package com.diet.service.cooking;
 
-import com.diet.service.retrieval.IngredientCatalog;
+import com.diet.service.meal.constraint.IngredientCatalog;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 

@@ -36,6 +36,22 @@
         updated_at
     </sql>
 
+    <sql id="AliasedMealColumns">
+        m.id AS id,
+        m.source_type AS source_type,
+        m.owner_user_id AS owner_user_id,
+        m.name AS name,
+        m.meal_time AS meal_time,
+        m.mood AS mood,
+        m.scene AS scene,
+        m.health_goal AS health_goal,
+        m.cuisine AS cuisine,
+        m.taste AS taste,
+        m.convenience AS convenience,
+        m.created_at AS created_at,
+        m.updated_at AS updated_at
+    </sql>
+
     <insert id="insert"
             parameterType="com.diet.model.MealItemRow"
             useGeneratedKeys="true"
@@ -106,28 +122,35 @@
     </select>
 
     <select id="search" resultMap="MealItemRowMap">
-        SELECT <include refid="MealColumns"/>
-        FROM meal_item
+        SELECT <include refid="AliasedMealColumns"/>
+        FROM meal_item m
+        LEFT JOIN meal_knowledge k ON k.meal_id = m.id
         <where>
             <choose>
                 <when test="sourceMode != null and sourceMode.name() == 'PERSONAL'">
-                    source_type = 'PERSONAL'
-                    AND owner_user_id = #{userId}
+                    m.source_type = 'PERSONAL'
+                    AND m.owner_user_id = #{userId}
                 </when>
                 <otherwise>
-                    source_type = 'PUBLIC'
-                    AND owner_user_id IS NULL
+                    m.source_type = 'PUBLIC'
+                    AND m.owner_user_id IS NULL
                 </otherwise>
             </choose>
-            AND (#{mealTimeJson} = '[]' OR JSON_OVERLAPS(meal_time, #{mealTimeJson}))
-            AND (#{moodJson} = '[]' OR JSON_OVERLAPS(mood, #{moodJson}))
-            AND (#{sceneJson} = '[]' OR JSON_OVERLAPS(scene, #{sceneJson}))
-            AND (#{healthGoalJson} = '[]' OR JSON_OVERLAPS(health_goal, #{healthGoalJson}))
-            AND (#{cuisineJson} = '[]' OR JSON_OVERLAPS(cuisine, #{cuisineJson}))
-            AND (#{tasteJson} = '[]' OR JSON_OVERLAPS(taste, #{tasteJson}))
-            AND (#{convenienceJson} = '[]' OR JSON_OVERLAPS(convenience, #{convenienceJson}))
+            AND (#{mealTimeJson} = '[]' OR JSON_OVERLAPS(m.meal_time, #{mealTimeJson}))
+            AND (#{moodJson} = '[]' OR JSON_OVERLAPS(m.mood, #{moodJson}))
+            AND (#{sceneJson} = '[]' OR JSON_OVERLAPS(m.scene, #{sceneJson}))
+            AND (#{healthGoalJson} = '[]' OR JSON_OVERLAPS(m.health_goal, #{healthGoalJson}))
+            AND (#{cuisineJson} = '[]' OR JSON_OVERLAPS(m.cuisine, #{cuisineJson}))
+            AND (#{tasteJson} = '[]' OR JSON_OVERLAPS(m.taste, #{tasteJson}))
+            AND (#{convenienceJson} = '[]' OR JSON_OVERLAPS(m.convenience, #{convenienceJson}))
+            AND ((#{requiredIngredientsJson} = '[]' AND #{excludedIngredientsJson} = '[]')
+                 OR (k.ingredients IS NOT NULL AND JSON_LENGTH(k.ingredients) &gt; 0))
+            AND (#{requiredIngredientsJson} = '[]'
+                 OR JSON_CONTAINS(k.ingredients, #{requiredIngredientsJson}))
+            AND (#{excludedIngredientsJson} = '[]'
+                 OR NOT JSON_OVERLAPS(k.ingredients, #{excludedIngredientsJson}))
         </where>
-        ORDER BY updated_at DESC
+        ORDER BY m.updated_at DESC
         LIMIT #{limit}
     </select>
 

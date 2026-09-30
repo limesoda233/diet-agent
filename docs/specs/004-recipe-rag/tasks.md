@@ -93,7 +93,7 @@
 - Produces: `MealKnowledgeRepository.save/delete/findByMealIds/findPersonal`；`MealSearchRequest(..., MealConstraints constraints)`；`MealService.search(..., MealConstraints constraints)`；`SessionState.mealConstraintContext()`。
 - Preserves: `MealKnowledge` JSON 字段和 `retrievalConstraints` 请求字段的兼容读取。
 
-- [ ] **Step 1: 写知识保存不依赖 RAG 开关的失败测试**
+- [x] **Step 1: 写知识保存不依赖 RAG 开关的失败测试**
 
 ```java
 @Test
@@ -104,7 +104,7 @@ void savesAndReadsPersonalKnowledgeWithoutRetrievalConfiguration() {
 }
 ```
 
-- [ ] **Step 2: 写显式食材约束的 SQL 失败测试**
+- [x] **Step 2: 写显式食材约束的 SQL 失败测试**
 
 ```java
 var request = new MealSearchRequest(SourceMode.PUBLIC, 1L, SlotBundle.empty(), List.of(),
@@ -112,13 +112,13 @@ var request = new MealSearchRequest(SourceMode.PUBLIC, 1L, SlotBundle.empty(), L
 assertThat(service.search(request)).extracting(MealItem::name).containsExactly("番茄炒蛋");
 ```
 
-- [ ] **Step 3: 运行定向测试并确认旧实现失败**
+- [x] **Step 3: 运行定向测试并确认旧实现失败**
 
 Run: `mvn -Dtest=MealKnowledgeRepositoryTest,MealConstraintSearchTest,MealServiceKnowledgeTest test`
 
 Expected: FAIL，因为仓储与新请求签名尚不存在，且知识保存仍受 `diet.retrieval.enabled` 限制。
 
-- [ ] **Step 4: 实现最小仓储、约束包迁移和 MySQL 过滤**
+- [x] **Step 4: 实现最小仓储、约束包迁移和 MySQL 过滤**
 
 ```java
 public List<MealItem> search(SourceMode sourceMode, Long userId, SlotBundle slots, MealConstraints constraints) {
@@ -136,13 +136,13 @@ public List<MealItem> search(SourceMode sourceMode, Long userId, SlotBundle slot
 
 `MealMapper.xml` 对显式食材约束使用 `LEFT JOIN meal_knowledge k`、`JSON_CONTAINS` 和 `NOT JSON_OVERLAPS`；存在任一食材约束时附加 `k.ingredients IS NOT NULL AND JSON_LENGTH(k.ingredients) > 0`，禁止把未知知识当作满足条件。
 
-- [ ] **Step 5: 运行定向测试与阶段 001 回归**
+- [x] **Step 5: 运行定向测试与阶段 001 回归**
 
 Run: `mvn -Dtest=MealKnowledgeRepositoryTest,MealConstraintSearchTest,MealServiceKnowledgeTest,MySqlRetrievalBaselineTest,RetrievalDatasetTest test`
 
 Expected: PASS；知识 CRUD 不读取任何 RAG 开关，阶段 001 数据集未改变。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add src/main/java/com/diet/service/meal src/main/java/com/diet/model src/main/java/com/diet/mapper/MealMapper.java src/main/resources/mapper/MealMapper.xml src/test/java/com/diet/service/meal

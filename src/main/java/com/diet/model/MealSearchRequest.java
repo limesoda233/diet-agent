@@ -3,6 +3,7 @@ package com.diet.model;
 import java.util.List;
 
 import com.diet.enums.SourceMode;
+import com.diet.service.meal.constraint.MealConstraints;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -23,4 +24,10 @@ public class MealSearchRequest {
     private SlotBundle slots;
     /** 需要从结果中排除的上一轮推荐餐食。 */
     private List<Long> excludeMealIds;
+    /** 必须由 MySQL 确定性执行的显式食材与标签限制。 */
+    private MealConstraints constraints;
+
+    public MealSearchRequest(SourceMode sourceMode, Long userId, SlotBundle slots, List<Long> excludeMealIds) {
+        this(sourceMode, userId, slots, excludeMealIds, MealConstraints.empty());
+    }
 }

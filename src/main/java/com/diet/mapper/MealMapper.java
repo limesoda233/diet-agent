@@ -33,10 +33,8 @@ public interface MealMapper {
             @Param("cuisineJson") String cuisineJson,
             @Param("tasteJson") String tasteJson,
             @Param("convenienceJson") String convenienceJson,
+            @Param("requiredIngredientsJson") String requiredIngredientsJson,
+            @Param("excludedIngredientsJson") String excludedIngredientsJson,
             @Param("limit") int limit
     );
 }
-
-
-
-

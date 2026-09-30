@@ -1,6 +1,6 @@
 package com.diet.service.cooking;
 
-import com.diet.service.retrieval.MealConstraints;
+import com.diet.service.meal.constraint.MealConstraints;
 import com.diet.service.trace.AgentTraceService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

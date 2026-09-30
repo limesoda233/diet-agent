@@ -1,5 +1,11 @@
 package com.diet.service.retrieval;
 
+import com.diet.service.meal.constraint.MealConstraintContext;
+
+import com.diet.service.meal.constraint.IngredientCatalog;
+
+import com.diet.service.meal.constraint.ConstraintParser;
+
 import com.diet.enums.*;
 import com.diet.model.*;
 import com.diet.service.clarify.ClarifyAgentService;
@@ -40,6 +46,6 @@ class HybridOrchestratorTest {
         when(retrieval.retrieve(any())).thenThrow(new IllegalArgumentException("明确限制需要启用检索知识库"));
         assertThatCode(()->service.dietChat(1L,new ChatRequest("s","晚餐不要牛肉",SourceMode.PUBLIC,Map.of()))).doesNotThrowAnyException();
         var saved=ArgumentCaptor.forClass(SessionState.class); verify(states,atLeastOnce()).save(saved.capture());
-        assertThat(saved.getValue().retrieval().constraints().excludedIngredients()).containsExactly("牛肉");
+        assertThat(saved.getValue().mealConstraintContext().constraints().excludedIngredients()).containsExactly("牛肉");
     }
 }

@@ -1,5 +1,11 @@
 package com.diet.evaluation.retrieval;
 
+import com.diet.service.meal.constraint.IngredientCatalog;
+
+import com.diet.service.meal.constraint.MealConstraints;
+
+import com.diet.service.meal.knowledge.MealKnowledge;
+
 import com.diet.enums.SourceMode;
 import com.diet.model.SlotBundle;
 import com.diet.service.retrieval.*;

@@ -1,5 +1,7 @@
 package com.diet.service.retrieval;
 
+import com.diet.service.meal.knowledge.MealKnowledge;
+
 import com.diet.enums.SourceMode;
 import com.diet.model.MealItem;
 import com.fasterxml.jackson.databind.ObjectMapper;

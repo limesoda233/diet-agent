@@ -38,6 +38,6 @@ public class MealSearchService {
         }
 
         // MealService.search：MySQL JSON_OVERLAPS
-        return mealService.search(request.sourceMode(), request.userId(), request.slots());
+        return mealService.search(request.sourceMode(), request.userId(), request.slots(), request.constraints());
     }
 }

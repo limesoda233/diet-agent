@@ -1,4 +1,4 @@
-package com.diet.service.retrieval;
+package com.diet.service.meal.constraint;
 
 import java.util.*;
 import java.util.regex.Pattern;
@@ -16,7 +16,7 @@ public class ConstraintParser {
     private final IngredientCatalog catalog;
     public ConstraintParser(IngredientCatalog catalog) { this.catalog = catalog; }
 
-    public RetrievalContext resolveContext(String text, RetrievalContext previous, Map<String,Object> context, boolean carryNeed) {
+    public MealConstraintContext resolveContext(String text, MealConstraintContext previous, Map<String,Object> context, boolean carryNeed) {
         boolean structured=context!=null && context.containsKey("retrievalConstraints");
         var base=previous.constraints();
         String constraintText=text;
@@ -35,7 +35,7 @@ public class ConstraintParser {
             boolean anotherBatch=text.trim().matches("(?:请)?(?:再)?(?:换一批|换几个|来一批|换一组)[。！!]?$");
             query=anotherBatch?previous.queryText():previous.queryText()+"；本轮调整："+text;
         }
-        return new RetrievalContext(query,constraints,structured?"structured":"rule_and_session");
+        return new MealConstraintContext(query,constraints,structured?"structured":"rule_and_session");
     }
 
     public MealConstraints resolve(String text, MealConstraints previous, Map<String,Object> context) {

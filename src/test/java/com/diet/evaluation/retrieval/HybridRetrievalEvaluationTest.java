@@ -1,5 +1,13 @@
 package com.diet.evaluation.retrieval;
 
+import com.diet.service.meal.constraint.IngredientCatalog;
+
+import com.diet.service.meal.constraint.MealConstraints;
+
+import com.diet.service.meal.constraint.ConstraintParser;
+
+import com.diet.service.meal.knowledge.MealKnowledge;
+
 import com.diet.model.MealItem;
 import com.diet.service.retrieval.*;
 import com.diet.service.trace.AgentTraceService;

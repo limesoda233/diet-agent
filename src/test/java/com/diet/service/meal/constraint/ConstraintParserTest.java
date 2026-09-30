@@ -1,4 +1,4 @@
-package com.diet.service.retrieval;
+package com.diet.service.meal.constraint;
 
 import org.junit.jupiter.api.Test;
 import java.util.List;

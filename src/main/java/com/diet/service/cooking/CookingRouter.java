@@ -1,5 +1,7 @@
 package com.diet.service.cooking;
 
+import com.diet.service.meal.constraint.IngredientCatalog;
+
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -41,7 +43,7 @@ public final class CookingRouter {
         if(!id.isEmpty() && !id.matches("recipe_[0-9]{2}")) throw new IllegalArgumentException("食谱 ID 格式无效");
         if(action.equals("detail") && id.isEmpty() && query.isEmpty() || action.equals("substitute") && id.isEmpty())
             throw new IllegalArgumentException("请提供食谱 ID，查看做法也可提供准确菜名");
-        if(!ingredient.isEmpty()) ingredient=new com.diet.service.retrieval.IngredientCatalog().normalize(ingredient);
+        if(!ingredient.isEmpty()) ingredient=new com.diet.service.meal.constraint.IngredientCatalog().normalize(ingredient);
         return new CookingRequest(action,id,query,ingredient,CookingArguments.ingredients(args,"availableIngredients"),
                 CookingArguments.ingredients(args,"requiredIngredients"),CookingArguments.ingredients(args,"excludedIngredients"),CookingArguments.limit(args));
     }

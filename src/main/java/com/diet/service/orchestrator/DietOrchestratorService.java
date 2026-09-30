@@ -1,5 +1,9 @@
 package com.diet.service.orchestrator;
 
+import com.diet.service.meal.constraint.MealConstraintContext;
+
+import com.diet.service.meal.constraint.ConstraintParser;
+
 import com.diet.exception.DietException;
 import com.diet.service.risk.RiskGuardService;
 import com.diet.enums.ClarifyAction;
@@ -230,15 +234,15 @@ public class DietOrchestratorService {
             if(!cookingService.enabled()) return completeTextOnly(sessionId,traceId,state,Intent.OTHER,
                     ResponseResult.textOnly("食谱工具尚未启用，请启用 diet.cooking.enabled 后再使用。"));
             try {
-                var resolved=constraintParser.resolveContext(request.message(),state.retrieval(),request.context(),false);
-                state=state.withRetrieval(new RetrievalContext(state.retrieval().queryText(),resolved.constraints(),resolved.source()));
+                var resolved=constraintParser.resolveContext(request.message(),state.mealConstraintContext(),request.context(),false);
+                state=state.withMealConstraintContext(new MealConstraintContext(state.mealConstraintContext().queryText(),resolved.constraints(),resolved.source()));
             } catch(IllegalArgumentException invalid) {
-                if(state.retrieval().pendingConstraintText().isBlank()) state=state.withRetrieval(state.retrieval().pending(request.message()));
+                if(state.mealConstraintContext().pendingConstraintText().isBlank()) state=state.withMealConstraintContext(state.mealConstraintContext().pending(request.message()));
                 return completeAsk(sessionId,traceId,state,ClarifyResult.ask(invalid.getMessage(),List.of("retrievalConstraints")));
             }
             try {
                 var cookingRequest=cookingService.route(request.message(),request.context());
-                var response=cookingService.respond(cookingRequest,state.retrieval().constraints());
+                var response=cookingService.respond(cookingRequest,state.mealConstraintContext().constraints());
                 return completeTextOnly(sessionId,traceId,state,Intent.OTHER,ResponseResult.textOnly(response));
             } catch(IllegalArgumentException invalid) {
                 return completeAsk(sessionId,traceId,state,ClarifyResult.ask(invalid.getMessage(),List.of("cookingRequest")));
@@ -267,11 +271,11 @@ public class DietOrchestratorService {
 
         if (intent.intent() != Intent.HEALTH_RISK && intent.intent() != Intent.OTHER) {
             try {
-                state = state.withRetrieval(constraintParser.resolveContext(request.message(), state.retrieval(), request.context(),
+                state = state.withMealConstraintContext(constraintParser.resolveContext(request.message(), state.mealConstraintContext(), request.context(),
                         intent.intent() == Intent.MEAL_ADJUST || state.phase() == SessionPhase.CLARIFY));
-                agentTraceService.recordEvent("RETRIEVAL_CONSTRAINTS_RESOLVED", "RETRIEVAL", request.message(), state.retrieval());
+                agentTraceService.recordEvent("RETRIEVAL_CONSTRAINTS_RESOLVED", "RETRIEVAL", request.message(), state.mealConstraintContext());
             } catch (IllegalArgumentException invalid) {
-                if(state.retrieval().pendingConstraintText().isBlank()) state=state.withRetrieval(state.retrieval().pending(request.message()));
+                if(state.mealConstraintContext().pendingConstraintText().isBlank()) state=state.withMealConstraintContext(state.mealConstraintContext().pending(request.message()));
                 return completeAsk(sessionId, traceId, state, ClarifyResult.ask(invalid.getMessage(), List.of("retrievalConstraints")));
             }
         }
@@ -392,7 +396,7 @@ public class DietOrchestratorService {
             String traceId,
             SessionState state) {
         MealPlanService.PlanResult plan = mealPlanService.buildPlan(
-                sessionId, userId, userInput, state.sourceMode(), state.slots(), state.retrieval());
+                sessionId, userId, userInput, state.sourceMode(), state.slots(), state.mealConstraintContext());
 
         agentTraceService.recordEvent(
                 plan.recommend().recommendations().isEmpty() ? "NO_MEAL_PLAN_MATCHED" : "MEAL_PLAN_BUILT",
@@ -459,8 +463,8 @@ public class DietOrchestratorService {
      * 完整推荐流水线：检索 → 重排 → LLM 生成理由与口语回复 → Guard 审查 → 持久化并返回。
      */
     private ChatResponse completeRecommendation(String sessionId, Long userId, String userInput, String traceId, SessionState state, List<Long> excludeMealIds) {
-        var retrieval = retrievalService.retrieve(new MealRetrievalRequest(state.retrieval().queryText(), state.sourceMode(), userId,
-                state.slots(), excludeMealIds, state.retrieval().constraints()));
+        var retrieval = retrievalService.retrieve(new MealRetrievalRequest(state.mealConstraintContext().queryText(), state.sourceMode(), userId,
+                state.slots(), excludeMealIds, state.mealConstraintContext().constraints()));
         List<MealItem> candidates = retrieval.candidates();
         // Trace 事件：MEAL_SEARCHED | 阶段 SEARCH | 输入=slots | 输出=候选数量+candidates 列表
         agentTraceService.recordEvent("MEAL_SEARCHED", "SEARCH", state.slots(), Map.of("candidateCount", candidates.size(), "candidates", candidates));
@@ -473,7 +477,7 @@ public class DietOrchestratorService {
         // 结果为空时，按 sourceMode 返回不同的空库提示文案
         if (ranked.isEmpty()) {
             // PERSONAL 模式提示补充饭堂菜或切 PUBLIC；PUBLIC 模式提示补充槽位
-            ResponseResult empty = ResponseResult.textOnly(!state.retrieval().constraints().isEmpty()
+            ResponseResult empty = ResponseResult.textOnly(!state.mealConstraintContext().constraints().isEmpty()
                     ? "当前记录中没有能核对并满足这些限制的餐食。部分餐食的食材信息可能尚未补全，你可以补充记录或明确调整限制。"
                     : state.sourceMode() == SourceMode.PERSONAL
                     ? "你当前的个人餐食库里暂时没有匹配的餐食，可以补充更多饭堂菜，或者切换到公共餐食数据试试。"

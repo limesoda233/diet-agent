@@ -1,6 +1,6 @@
 package com.diet.service.cooking;
 
-import com.diet.service.retrieval.IngredientCatalog;
+import com.diet.service.meal.constraint.IngredientCatalog;
 import java.util.*;
 
 public final class CookingArguments {

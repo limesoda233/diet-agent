@@ -1,5 +1,7 @@
 package com.diet.service.retrieval;
 
+import com.diet.service.meal.knowledge.MealKnowledge;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;

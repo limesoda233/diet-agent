@@ -1,6 +1,6 @@
 package com.diet.service.cooking;
 
-import com.diet.service.retrieval.MealConstraints;
+import com.diet.service.meal.constraint.MealConstraints;
 import com.diet.service.trace.AgentTraceService;
 import org.junit.jupiter.api.Test;
 import java.util.*;
