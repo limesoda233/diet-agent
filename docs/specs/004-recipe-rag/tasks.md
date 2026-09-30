@@ -249,7 +249,7 @@ git commit -m "refactor: remove meal recommendation RAG"
 - Produces: `RecipeCorpusImporter.importFrom(Path root, String commit)` → `ImportedCorpus(List<RecipeDocument>, List<RecipeChunk>, RecipeCorpusManifest)`。
 - Stable IDs: `SHA-256(commit + "\n" + relativePath + "\n" + contentHash)`；子块 ID 再追加块类型和顺序。
 
-- [ ] **Step 1: 写结构解析和稳定 ID 测试**
+- [x] **Step 1: 写结构解析和稳定 ID 测试**
 
 ```java
 var corpus = importer.importFrom(fixtureRoot, HOW_TO_COOK_COMMIT);
@@ -260,13 +260,13 @@ assertThat(corpus.documents()).singleElement().satisfies(recipe -> {
 assertThat(importer.importFrom(fixtureRoot, HOW_TO_COOK_COMMIT)).isEqualTo(corpus);
 ```
 
-- [ ] **Step 2: 运行测试并确认解析器缺失**
+- [x] **Step 2: 运行测试并确认解析器缺失**
 
 Run: `mvn -Dtest=HowToCookMarkdownParserTest,RecipeCorpusImporterTest test`
 
 Expected: FAIL，父文档、子块和清单类型尚不存在。
 
-- [ ] **Step 3: 实现按标题分段、超长句切分和清单**
+- [x] **Step 3: 实现按标题分段、超长句切分和清单**
 
 ```java
 public record RecipeChunk(String chunkId, String parentRecipeId, ChunkType type,
@@ -275,13 +275,13 @@ public record RecipeChunk(String chunkId, String parentRecipeId, ChunkType type,
 
 解析 `dishes/**/*.md`，忽略隐藏文件、索引页和空菜谱；子块保留“必备原料和工具、计算、操作、附加内容”的语义边界，单块上限 1200 字符，二次切分重叠 120 字符。
 
-- [ ] **Step 4: 运行解析测试并核对清单哈希**
+- [x] **Step 4: 运行解析测试并核对清单哈希**
 
 Run: `mvn -Dtest=HowToCookMarkdownParserTest,RecipeCorpusImporterTest test`
 
 Expected: PASS；相同输入 ID/哈希一致，内容变化只影响对应父文档及子块。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/main/java/com/diet/service/recipe/rag/model src/main/java/com/diet/service/recipe/rag/corpus src/test/java/com/diet/service/recipe/rag/corpus src/test/resources/recipe
