@@ -301,7 +301,7 @@ git commit -m "feat: import HowToCook recipe corpus"
 - Consumes: `List<RecipeDocument>`、`List<RecipeChunk>`。
 - Produces: `List<RecipeHit> search(String query, int topK)`，命中包含 `chunkId`、`parentRecipeId`、`score`、`rank`、`channel=BM25`。
 
-- [ ] **Step 1: 添加 Lucene 依赖并写中文菜名/食材检索失败测试**
+- [x] **Step 1: 添加 Lucene 依赖并写中文菜名/食材检索失败测试**
 
 ```xml
 <dependency><groupId>org.apache.lucene</groupId><artifactId>lucene-core</artifactId><version>9.12.3</version></dependency>
@@ -314,17 +314,17 @@ assertThat(index.search("番茄 鸡蛋 怎么炒", 5)).first()
         .extracting(RecipeHit::parentRecipeId).isEqualTo(tomatoEggId);
 ```
 
-- [ ] **Step 2: 实现索引版本目录、原子切换和 BM25 搜索**
+- [x] **Step 2: 实现索引版本目录、原子切换和 BM25 搜索**
 
 使用 `DirectoryReader` 只读活动版本；先在临时版本目录构建并校验文档数，再原子更新 `active.json`。字段分别索引菜名、别名、食材、标题和正文，存储稳定 ID 与父块元数据。
 
-- [ ] **Step 3: 运行定向测试**
+- [x] **Step 3: 运行定向测试**
 
 Run: `mvn -Dtest=LuceneRecipeSparseIndexTest test`
 
 Expected: PASS；相同分数按 `parentRecipeId`、`chunkId` 稳定排序，重建失败仍能读取上一版。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add pom.xml src/main/java/com/diet/service/recipe/rag/index src/main/java/com/diet/service/recipe/rag/model/RecipeHit.java src/test/java/com/diet/service/recipe/rag/index
