@@ -41,6 +41,8 @@ Tests run: 3, Failures: 0, Errors: 0, Skipped: 0
 
 该验证确认 56 条语料内 qrels 的相对路径与稳定 `recipe_id` 全部匹配生产导入器。临时语料 clone 已在验证后移除，未纳入提交。
 
+快进合入 Windows 原工作区后，首次全量测试发现 JSONL 的 LF/CRLF 会改变按原始字节计算的 qrels 指纹。`199806f` 将换行规范化后再计算 SHA-256，并增加跨平台回归测试；锁定哈希不变。包含原工作区既有意图评测改动的最终验证结果为：`Tests run: 89, Failures: 0, Errors: 0, Skipped: 6`，随后 `mvn -DskipTests package` 成功。
+
 静态边界检查：
 
 ```text
@@ -76,3 +78,4 @@ rg -n "MealRetrievalService|meal_index_task|meal_index_progress|search_recipes|g
 | `3c8db5d` | 可复现双索引构建 |
 | `57c99ec` | 64 条评测集与实验矩阵 |
 | `ab27109` | 视频搜索契约替换旧食谱 MCP |
+| `199806f` | 规范化 qrels 换行并增加跨平台指纹回归测试 |
