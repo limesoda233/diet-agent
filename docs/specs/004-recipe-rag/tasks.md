@@ -598,18 +598,18 @@ git commit -m "feat: add reproducible recipe index build"
 - Dataset: `queryId`、`query`、`slice`、`relevantRecipeIds`、`grades`、`mustRefuse`、`requiredFacts`、`forbiddenFacts`。
 - Report: 语料/应用/模型版本，Recall@1/5/10、MRR@10、nDCG@10、Parent Recall、重复率、空结果率、回答指标及各阶段 p50/p95。
 
-- [ ] **Step 1: 写指标公式和数据泄漏保护测试**
+- [x] **Step 1: 写指标公式和数据泄漏保护测试**
 
 ```java
 assertThat(metrics.recallAt(relevant("a", "b"), ranked("a", "c"), 2)).isEqualTo(0.5);
 assertThat(dataset.devIds()).doesNotContainAnyElementsOf(dataset.testIds());
 ```
 
-- [ ] **Step 2: 建立至少 64 条独立查询并锁定 qrels 哈希**
+- [x] **Step 2: 建立至少 64 条独立查询并锁定 qrels 哈希**
 
 八个切片各至少 8 条：精确菜名、别名、食材反查、技法、包含/排除、厨具/耗时、多条件长查询、语料外拒答。`annotations.md` 记录每条标注依据和固定语料文件，不从任何检索结果反推标签。
 
-- [ ] **Step 3: 实现七组消融运行与 JSON 报告**
+- [x] **Step 3: 实现七组消融运行与 JSON 报告**
 
 ```java
 for (var experiment : List.of(RecipeExperiment.BM25, RecipeExperiment.DENSE,
@@ -620,7 +620,7 @@ for (var experiment : List.of(RecipeExperiment.BM25, RecipeExperiment.DENSE,
 }
 ```
 
-- [ ] **Step 4: 运行离线指标测试和可选真实依赖评测**
+- [x] **Step 4: 运行离线指标测试和可选真实依赖评测**
 
 Run: `mvn -Dtest=RecipeRetrievalMetricsTest,RecipeAnswerMetricsTest,RecipeEvaluationDatasetTest,RecipeParallelLatencyTest test`
 
@@ -628,7 +628,7 @@ Run with local services: `mvn -Dtest=RecipeRetrievalEvaluationTest -Ddiet.recipe
 
 Expected: 离线测试始终 PASS；真实评测输出 `target/evaluation/recipe/report.json` 并记录不可用依赖，而不是伪造分数。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/test/java/com/diet/evaluation/recipe src/test/resources/evaluation/recipe docs/specs/004-recipe-rag/annotations.md
