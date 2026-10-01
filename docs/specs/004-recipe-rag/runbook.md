@@ -1,0 +1,160 @@
+# 菜谱 RAG 运行手册
+
+本手册对应阶段 004。当前边界是：餐食推荐只查 MySQL；公共菜谱问答才使用 Lucene、embedding 和 Qdrant；个人餐食做法保存在 MySQL `meal_knowledge`；视频搜索只有 disabled/fake provider 契约。
+
+## 固定版本
+
+| 对象 | 版本 |
+| --- | --- |
+| HowToCook | `1.6.0` / `a0b14bd388ee996943173679c3a7c9db7da04a6c` |
+| All-in-RAG 方法参考 | `583a61b09869bc3afc4552289171f6ec188f2c76` 第八章 |
+| AgentScope Java | `1.0.11` |
+| Lucene | `9.12.3` |
+| embedding 基线 | Ollama `bge-m3:567m`，1024 维 |
+
+HowToCook 固定 commit 使用 Unlicense。All-in-RAG 的固定 commit 在 README 中声明 CC BY-NC-SA 4.0；本项目只参考其流程、切分和评测方法，Java 实现未复制其 Python 代码。更新任一来源前重新核对目标 commit 的授权文件。
+
+## 1. 准备 HowToCook
+
+PowerShell：
+
+```powershell
+$env:GIT_LFS_SKIP_SMUDGE = "1"
+git clone --depth 1 --branch 1.6.0 -c core.hooksPath=NUL https://github.com/Anduin2017/HowToCook.git E:/data/HowToCook
+git -C E:/data/HowToCook rev-parse HEAD
+```
+
+Bash：
+
+```bash
+GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --branch 1.6.0 -c core.hooksPath=/dev/null \
+  https://github.com/Anduin2017/HowToCook.git /data/HowToCook
+git -C /data/HowToCook rev-parse HEAD
+```
+
+输出必须是 `a0b14bd388ee996943173679c3a7c9db7da04a6c`。索引只读取 `dishes/**/*.md`，不需要图片 LFS 对象。
+
+## 2. 启动 Ollama 与 Qdrant
+
+```powershell
+ollama pull bge-m3:567m
+docker compose -f compose.retrieval-dev.yml up -d qdrant
+```
+
+确认服务：
+
+```powershell
+Invoke-RestMethod http://localhost:11434/api/tags
+Invoke-RestMethod http://localhost:6333/collections
+```
+
+collection 默认名为 `diet_recipe_chunks_bge_m3_1024`。已有 collection 的向量维度不是 1024 时，构建会明确失败；不要复用不同 embedding 模型的 collection。
+
+## 3. 构建双索引
+
+```powershell
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe-rag --diet.recipe-rag.enabled=true --recipe-rag-index=E:/data/HowToCook"
+```
+
+命令依次完成：固定语料解析、稳定父子 ID、全部 embedding、Lucene 暂存版本、Qdrant 暂存版本、双索引激活。任一构建失败时保留上一活动版本，并清理本次未激活版本。成功后应用上下文自动关闭。
+
+索引版本由语料哈希、解析器版本、embedding 模型和维度共同决定。Qdrant point ID 同时包含索引版本与 chunk ID，失败的新版本不会覆盖旧版本 payload。
+
+## 4. 启动应用
+
+先按主 README 配置 MySQL 和主聊天模型，再运行：
+
+```powershell
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe-rag --diet.recipe-rag.enabled=true --diet.recipe-rag.corpus-path=E:/data/HowToCook"
+```
+
+关键配置见 `src/main/resources/application-recipe-rag.yml`：
+
+| 配置 | 默认值 | 说明 |
+| --- | --- | --- |
+| `diet.recipe-rag.enabled` | `false` | 公共菜谱 RAG 总开关 |
+| `diet.recipe-rag.retrieval.mode` | `parallel_hybrid` | `sparse_only`、`dense_only`、`serial_hybrid` 或 `parallel_hybrid` |
+| `diet.recipe-rag.retrieval.branch-timeout` | `2s` | BM25/dense 独立超时 |
+| `diet.recipe-rag.query-rewrite.enabled` | `false` | 查询改写扩展点；默认 identity |
+| `diet.recipe-rag.rerank.enabled` | `false` | 重排扩展点；默认 identity |
+
+普通推荐在 RAG 关闭、Ollama/Qdrant/Lucene 不可用时仍只使用 MySQL。
+
+## 5. 请求示例
+
+直接菜谱查询不依赖推荐：
+
+```json
+{
+  "sessionId": "session-id",
+  "message": "宫保鸡丁怎么做",
+  "sourceMode": "PUBLIC",
+  "context": {}
+}
+```
+
+推荐后的个人做法查询：
+
+```json
+{
+  "sessionId": "session-id",
+  "message": "这道菜怎么做",
+  "sourceMode": "PERSONAL",
+  "context": {
+    "recipeQuery": {
+      "mealId": 41,
+      "excludedIngredients": ["花生"]
+    }
+  }
+}
+```
+
+`recipeQuery` 只允许 `mealId`、`query`、`requiredIngredients`、`excludedIngredients`。存在个人 `meal_knowledge` 时优先回答；没有时用餐食名称查公共 RAG。未知字段被拒绝。
+
+## 6. 视频搜索契约
+
+默认 provider 为 disabled。仅用于本地契约演示的 fake provider：
+
+```text
+--diet.video-mcp.enabled=true --diet.video-mcp.provider=fake
+```
+
+结构化输入：
+
+```json
+{"videoSearch":{"query":"宫保鸡丁","platform":"BILIBILI","limit":3}}
+```
+
+工具契约名为 `search_cooking_videos`，平台只允许 `BILIBILI`、`DOUYIN`、`ANY`，limit 为 1～10。fake URL 使用 `example.invalid`。当前没有访问真实平台，也没有平台凭据或抓取逻辑。
+
+## 7. 评测
+
+始终可运行的离线评测：
+
+```powershell
+mvn "-Dtest=RecipeRetrievalMetricsTest,RecipeAnswerMetricsTest,RecipeEvaluationDatasetTest,RecipeParallelLatencyTest" test
+```
+
+验证 qrels 与固定语料 ID：
+
+```powershell
+mvn "-Dtest=RecipeEvaluationDatasetTest" "-Ddiet.recipe-rag.corpus-path=E:/data/HowToCook" test
+```
+
+真实 Ollama/Qdrant 七组实验：
+
+```powershell
+mvn "-Dtest=RecipeRetrievalEvaluationTest" "-Ddiet.recipe-rag.live=true" `
+  "-Ddiet.recipe-rag.corpus-path=E:/data/HowToCook" test
+```
+
+报告写入 `target/evaluation/recipe/report.json`。报告分别列出 Recall@1/5/10、MRR@10、nDCG@10、Parent Recall、重复率、空结果率、p50/p95、降级次数和切片指标。回答引用覆盖、证据支持率和拒答准确率独立计算，不合并成不透明总分。查询改写与重排没有配置模型 provider 时是 identity 基线，报告不得把它们描述成模型增益。
+
+## 8. 故障定位
+
+- `Recipe sparse index has not been built`：先运行索引命令，检查 Lucene 目录中的 `active.json`。
+- `qdrant_active_version_missing`：确认 Lucene 活动版本存在，并以相同配置重启应用；启动配置会用 Lucene 活动版本恢复 Qdrant 查询过滤器。
+- `embedding_dimension_mismatch`：模型输出、配置维度和 Qdrant collection 不一致；新建匹配维度的 collection 后重建。
+- `recipe_retrieval_all_branches_failed`：BM25 与 dense 都失败，系统拒答，不调用生成模型编造答案。
+- 单分支超时或失败：响应 diagnostics 包含降级原因，另一分支仍可返回证据。
+- 视频请求返回“暂时不可用”：这是默认 disabled provider 的预期行为，不影响文字菜谱和普通推荐。

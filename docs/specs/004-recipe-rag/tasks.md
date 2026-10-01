@@ -702,13 +702,13 @@ git commit -m "refactor: replace recipe MCP with video search contract"
 - Runbook 覆盖：固定语料获取与校验、Ollama `bge-m3:567m`、Qdrant、索引命令、应用配置、评测命令、降级排查和版本切换。
 - Acceptance 按 RRAG-01 至 RRAG-12 逐项记录命令、结果、限制和生成报告哈希。
 
-- [ ] **Step 1: 执行静态边界检查**
+- [x] **Step 1: 执行静态边界检查**
 
 Run: `rg -n "MealRetrievalService|meal_index_task|meal_index_progress|search_recipes|get_recipe|suggest_substitutions" src/main src/test`
 
 Expected: 只允许清理迁移或历史说明中的表名；生产代码没有旧餐食 RAG 和旧食谱 MCP 符号。
 
-- [ ] **Step 2: 运行默认离线全量测试与打包**
+- [x] **Step 2: 运行默认离线全量测试与打包**
 
 Run: `mvn test`
 
@@ -716,17 +716,19 @@ Run: `mvn -DskipTests package`
 
 Expected: BUILD SUCCESS；默认环境不需要 Ollama、Qdrant、HowToCook 工作树或视频平台凭据。
 
-- [ ] **Step 3: 运行本地真实 RAG 验证**
+- [x] **Step 3: 运行本地真实 RAG 验证**
 
 Run: `mvn -Dtest=RecipeRetrievalEvaluationTest -Ddiet.recipe-rag.live=true test`
 
 Expected: 使用固定 HowToCook commit、Ollama `bge-m3:567m` 和本地 Qdrant生成报告；如本机依赖不可用，验收记录保留明确的未验证项和原始错误，不写通过。
 
-- [ ] **Step 4: 写运行手册、验收证据并更新任务勾选**
+实际：2026-10-01 对 Ollama 与 Qdrant 的只读探测均在 3 秒后超时，未运行真实模式；`acceptance.md` 已按未验证记录，未生成或填充实验分数。
+
+- [x] **Step 4: 写运行手册、验收证据并更新任务勾选**
 
 `acceptance.md` 逐项关联 RRAG 编号、测试类、命令、结果与报告路径；记录 All-in-RAG 仅为方法参考、HowToCook 的固定版本与授权。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add docs/specs/004-recipe-rag docs/specs/README.md

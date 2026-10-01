@@ -16,6 +16,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class DietApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(DietApplication.class, args);
+        var context = SpringApplication.run(DietApplication.class, args);
+        boolean indexCommand = java.util.Arrays.stream(args)
+                .anyMatch(argument -> argument.startsWith("--recipe-rag-index="));
+        if (indexCommand) {
+            context.close();
+        }
     }
 }
