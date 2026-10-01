@@ -6,6 +6,7 @@ import com.diet.service.recipe.rag.corpus.HowToCookMarkdownParser;
 import com.diet.service.recipe.rag.corpus.RecipeCorpusImporter;
 
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -32,6 +33,17 @@ class RecipeEvaluationDatasetTest {
     void qrelsFingerprintIsLocked() {
         assertThat(RecipeEvaluationDataset.load().fingerprint())
                 .isEqualTo("69ef43df658bd73154eb90daefed967a213aae67bfae20d8cfed0abf5e94bc4f");
+    }
+
+    @Test
+    void qrelsFingerprintIsIndependentOfPlatformLineEndings() throws Exception {
+        byte[] lfQueries = "{\"queryId\":\"q1\"}\n".getBytes(StandardCharsets.UTF_8);
+        byte[] lfAnswers = "{\"queryId\":\"q1\"}\n".getBytes(StandardCharsets.UTF_8);
+        byte[] crlfQueries = "{\"queryId\":\"q1\"}\r\n".getBytes(StandardCharsets.UTF_8);
+        byte[] crlfAnswers = "{\"queryId\":\"q1\"}\r\n".getBytes(StandardCharsets.UTF_8);
+
+        assertThat(RecipeEvaluationDataset.sha256Canonical(crlfQueries, crlfAnswers))
+                .isEqualTo(RecipeEvaluationDataset.sha256Canonical(lfQueries, lfAnswers));
     }
 
     @Test

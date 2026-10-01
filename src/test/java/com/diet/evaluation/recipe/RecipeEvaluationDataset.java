@@ -53,7 +53,7 @@ final class RecipeEvaluationDataset {
                         strings(answer.path("sourcePaths")), answer.path("annotationNote").asText()));
             }
             if (!annotations.isEmpty()) throw new IllegalStateException("Orphan qrels: " + annotations.keySet());
-            return new RecipeEvaluationDataset(examples, sha256(queryBytes, answerBytes));
+            return new RecipeEvaluationDataset(examples, sha256Canonical(queryBytes, answerBytes));
         } catch (Exception error) {
             throw new IllegalStateException("Unable to load recipe evaluation dataset", error);
         }
@@ -99,12 +99,19 @@ final class RecipeEvaluationDataset {
         return node == null || node.isMissingNode() || node.isNull() ? null : node.asInt();
     }
 
-    private static String sha256(byte[] first, byte[] second) throws Exception {
+    static String sha256Canonical(byte[] first, byte[] second) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        digest.update(first);
+        digest.update(normalizeLineEndings(first));
         digest.update((byte) '\n');
-        digest.update(second);
+        digest.update(normalizeLineEndings(second));
         return HexFormat.of().formatHex(digest.digest());
+    }
+
+    private static byte[] normalizeLineEndings(byte[] value) {
+        return new String(value, StandardCharsets.UTF_8)
+                .replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .getBytes(StandardCharsets.UTF_8);
     }
 
     record Example(String queryId, String query, String slice, String split, boolean mustRefuse,
