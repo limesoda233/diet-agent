@@ -46,6 +46,14 @@ public class LuceneRecipeSparseIndex implements RecipeSparseIndex {
 
     @Override
     public void rebuild(List<RecipeDocument> documents, List<RecipeChunk> chunks) {
+        String version = "v-" + UUID.randomUUID();
+        stageVersion(version, documents, chunks);
+        activateVersion(version);
+    }
+
+    @Override
+    public void stageVersion(String version, List<RecipeDocument> documents, List<RecipeChunk> chunks) {
+        validateVersion(version);
         if (documents == null || documents.isEmpty() || chunks == null || chunks.isEmpty()) {
             throw new IllegalArgumentException("Recipe documents and chunks must not be empty");
         }
@@ -55,11 +63,13 @@ public class LuceneRecipeSparseIndex implements RecipeSparseIndex {
             throw new IllegalArgumentException("Every recipe chunk must reference an imported parent document");
         }
 
-        String version = "v-" + UUID.randomUUID();
         Path building = indexRoot.resolve("." + version + ".building");
         Path completed = indexRoot.resolve(version);
         try {
             Files.createDirectories(indexRoot);
+            if (version.equals(activeVersion()) && Files.isDirectory(completed)) return;
+            deleteRecursively(building);
+            deleteRecursively(completed);
             Files.createDirectory(building);
             try (var directory = FSDirectory.open(building);
                  var analyzer = new StandardAnalyzer();
@@ -77,13 +87,44 @@ public class LuceneRecipeSparseIndex implements RecipeSparseIndex {
                 }
             }
             moveAtomically(building, completed);
-            switchActiveVersion(version);
         } catch (IOException error) {
             deleteRecursively(building);
             throw new UncheckedIOException("Failed to build Lucene recipe index", error);
         } catch (RuntimeException error) {
             deleteRecursively(building);
             throw error;
+        }
+    }
+
+    @Override
+    public void activateVersion(String version) {
+        validateVersion(version);
+        if (!Files.isDirectory(indexRoot.resolve(version))) {
+            throw new IllegalStateException("Recipe sparse index version is unavailable: " + version);
+        }
+        try {
+            switchActiveVersion(version);
+        } catch (IOException error) {
+            throw new UncheckedIOException("Failed to activate Lucene recipe index", error);
+        }
+    }
+
+    @Override
+    public void discardVersion(String version) {
+        validateVersion(version);
+        if (!version.equals(activeVersion())) deleteRecursively(indexRoot.resolve(version));
+        deleteRecursively(indexRoot.resolve("." + version + ".building"));
+    }
+
+    @Override
+    public String activeVersion() {
+        Path pointer = indexRoot.resolve("active.json");
+        if (!Files.isRegularFile(pointer)) return null;
+        try {
+            Matcher matcher = ACTIVE_VERSION.matcher(Files.readString(pointer, StandardCharsets.UTF_8));
+            return matcher.find() ? matcher.group(1) : null;
+        } catch (IOException error) {
+            throw new UncheckedIOException("Failed to read recipe sparse index pointer", error);
         }
     }
 
@@ -151,29 +192,27 @@ public class LuceneRecipeSparseIndex implements RecipeSparseIndex {
     }
 
     private Path activeDirectory() {
-        Path pointer = indexRoot.resolve("active.json");
-        if (!Files.isRegularFile(pointer)) {
+        String version = activeVersion();
+        if (version == null) {
             throw new IllegalStateException("Recipe sparse index has not been built");
         }
-        try {
-            Matcher matcher = ACTIVE_VERSION.matcher(Files.readString(pointer, StandardCharsets.UTF_8));
-            if (!matcher.find()) {
-                throw new IllegalStateException("Invalid recipe sparse index pointer");
-            }
-            Path active = indexRoot.resolve(matcher.group(1)).normalize();
-            if (!active.startsWith(indexRoot.normalize()) || !Files.isDirectory(active)) {
-                throw new IllegalStateException("Recipe sparse index version is unavailable");
-            }
-            return active;
-        } catch (IOException error) {
-            throw new UncheckedIOException("Failed to read recipe sparse index pointer", error);
+        Path active = indexRoot.resolve(version).normalize();
+        if (!active.startsWith(indexRoot.normalize()) || !Files.isDirectory(active)) {
+            throw new IllegalStateException("Recipe sparse index version is unavailable");
         }
+        return active;
     }
 
     private void switchActiveVersion(String version) throws IOException {
         Path temporary = indexRoot.resolve("active.json.tmp");
         Files.writeString(temporary, "{\"version\":\"" + version + "\"}\n", StandardCharsets.UTF_8);
         moveAtomically(temporary, indexRoot.resolve("active.json"));
+    }
+
+    private void validateVersion(String version) {
+        if (version == null || !version.matches("[A-Za-z0-9._-]{1,200}")) {
+            throw new IllegalArgumentException("Invalid recipe index version");
+        }
     }
 
     private void moveAtomically(Path source, Path target) throws IOException {

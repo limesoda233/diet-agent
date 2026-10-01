@@ -10,6 +10,7 @@ import com.diet.service.recipe.rag.answer.RecipeEvidenceAssembler;
 import com.diet.service.recipe.rag.corpus.HowToCookMarkdownParser;
 import com.diet.service.recipe.rag.corpus.RecipeCorpusImporter;
 import com.diet.service.recipe.rag.index.RecipeEmbeddingModel;
+import com.diet.service.recipe.rag.index.RecipeIndexCoordinator;
 import com.diet.service.recipe.rag.index.RecipeSparseIndex;
 import com.diet.service.recipe.rag.index.RecipeVectorIndex;
 import com.diet.service.recipe.rag.model.RecipeDocument;
@@ -60,11 +61,28 @@ public class RecipeQueryConfiguration {
     }
 
     @Bean
+    RecipeCorpusImporter recipeCorpusImporter() {
+        return new RecipeCorpusImporter(new HowToCookMarkdownParser());
+    }
+
+    @Bean
+    RecipeIndexCoordinator recipeIndexCoordinator(RecipeCorpusImporter importer,
+                                                   RecipeSparseIndex sparseIndex,
+                                                   RecipeEmbeddingModel embeddingModel,
+                                                   RecipeVectorIndex vectorIndex,
+                                                   RecipeRagProperties properties) {
+        return new RecipeIndexCoordinator(importer, sparseIndex, embeddingModel, vectorIndex,
+                properties, "howtocook-v1");
+    }
+
+    @Bean
     HybridRecipeRetriever hybridRecipeRetriever(RecipeSparseIndex sparseIndex,
                                                  RecipeEmbeddingModel embeddingModel,
                                                  RecipeVectorIndex vectorIndex,
                                                  RecipeParentResolver parentResolver,
                                                  RecipeRagProperties properties) {
+        String activeVersion = sparseIndex.activeVersion();
+        if (activeVersion != null) vectorIndex.activateVersion(activeVersion);
         var retrieval = properties.getRetrieval();
         return new HybridRecipeRetriever(sparseIndex, embeddingModel, vectorIndex, parentResolver,
                 retrieval.getBranchTimeout(), retrieval.getSparseTopK(), retrieval.getDenseTopK(),

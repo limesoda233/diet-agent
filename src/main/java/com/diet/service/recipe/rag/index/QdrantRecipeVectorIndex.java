@@ -38,6 +38,12 @@ public class QdrantRecipeVectorIndex implements RecipeVectorIndex {
 
     @Override
     public void replaceVersion(String indexVersion, List<RecipeChunk> chunks, List<double[]> vectors) {
+        stageVersion(indexVersion, chunks, vectors);
+        activateVersion(indexVersion);
+    }
+
+    @Override
+    public void stageVersion(String indexVersion, List<RecipeChunk> chunks, List<double[]> vectors) {
         if (indexVersion == null || indexVersion.isBlank()) throw new IllegalArgumentException("indexVersion must not be blank");
         if (chunks == null || chunks.isEmpty() || vectors == null || chunks.size() != vectors.size()) {
             throw new IllegalArgumentException("Recipe chunks and vectors must be non-empty and aligned");
@@ -50,7 +56,8 @@ public class QdrantRecipeVectorIndex implements RecipeVectorIndex {
         for (int index = 0; index < chunks.size(); index++) {
             RecipeChunk chunk = chunks.get(index);
             ObjectNode point = points.addObject();
-            point.put("id", UUID.nameUUIDFromBytes(chunk.chunkId().getBytes(StandardCharsets.UTF_8)).toString());
+            point.put("id", UUID.nameUUIDFromBytes(
+                    (indexVersion + "\n" + chunk.chunkId()).getBytes(StandardCharsets.UTF_8)).toString());
             ArrayNode vector = point.putArray("vector");
             for (double value : vectors.get(index)) vector.add(value);
             ObjectNode payload = point.putObject("payload");
@@ -64,7 +71,26 @@ public class QdrantRecipeVectorIndex implements RecipeVectorIndex {
             payload.put("text", chunk.text());
         }
         send("PUT", collectionUri("/points?wait=true"), request, 200, 201);
+    }
+
+    @Override
+    public void activateVersion(String indexVersion) {
+        if (indexVersion == null || indexVersion.isBlank()) throw new IllegalArgumentException("indexVersion must not be blank");
         activeVersion.set(indexVersion);
+    }
+
+    @Override
+    public void discardVersion(String indexVersion) {
+        if (indexVersion == null || indexVersion.isBlank() || indexVersion.equals(activeVersion.get())) return;
+        ObjectNode request = json.createObjectNode();
+        request.putObject("filter").putArray("must").addObject()
+                .put("key", "indexVersion").putObject("match").put("value", indexVersion);
+        send("POST", collectionUri("/points/delete?wait=true"), request, 200, 201);
+    }
+
+    @Override
+    public String activeVersion() {
+        return activeVersion.get();
     }
 
     @Override

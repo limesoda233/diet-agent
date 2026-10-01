@@ -552,7 +552,7 @@ git commit -m "feat: answer recipe questions with citations"
 - Produces: `RecipeIndexCoordinator.rebuild(Path corpusRoot)` → `IndexBuildResult`；Windows 示例命令参数为 `--recipe-rag-index=E:/data/HowToCook`，其他环境同样传入绝对路径。
 - Commit rule: Lucene 和 Qdrant 都完成后写活动版本；任一失败时保持上一版本。
 
-- [ ] **Step 1: 写双索引成功才切换的失败测试**
+- [x] **Step 1: 写双索引成功才切换的失败测试**
 
 ```java
 vectorIndex.failNextBuild();
@@ -560,17 +560,17 @@ assertThatThrownBy(() -> coordinator.rebuild(corpusRoot)).isInstanceOf(RecipeRag
 assertThat(coordinator.activeVersion()).isEqualTo(previousVersion);
 ```
 
-- [ ] **Step 2: 实现两阶段构建与命令入口**
+- [x] **Step 2: 实现两阶段构建与命令入口**
 
 构建版本使用 `corpusHash-parserVersion-embeddingModel`；先写非活动 Lucene/Qdrant 版本，校验父文档数和子块数一致，再更新活动清单。失败时删除本次未激活版本，不触碰旧版本。
 
-- [ ] **Step 3: 运行协调器和解析回归**
+- [x] **Step 3: 运行协调器和解析回归**
 
 Run: `mvn -Dtest=RecipeIndexCoordinatorTest,RecipeCorpusImporterTest,LuceneRecipeSparseIndexTest,QdrantRecipeVectorIndexTest test`
 
 Expected: PASS；重复输入幂等，失败后查询仍读取原活动版本。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add src/main/java/com/diet/service/recipe/rag/corpus/RecipeIndexCommand.java src/main/java/com/diet/service/recipe/rag/index/RecipeIndexCoordinator.java src/test/java/com/diet/service/recipe/rag/index/RecipeIndexCoordinatorTest.java
