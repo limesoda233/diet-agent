@@ -36,6 +36,7 @@ import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
 import com.diet.service.recipe.RecipeQueryService;
+import com.diet.service.video.CookingVideoSearchService;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -123,15 +124,17 @@ public class DietOrchestratorService {
     private final AgentTraceService agentTraceService;
     private final ConstraintParser constraintParser;
     private RecipeQueryService recipeQueryService;
-    private com.diet.service.cooking.CookingService cookingService;
+    private CookingVideoSearchService cookingVideoSearchService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setRecipeQueryService(RecipeQueryService recipeQueryService) {
         this.recipeQueryService = recipeQueryService;
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public void setCookingService(com.diet.service.cooking.CookingService cookingService) { this.cookingService=cookingService; }
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setCookingVideoSearchService(CookingVideoSearchService cookingVideoSearchService) {
+        this.cookingVideoSearchService = cookingVideoSearchService;
+    }
 
     /**
      * 会话级锁 Map，key=sessionId，value=锁对象，保证同 session 串行写状态。
@@ -233,6 +236,24 @@ public class DietOrchestratorService {
         // Trace 事件：USER_MESSAGE_RECORDED | 阶段 SESSION | 输入=用户原文 | 输出=sessionId+sourceMode
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", request.message(), Map.of("sessionId", sessionId, "sourceMode", sourceMode));
 
+        if (cookingVideoSearchService != null && cookingVideoSearchService.matches(request.message(), request.context())) {
+            try {
+                var videoRequest = cookingVideoSearchService.route(request.message(), request.context());
+                var videos = cookingVideoSearchService.search(videoRequest).block();
+                String text = cookingVideoSearchService.format(videos);
+                agentTraceService.recordEvent("COOKING_VIDEO_SEARCHED", "VIDEO_MCP", videoRequest,
+                        Map.of("resultCount", videos == null ? 0 : videos.size()));
+                return completeTextOnly(sessionId, traceId, state, Intent.OTHER, ResponseResult.textOnly(text));
+            } catch (IllegalArgumentException invalid) {
+                return completeAsk(sessionId, traceId, state,
+                        ClarifyResult.ask(invalid.getMessage(), List.of("videoSearch")));
+            } catch (RuntimeException unavailable) {
+                agentTraceService.recordError("COOKING_VIDEO_SEARCH_FAILED", "VIDEO_MCP", request.message(), unavailable);
+                return completeTextOnly(sessionId, traceId, state, Intent.OTHER,
+                        ResponseResult.textOnly("视频搜索暂时不可用，文字菜谱仍可正常查询。"));
+            }
+        }
+
         if (recipeQueryService != null && recipeQueryService.matches(request.message(), request.context())) {
             try {
                 var answer = recipeQueryService.answer(sessionId, userId, request.message(), request.context());
@@ -244,25 +265,6 @@ public class DietOrchestratorService {
             } catch (IllegalArgumentException invalid) {
                 return completeAsk(sessionId, traceId, state,
                         ClarifyResult.ask(invalid.getMessage(), List.of("recipeQuery")));
-            }
-        }
-
-        if(cookingService!=null && cookingService.matches(request.message(),request.context())) {
-            if(!cookingService.enabled()) return completeTextOnly(sessionId,traceId,state,Intent.OTHER,
-                    ResponseResult.textOnly("食谱工具尚未启用，请启用 diet.cooking.enabled 后再使用。"));
-            try {
-                var resolved=constraintParser.resolveContext(request.message(),state.mealConstraintContext(),request.context(),false);
-                state=state.withMealConstraintContext(new MealConstraintContext(state.mealConstraintContext().queryText(),resolved.constraints(),resolved.source()));
-            } catch(IllegalArgumentException invalid) {
-                if(state.mealConstraintContext().pendingConstraintText().isBlank()) state=state.withMealConstraintContext(state.mealConstraintContext().pending(request.message()));
-                return completeAsk(sessionId,traceId,state,ClarifyResult.ask(invalid.getMessage(),List.of("retrievalConstraints")));
-            }
-            try {
-                var cookingRequest=cookingService.route(request.message(),request.context());
-                var response=cookingService.respond(cookingRequest,state.mealConstraintContext().constraints());
-                return completeTextOnly(sessionId,traceId,state,Intent.OTHER,ResponseResult.textOnly(response));
-            } catch(IllegalArgumentException invalid) {
-                return completeAsk(sessionId,traceId,state,ClarifyResult.ask(invalid.getMessage(),List.of("cookingRequest")));
             }
         }
 

@@ -665,7 +665,7 @@ git commit -m "test: add recipe RAG evaluation matrix"
 - Produces: `Mono<List<CookingVideo>> search(String query, VideoPlatform platform, int limit)`。
 - Tool contract: `search_cooking_videos(query, platform?, limit?)`；`platform` 仅允许 `BILIBILI`、`DOUYIN`、`ANY`，`limit` 范围 1–10。
 
-- [ ] **Step 1: 写默认禁用、fake 成功和普通问答零调用测试**
+- [x] **Step 1: 写默认禁用、fake 成功和普通问答零调用测试**
 
 ```java
 assertThat(disabled.search("宫保鸡丁", ANY, 3)).failsWithin(Duration.ofSeconds(1));
@@ -673,17 +673,17 @@ assertThat(fake.search("宫保鸡丁", BILIBILI, 2).block()).hasSize(2);
 verifyNoInteractions(videoProvider); // 普通推荐和文字菜谱问答
 ```
 
-- [ ] **Step 2: 删除旧食谱/替换 MCP 并实现新 provider 边界**
+- [x] **Step 2: 删除旧食谱/替换 MCP 并实现新 provider 边界**
 
 服务只在结构化 `videoSearch` 或“视频/跟做/教程链接”等明确请求中调用；超时返回“视频搜索暂时不可用”，不影响文字菜谱结果。fake URL 使用 `https://example.invalid/...`，不冒充真实平台内容。
 
-- [ ] **Step 3: 运行视频、菜谱与编排回归**
+- [x] **Step 3: 运行视频、菜谱与编排回归**
 
 Run: `mvn -Dtest=CookingVideoSearchServiceTest,RecipeOrchestratorTest,RecipeAnswerGeneratorTest test`
 
 Expected: PASS；源码和资源中不再包含旧 `search_recipes/get_recipe/suggest_substitutions` MCP 注册。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add -A src/main/java/com/diet/service/cooking src/main/resources/diet/cooking src/main/java/com/diet/service/video src/test/java/com/diet/service/video
