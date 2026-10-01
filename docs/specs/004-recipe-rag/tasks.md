@@ -403,14 +403,14 @@ git commit -m "feat: add recipe dense index"
 - Produces: `Mono<RecipeRetrievalResult> retrieve(RecipeQuery query, RecipeRetrievalMode mode)`。
 - Diagnostics: 每分支耗时、总耗时、降级原因、候选数、最终父文档 ID 和实际模式。
 
-- [ ] **Step 1: 写 RRF 稳定排序与父文档去重测试**
+- [x] **Step 1: 写 RRF 稳定排序与父文档去重测试**
 
 ```java
 assertThat(RecipeRrf.fuse(bm25Hits, denseHits, 60)).extracting(RecipeHit::parentRecipeId)
         .containsExactly("recipe-a", "recipe-b");
 ```
 
-- [ ] **Step 2: 写并行重叠、串并行等价和故障降级测试**
+- [x] **Step 2: 写并行重叠、串并行等价和故障降级测试**
 
 ```java
 var parallel = retriever.retrieve(query, PARALLEL_HYBRID).block();
@@ -419,7 +419,7 @@ assertThat(parallel.recipes()).isEqualTo(serial.recipes());
 assertThat(probe.maximumConcurrentBranches()).isEqualTo(2);
 ```
 
-- [ ] **Step 3: 实现 Reactor 并行编排**
+- [x] **Step 3: 实现 Reactor 并行编排**
 
 ```java
 Mono<BranchResult> sparse = Mono.fromCallable(() -> sparseIndex.search(query.text(), bm25TopK))
@@ -430,13 +430,13 @@ return Mono.zip(sparse.materialize(), dense.materialize())
         .map(signals -> fuseOrDegrade(query, signals.getT1(), signals.getT2()));
 ```
 
-- [ ] **Step 4: 运行检索测试**
+- [x] **Step 4: 运行检索测试**
 
 Run: `mvn -Dtest=RecipeRrfTest,HybridRecipeRetrieverTest test`
 
 Expected: PASS；串并行排序一致，单分支失败返回降级结果，双分支失败返回错误。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/main/java/com/diet/service/recipe/rag/model src/main/java/com/diet/service/recipe/rag/retrieval src/test/java/com/diet/service/recipe/rag/retrieval
