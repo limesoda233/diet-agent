@@ -109,7 +109,7 @@ public class RecipeCorpusImporter {
             for (String text : splitWithOverlap(prefix, entry.getValue())) {
                 String chunkId = sha256(document.recipeId() + "\n" + entry.getKey() + "\n" + order);
                 chunks.add(new RecipeChunk(chunkId, document.recipeId(), entry.getKey(), order,
-                        text, sha256(text)));
+                        text, sha256(text), document.relativePath()));
                 order++;
             }
         }

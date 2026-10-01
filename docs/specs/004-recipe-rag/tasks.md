@@ -348,7 +348,7 @@ git commit -m "feat: add Lucene recipe index"
 - Query type: `RecipeQuery(String text, List<String> requiredIngredients, List<String> excludedIngredients, List<String> requiredTools, Integer maxMinutes)`。
 - Qdrant payload: `indexVersion`、`chunkId`、`parentRecipeId`、`contentHash`、`sourcePath`；collection 名为 `diet_recipe_chunks_bge_m3_1024`。
 
-- [ ] **Step 1: 写真实 AgentScope API 适配测试**
+- [x] **Step 1: 写真实 AgentScope API 适配测试**
 
 ```java
 EmbeddingModel model = OllamaTextEmbedding.builder()
@@ -360,11 +360,11 @@ EmbeddingModel model = OllamaTextEmbedding.builder()
 assertThat(new AgentScopeRecipeEmbeddingModel(model).dimensions()).isEqualTo(1024);
 ```
 
-- [ ] **Step 2: 写 Qdrant collection 维度、过滤和原子版本测试**
+- [x] **Step 2: 写 Qdrant collection 维度、过滤和原子版本测试**
 
 用本地 `HttpServer` 断言 collection 创建为 1024 维 cosine、搜索必须过滤活动 `indexVersion`，维度不一致抛 `RecipeRagDependencyException`。
 
-- [ ] **Step 3: 实现 AgentScope 适配器和 Qdrant HTTP 客户端**
+- [x] **Step 3: 实现 AgentScope 适配器和 Qdrant HTTP 客户端**
 
 ```java
 public Mono<double[]> embed(String text) {
@@ -374,13 +374,13 @@ public Mono<double[]> embed(String text) {
 }
 ```
 
-- [ ] **Step 4: 运行定向测试**
+- [x] **Step 4: 运行定向测试**
 
 Run: `mvn -Dtest=AgentScopeRecipeEmbeddingModelTest,QdrantRecipeVectorIndexTest test`
 
 Expected: PASS；测试不要求本机运行 Ollama 或 Qdrant。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/main/java/com/diet/service/recipe/rag/index src/main/java/com/diet/service/recipe/rag/RecipeRagProperties.java src/test/java/com/diet/service/recipe/rag/index
