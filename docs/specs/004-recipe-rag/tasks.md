@@ -506,7 +506,7 @@ git commit -m "feat: configure recipe RAG pipeline"
 - Produces: `RecipeQueryService.answer(sessionId, userId, message, context)` → `RecipeAnswer(text, citations, refused, diagnostics)`。
 - Structured context: `recipeQuery` 可含 `mealId`、`query`、`requiredIngredients`、`excludedIngredients`；未知字段拒绝。
 
-- [ ] **Step 1: 写直接查询、个人做法优先、公共回退与拒答测试**
+- [x] **Step 1: 写直接查询、个人做法优先、公共回退与拒答测试**
 
 ```java
 assertThat(service.answer("s", 7L, "宫保鸡丁怎么做", Map.of()).citations()).isNotEmpty();
@@ -515,7 +515,7 @@ assertThat(service.answer("s", 7L, "这道菜怎么做", Map.of("recipeQuery", M
 assertThat(service.answer("s", 7L, "量子计算机怎么做", Map.of()).refused()).isTrue();
 ```
 
-- [ ] **Step 2: 实现证据预算、Agent prompt 与引用校验**
+- [x] **Step 2: 实现证据预算、Agent prompt 与引用校验**
 
 ```text
 你只能使用下方 evidence 回答。每条食材和步骤必须引用 [S1] 形式的来源编号；
@@ -524,17 +524,17 @@ assertThat(service.answer("s", 7L, "量子计算机怎么做", Map.of()).refused
 
 解析模型 JSON 后逐条验证引用 ID 属于本次 evidence；无效引用、候选外菜谱或约束冲突直接回退为确定性证据模板或拒答。
 
-- [ ] **Step 3: 在 PERSONAL 空库检查和六意图识别之前接入菜谱路由**
+- [x] **Step 3: 在 PERSONAL 空库检查和六意图识别之前接入菜谱路由**
 
 直接菜名问题进入公共 RAG；携带 `mealId` 时先调用 `MealKnowledgeRepository.findPersonal(mealId,userId)`，存在做法则直接回答，缺失才用餐食名称查公共 RAG。普通推荐不触发任何菜谱检索。
 
-- [ ] **Step 4: 运行回答与编排测试**
+- [x] **Step 4: 运行回答与编排测试**
 
 Run: `mvn -Dtest=RecipeAnswerGeneratorTest,RecipeQueryServiceTest,RecipeOrchestratorTest,IntentEvaluationDatasetTest test`
 
 Expected: PASS；原六意图评测数据不变，菜谱问题无需先推荐。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/main/java/com/diet/agent src/main/java/com/diet/service/recipe src/main/java/com/diet/service/orchestrator src/test/java/com/diet/service/recipe

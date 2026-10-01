@@ -1,0 +1,79 @@
+package com.diet.service.recipe;
+
+import com.diet.service.recipe.rag.model.RecipeQuery;
+
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+public class RecipeQueryRouter {
+    private static final Pattern RECIPE_WORDS = Pattern.compile("(怎么做|如何做|做法|菜谱|食谱|烹饪步骤|需要什么食材)");
+    private static final Set<String> ALLOWED_FIELDS = Set.of(
+            "mealId", "query", "requiredIngredients", "excludedIngredients");
+
+    public boolean matches(String message, Map<String, Object> context) {
+        return contextMap(context).containsKey("recipeQuery")
+                || (message != null && RECIPE_WORDS.matcher(message).find());
+    }
+
+    public Optional<RoutedRecipeQuery> route(String message, Map<String, Object> context) {
+        Map<String, Object> safeContext = contextMap(context);
+        Object structured = safeContext.get("recipeQuery");
+        if (structured == null) {
+            if (!matches(message, safeContext)) return Optional.empty();
+            return Optional.of(new RoutedRecipeQuery(null,
+                    new RecipeQuery(message, List.of(), List.of(), List.of(), null)));
+        }
+        if (!(structured instanceof Map<?, ?> raw)) {
+            throw new IllegalArgumentException("recipeQuery 必须是对象");
+        }
+        Set<String> unknown = new LinkedHashSet<>();
+        raw.keySet().forEach(key -> {
+            if (!(key instanceof String name) || !ALLOWED_FIELDS.contains(name)) unknown.add(String.valueOf(key));
+        });
+        if (!unknown.isEmpty()) throw new IllegalArgumentException("recipeQuery 包含未知字段: " + String.join(", ", unknown));
+        Long mealId = longValue(raw.get("mealId"));
+        String query = stringValue(raw.get("query"));
+        if (query.isBlank()) query = message == null ? "" : message.trim();
+        return Optional.of(new RoutedRecipeQuery(mealId, new RecipeQuery(query,
+                stringList(raw.get("requiredIngredients"), "requiredIngredients"),
+                stringList(raw.get("excludedIngredients"), "excludedIngredients"), List.of(), null)));
+    }
+
+    private Map<String, Object> contextMap(Map<String, Object> context) {
+        return context == null ? Map.of() : context;
+    }
+
+    private Long longValue(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number number) return number.longValue();
+        if (value instanceof String text) {
+            try {
+                return Long.parseLong(text);
+            } catch (NumberFormatException ignored) {
+                throw new IllegalArgumentException("mealId 必须是整数");
+            }
+        }
+        throw new IllegalArgumentException("mealId 必须是整数");
+    }
+
+    private String stringValue(Object value) {
+        if (value == null) return "";
+        if (value instanceof String text) return text.trim();
+        throw new IllegalArgumentException("query 必须是字符串");
+    }
+
+    private List<String> stringList(Object value, String field) {
+        if (value == null) return List.of();
+        if (!(value instanceof List<?> values) || values.stream().anyMatch(item -> !(item instanceof String))) {
+            throw new IllegalArgumentException(field + " 必须是字符串数组");
+        }
+        return values.stream().map(String.class::cast).map(String::trim).filter(item -> !item.isBlank()).distinct().toList();
+    }
+
+    public record RoutedRecipeQuery(Long mealId, RecipeQuery query) {
+    }
+}

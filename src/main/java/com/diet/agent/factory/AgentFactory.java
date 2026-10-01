@@ -2,7 +2,6 @@ package com.diet.agent.factory;
 
 import com.diet.agent.builder.*;
 import io.agentscope.core.ReActAgent;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,6 +29,9 @@ public class AgentFactory {
     /** RecommendResponseAgent 构建器，合并推荐理由与应答包装。 */
     private final RecommendResponseAgentBuilder recommendResponseBuilder;
 
+    /** 菜谱证据回答 Agent 构建器。 */
+    private final RecipeAnswerAgentBuilder recipeAnswerBuilder;
+
     /** Prompt 版本，Prompt 升级后可以通过配置变更避免复用旧 Agent。 */
     private final String promptVersion;
 
@@ -44,16 +46,27 @@ public class AgentFactory {
     );
 
     /** 构造器注入全部 Builder 和 Prompt 版本。 */
+    @org.springframework.beans.factory.annotation.Autowired
     public AgentFactory(
             IntentAgentBuilder intentBuilder,
             ClarifyAgentBuilder clarifyBuilder,
             RecommendResponseAgentBuilder recommendResponseBuilder,
+            RecipeAnswerAgentBuilder recipeAnswerBuilder,
             @Value("${diet.prompt.version:v1}") String promptVersion
     ) {
         this.intentBuilder = intentBuilder;
         this.clarifyBuilder = clarifyBuilder;
         this.recommendResponseBuilder = recommendResponseBuilder;
+        this.recipeAnswerBuilder = recipeAnswerBuilder;
         this.promptVersion = promptVersion;
+    }
+
+    /** 兼容只创建原三类 Agent 的单元测试和独立使用场景。 */
+    public AgentFactory(IntentAgentBuilder intentBuilder,
+                        ClarifyAgentBuilder clarifyBuilder,
+                        RecommendResponseAgentBuilder recommendResponseBuilder,
+                        String promptVersion) {
+        this(intentBuilder, clarifyBuilder, recommendResponseBuilder, null, promptVersion);
     }
 
     /** 获取当前会话的一整套 Agent，不存在时按需创建。 */
@@ -61,7 +74,8 @@ public class AgentFactory {
         return cache.computeIfAbsent(cacheKey(sessionId), ignored -> new AgentSet(
                 intentBuilder.build(),
                 clarifyBuilder.build(),
-                recommendResponseBuilder.build()
+                recommendResponseBuilder.build(),
+                recipeAnswerBuilder == null ? null : recipeAnswerBuilder.build()
         ));
     }
 
@@ -81,10 +95,22 @@ public class AgentFactory {
      */
     @Data
     @Accessors(fluent = true)
-    @AllArgsConstructor
     public static class AgentSet {
         private ReActAgent intent;
         private ReActAgent clarify;
         private ReActAgent recommendResponse;
+        private ReActAgent recipeAnswer;
+
+        public AgentSet(ReActAgent intent, ReActAgent clarify, ReActAgent recommendResponse) {
+            this(intent, clarify, recommendResponse, null);
+        }
+
+        public AgentSet(ReActAgent intent, ReActAgent clarify, ReActAgent recommendResponse,
+                        ReActAgent recipeAnswer) {
+            this.intent = intent;
+            this.clarify = clarify;
+            this.recommendResponse = recommendResponse;
+            this.recipeAnswer = recipeAnswer;
+        }
     }
 }

@@ -35,6 +35,7 @@ import com.diet.service.session.SessionService;
 import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
+import com.diet.service.recipe.RecipeQueryService;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -121,7 +122,13 @@ public class DietOrchestratorService {
      */
     private final AgentTraceService agentTraceService;
     private final ConstraintParser constraintParser;
+    private RecipeQueryService recipeQueryService;
     private com.diet.service.cooking.CookingService cookingService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRecipeQueryService(RecipeQueryService recipeQueryService) {
+        this.recipeQueryService = recipeQueryService;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired
     public void setCookingService(com.diet.service.cooking.CookingService cookingService) { this.cookingService=cookingService; }
@@ -225,6 +232,20 @@ public class DietOrchestratorService {
 
         // Trace 事件：USER_MESSAGE_RECORDED | 阶段 SESSION | 输入=用户原文 | 输出=sessionId+sourceMode
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", request.message(), Map.of("sessionId", sessionId, "sourceMode", sourceMode));
+
+        if (recipeQueryService != null && recipeQueryService.matches(request.message(), request.context())) {
+            try {
+                var answer = recipeQueryService.answer(sessionId, userId, request.message(), request.context());
+                agentTraceService.recordEvent("RECIPE_ANSWER_READY", "RECIPE_RAG", request.message(),
+                        Map.of("refused", answer.refused(), "citations", answer.citations(),
+                                "diagnostics", answer.diagnostics()));
+                return completeTextOnly(sessionId, traceId, state, Intent.OTHER,
+                        ResponseResult.textOnly(answer.text()));
+            } catch (IllegalArgumentException invalid) {
+                return completeAsk(sessionId, traceId, state,
+                        ClarifyResult.ask(invalid.getMessage(), List.of("recipeQuery")));
+            }
+        }
 
         if(cookingService!=null && cookingService.matches(request.message(),request.context())) {
             if(!cookingService.enabled()) return completeTextOnly(sessionId,traceId,state,Intent.OTHER,
