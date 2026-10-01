@@ -1,0 +1,30 @@
+diet:
+  recipe-rag:
+    enabled: false
+    source-commit: a0b14bd388ee996943173679c3a7c9db7da04a6c
+    corpus-path: data/HowToCook
+    lucene-directory: data/recipe-rag/lucene
+    embedding:
+      base-url: http://localhost:11434
+      model-name: bge-m3:567m
+      dimensions: 1024
+      timeout: 3s
+      max-attempts: 1
+    qdrant:
+      base-url: http://localhost:6333
+      collection: diet_recipe_chunks_bge_m3_1024
+      api-key: ${QDRANT_API_KEY:}
+      timeout: 3s
+    retrieval:
+      mode: parallel_hybrid
+      sparse-top-k: 20
+      dense-top-k: 20
+      final-top-k: 5
+      rrf-rank-constant: 60
+      branch-timeout: 2s
+    query-rewrite:
+      enabled: false
+      timeout: 2s
+    rerank:
+      enabled: false
+      timeout: 2s

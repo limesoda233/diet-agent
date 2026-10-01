@@ -459,7 +459,7 @@ git commit -m "feat: add parallel hybrid recipe retrieval"
 - Produces: `Mono<RecipeQuery> rewrite(RecipeQuery original)` 和 `Mono<List<RetrievedRecipe>> rerank(RecipeQuery, List<RetrievedRecipe>)`。
 - Defaults: `enabled=false`，identity 实现不调用模型；超时或错误返回输入对象和原顺序。
 
-- [ ] **Step 1: 写否定约束不可丢失与配置默认关闭测试**
+- [x] **Step 1: 写否定约束不可丢失与配置默认关闭测试**
 
 ```java
 var original = new RecipeQuery("宫保鸡丁怎么做，不要花生", List.of(), List.of("花生"), List.of(), null);
@@ -468,17 +468,17 @@ assertThat(rewriter.rewrite(original).block().excludedIngredients())
 assertThat(properties.isEnabled()).isFalse();
 ```
 
-- [ ] **Step 2: 实现接口、identity 默认值和条件 Bean**
+- [x] **Step 2: 实现接口、identity 默认值和条件 Bean**
 
 配置完整声明固定 commit、Lucene 目录、Qdrant URL/collection、`bge-m3:567m`、1024 维、top-k、RRF k、分支超时和重排/改写开关；不得修改用户已有 `application.yml`。
 
-- [ ] **Step 3: 运行配置与查询测试**
+- [x] **Step 3: 运行配置与查询测试**
 
 Run: `mvn -Dtest=RecipeQueryRewriteTest,RecipeRagConfigurationTest test`
 
 Expected: PASS；RAG 关闭时不创建外部连接，推荐 Bean 正常启动。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add src/main/java/com/diet/service/recipe/rag src/main/resources/application-recipe-rag.yml src/test/java/com/diet/service/recipe/rag
