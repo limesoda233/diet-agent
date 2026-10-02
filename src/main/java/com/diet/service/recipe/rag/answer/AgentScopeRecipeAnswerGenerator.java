@@ -93,12 +93,24 @@ public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
         RecipeDocument recipe = evidence.documents().get(0);
         RecipeCitation citation = evidence.citations().get(0);
         String id = "[" + citation.id() + "]";
-        String ingredients = recipe.ingredients().isEmpty() ? "原文未列出" : String.join("、", recipe.ingredients());
+        List<String> ingredients = new ArrayList<>();
+        if (recipe.ingredients().isEmpty()) {
+            ingredients.add("- 原文未列出 " + id);
+        } else {
+            recipe.ingredients().forEach(value -> ingredients.add("- " + value + " " + id));
+        }
         List<String> numbered = new ArrayList<>();
-        for (int i = 0; i < recipe.steps().size(); i++) numbered.add((i + 1) + ". " + recipe.steps().get(i));
-        String steps = numbered.isEmpty() ? "原文没有足够步骤" : String.join("\n", numbered);
-        String text = "**" + recipe.title() + "** " + id + "\n\n食材：" + ingredients + " " + id
-                + "\n\n步骤：\n" + steps + " " + id + "\n\n来源：" + recipe.relativePath() + " " + id;
+        if (recipe.steps().isEmpty()) {
+            numbered.add("1. 原文没有足够步骤 " + id);
+        } else {
+            for (int i = 0; i < recipe.steps().size(); i++) {
+                numbered.add((i + 1) + ". " + recipe.steps().get(i) + " " + id);
+            }
+        }
+        String text = "## " + recipe.title() + " " + id
+                + "\n\n### 食材\n" + String.join("\n", ingredients)
+                + "\n\n### 步骤\n" + String.join("\n", numbered)
+                + "\n\n### 来源\n- " + id + " `" + recipe.relativePath() + "`";
         return new RecipeAnswer(text, List.of(citation), false,
                 withGeneration(diagnostics, "deterministic_fallback"));
     }
@@ -108,12 +120,13 @@ public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
                 + "\n排除食材：" + String.join("、", query.excludedIngredients())
                 + "\n\n你只能根据以下证据回答。食材和步骤必须使用 [S1] 形式引用。"
                 + "不得补写热量、营养或证据中不存在的替换方案。证据不足或约束冲突时 refused=true。"
+                + "text 必须使用 Markdown 排版，并依次包含菜名标题、### 食材、### 步骤；食材使用无序列表，步骤使用有序列表。"
                 + "只输出 JSON：{\"text\":\"...\",\"citationIds\":[\"S1\"],\"refused\":false}\n\n"
                 + evidence;
     }
 
     private String sourceFooter(List<RecipeCitation> citations) {
-        StringBuilder footer = new StringBuilder("\n\n来源：");
+        StringBuilder footer = new StringBuilder("\n\n### 来源");
         for (RecipeCitation citation : citations) {
             footer.append("\n- [").append(citation.id()).append("] ")
                     .append(citation.title()).append(" · ").append(citation.sourcePath());

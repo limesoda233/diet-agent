@@ -54,12 +54,7 @@ public class CookingVideoSearchService {
 
     public String format(List<CookingVideo> videos) {
         if (videos == null || videos.isEmpty()) return "没有找到可用的做饭教学视频。";
-        StringBuilder text = new StringBuilder("找到这些做饭教学视频：");
-        for (CookingVideo video : videos) {
-            text.append("\n- ").append(video.title()).append("（").append(video.platform()).append("） ")
-                    .append(video.url());
-        }
-        return text.toString();
+        return "找到 " + videos.size() + " 个做饭教学视频，点击卡片即可观看。";
     }
 
     private VideoSearchRequest structured(Object structured) {

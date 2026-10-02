@@ -36,6 +36,7 @@ import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
 import com.diet.service.recipe.RecipeQueryService;
+import com.diet.service.video.CookingVideo;
 import com.diet.service.video.CookingVideoSearchService;
 import org.springframework.stereotype.Service;
 
@@ -243,7 +244,7 @@ public class DietOrchestratorService {
                 String text = cookingVideoSearchService.format(videos);
                 agentTraceService.recordEvent("COOKING_VIDEO_SEARCHED", "VIDEO_MCP", videoRequest,
                         Map.of("resultCount", videos == null ? 0 : videos.size()));
-                return completeTextOnly(sessionId, traceId, state, Intent.OTHER, ResponseResult.textOnly(text));
+                return completeVideoSearch(sessionId, traceId, state, text, videos);
             } catch (IllegalArgumentException invalid) {
                 return completeAsk(sessionId, traceId, state,
                         ClarifyResult.ask(invalid.getMessage(), List.of("videoSearch")));
@@ -579,6 +580,20 @@ public class DietOrchestratorService {
 
         // 返回纯文本响应
         return chatResponse;
+    }
+
+    private ChatResponse completeVideoSearch(String sessionId,
+                                             String traceId,
+                                             SessionState state,
+                                             String text,
+                                             List<CookingVideo> videos) {
+        SessionState savedState = state.withIntent(Intent.OTHER);
+        sessionStateService.save(savedState);
+        sessionService.appendMessage(sessionId, "assistant", text, Intent.OTHER.name(), traceId);
+        ChatResponse response = ChatResponse.videos(sessionId, traceId, text, videos);
+        agentTraceService.recordEvent("RESPONSE_READY", "RESPONSE",
+                Map.of("intent", Intent.OTHER, "state", savedState), response);
+        return response;
     }
 
     /**

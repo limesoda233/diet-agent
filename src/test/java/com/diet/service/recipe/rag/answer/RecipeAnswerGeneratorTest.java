@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,6 +47,40 @@ class RecipeAnswerGeneratorTest {
         assertThat(answer.refused()).isFalse();
         assertThat(answer.text()).contains("番茄", "鸡蛋", "[S1]").doesNotContain("S9");
         assertThat(answer.diagnostics()).containsEntry("generation", "deterministic_fallback");
+    }
+
+    @Test
+    void deterministicFallbackUsesStableMarkdownSections() {
+        var generator = new AgentScopeRecipeAnswerGenerator(
+                new RecipeEvidenceAssembler(6000, 3),
+                prompt -> "{\"text\":\"引用不存在 [S9]\",\"citationIds\":[\"S9\"],\"refused\":false}",
+                new ObjectMapper());
+
+        var answer = generator.generate("s", new RecipeQuery("番茄炒蛋", List.of(), List.of(), List.of(), null),
+                retrieval(recipe("r1", "番茄炒蛋")));
+
+        assertThat(answer.text())
+                .startsWith("## 番茄炒蛋 [S1]")
+                .contains("### 食材\n- 番茄 2 个 [S1]")
+                .contains("### 步骤\n1. 鸡蛋炒熟盛出 [S1]")
+                .contains("### 来源\n- [S1]");
+    }
+
+    @Test
+    void asksAnswerModelForStableMarkdownSections() {
+        AtomicReference<String> prompt = new AtomicReference<>();
+        var generator = new AgentScopeRecipeAnswerGenerator(
+                new RecipeEvidenceAssembler(6000, 3),
+                value -> {
+                    prompt.set(value);
+                    return "{\"text\":\"回答 [S1]\",\"citationIds\":[\"S1\"],\"refused\":false}";
+                },
+                new ObjectMapper());
+
+        generator.generate("s", new RecipeQuery("番茄炒蛋", List.of(), List.of(), List.of(), null),
+                retrieval(recipe("r1", "番茄炒蛋")));
+
+        assertThat(prompt.get()).contains("### 食材", "### 步骤", "Markdown");
     }
 
     @Test

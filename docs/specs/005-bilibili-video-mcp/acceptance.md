@@ -12,7 +12,8 @@
 | --- | --- | --- |
 | Provider 映射与 MCP client 生命周期 | `mvn "-Dtest=BilibiliMcpCookingVideoSearchProviderTest,AgentScopeBilibiliMcpClientTest,CookingVideoSearchServiceTest" test` | 8 个测试通过，0 失败，0 错误 |
 | 真实 MCP 联调 | `mvn "-Dtest=BilibiliMcpLiveTest" "-Ddiet.video-mcp.live=true" test` | 1 个测试通过；协商协议 `2024-11-05`，服务端 `bilibili-mcp-server 0.0.7`，真实检索“番茄炒蛋”返回可解析结果 |
-| 全量回归 | `mvn test` | 95 个测试，0 失败，0 错误，7 个按条件跳过 |
+| 前端 Markdown 与视频卡片 | `node --test src/test/js/chat-renderer.test.js` | 6 个测试通过；覆盖安全 Markdown、危险链接、B 站 URL 白名单、卡片内容、新窗口属性和页面接入 |
+| 全量回归 | `mvn test` | 99 个测试，0 失败，0 错误，7 个按条件跳过 |
 | 构建产物 | `mvn -DskipTests package` | 通过 |
 
 ## 已确认行为
@@ -22,6 +23,8 @@
 - MCP 无结果时返回空列表；工具缺失、进程失败或响应格式不可解析时返回明确错误，不生成虚假链接。
 - 默认配置仍使用 disabled provider。只有显式启用 `video-mcp` profile 才会启动外部 MCP 进程。
 - 当前实现无需 Cookie 或 API Key，不读取收藏、评论和字幕，也不下载视频。
+- 视频结果通过 `videoBlocks` 返回，`speechText` 只保留简短引导；卡片不会向浏览器暴露 MCP source 和内部 query。
+- 菜谱回答使用稳定 Markdown 分节，前端渲染前会转义原始 HTML，只开放受控格式与 HTTP(S) 链接。
 
 ## 限制
 

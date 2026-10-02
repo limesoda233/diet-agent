@@ -48,6 +48,8 @@ mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe
 帮我找番茄炒蛋的 B 站教学视频
 ```
 
+聊天接口返回结构化 `videoBlocks`。页面会展示视频标题、UP 主、平台和时长；点击卡片或“打开视频”会在新窗口进入 B 站播放页。
+
 普通餐食推荐和文字菜谱问答不会调用视频 MCP。
 
 ## 配置

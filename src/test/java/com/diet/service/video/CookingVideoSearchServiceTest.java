@@ -32,6 +32,9 @@ class CookingVideoSearchServiceTest {
             assertThat(video.url()).startsWith("https://example.invalid/");
             assertThat(video.query()).isEqualTo("宫保鸡丁");
         });
+        assertThat(service.format(videos))
+                .isEqualTo("找到 2 个做饭教学视频，点击卡片即可观看。")
+                .doesNotContain("https://");
         assertThat(CookingVideoSearchService.TOOL_NAME).isEqualTo("search_cooking_videos");
     }
 

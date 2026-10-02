@@ -20,6 +20,8 @@
 4. MCP 包必须固定为 `0.0.7`，不得在运行时使用 `latest`。
 5. MCP 进程首次搜索时惰性初始化，应用关闭时释放；初始化或调用失败不得产生伪造结果。
 6. 普通推荐和菜谱 RAG 不得隐式调用视频搜索。
+7. 聊天接口通过 `videoBlocks` 返回标题、播放页 URL、平台、UP 主和时长；不得把播放链接拼入 `speechText`。
+8. 前端只接受 `https://(www.)bilibili.com/video/BV...` 播放页，把每个结果渲染为整卡可点击的视频卡片，并使用 `target="_blank"` 与 `rel="noopener noreferrer"` 在新窗口安全打开。
 
 ## 配置
 
@@ -36,6 +38,8 @@
 - MCP client 初始化后发现并调用 `search_videos`，参数包含增强后的做饭关键词和 1～10 的 count。
 - provider 能解析标题、UP 主、BV 号和 `MM:SS`/`HH:MM:SS` 时长，生成标准 Bilibili URL。
 - HTML 高亮标签不会进入最终标题。
+- `ChatResponse` 使用 `VIDEOS` 响应类型和结构化 `videoBlocks`，不会暴露 MCP source 或内部 query。
+- 桌面端视频卡片支持双列布局，移动端降为单列，整张卡片可通过鼠标或键盘打开新窗口。
 - MCP 错误、返回格式变化、空结果和不支持的平台都有明确行为。
 - 默认离线测试不启动 npx；真实联调通过 opt-in 测试或手工命令执行。
 

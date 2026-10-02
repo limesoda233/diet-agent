@@ -290,12 +290,17 @@
         const trace = message.traceId
             ? `<span>traceId：<a href="#/admin/traces" data-action="open-trace" data-trace-id="${escapeHtml(message.traceId)}">${escapeHtml(message.traceId)}</a></span>`
             : "";
+        const messageText = message.role === "assistant"
+            ? DietChatRenderer.renderMarkdown(message.text)
+            : escapeHtml(message.text);
+        const videoCards = DietChatRenderer.renderVideoCards(message.videos);
         return `
             <article class="message ${message.role}">
-                <div class="bubble">${escapeHtml(message.text)}</div>
+                <div class="bubble">${messageText}</div>
                 ${missingSlots}
                 ${planSections ? `<div class="meal-plan">${planSections}</div>` : ""}
                 ${mealCards ? `<div class="grid">${mealCards}</div>` : ""}
+                ${videoCards}
                 ${trace ? `<div class="message-meta">${trace}</div>` : ""}
             </article>
         `;
@@ -334,6 +339,7 @@
                 responseType: response.responseType,
                 meals: response.displayBlocks || [],
                 planBlocks: response.planBlocks || [],
+                videos: response.videoBlocks || [],
                 missingSlots: response.missingSlots || [],
                 traceId: response.traceId,
                 sessionId: response.sessionId || state.chat.sessionId

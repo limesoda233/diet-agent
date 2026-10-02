@@ -2,6 +2,7 @@ package com.diet.model;
 
 import java.util.List;
 
+import com.diet.service.video.CookingVideo;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 
 import lombok.AllArgsConstructor;
@@ -21,6 +22,7 @@ public class ChatResponse {
     private String speechText;
     private List<MealResponse> displayBlocks;
     private List<MealPlanBlock> planBlocks;
+    private List<VideoResponse> videoBlocks;
     private String nextAction;
     private String clarifyQuestion;
     private List<String> missingSlots;
@@ -32,7 +34,7 @@ public class ChatResponse {
     public static ChatResponse answer(String sessionId, String traceId, String speechText, List<MealResponse> displayBlocks, String nextAction) {
         return new ChatResponse(sessionId, traceId, "ANSWER", speechText,
                 displayBlocks == null ? List.of() : displayBlocks,
-                List.of(), nextAction, null, List.of());
+                List.of(), List.of(), nextAction, null, List.of());
     }
 
     public static ChatResponse plan(
@@ -45,7 +47,18 @@ public class ChatResponse {
         return new ChatResponse(sessionId, traceId, "PLAN", speechText,
                 displayBlocks == null ? List.of() : displayBlocks,
                 planBlocks == null ? List.of() : planBlocks,
-                nextAction, null, List.of());
+                List.of(), nextAction, null, List.of());
+    }
+
+    public static ChatResponse videos(String sessionId,
+                                      String traceId,
+                                      String speechText,
+                                      List<CookingVideo> videos) {
+        List<VideoResponse> blocks = videos == null ? List.of() : videos.stream()
+                .map(VideoResponse::from)
+                .toList();
+        return new ChatResponse(sessionId, traceId, "VIDEOS", speechText,
+                List.of(), List.of(), blocks, "WAIT_USER", null, List.of());
     }
 
     public static ChatResponse clarify(String sessionId, String question, List<String> missingSlots) {
@@ -53,7 +66,7 @@ public class ChatResponse {
     }
 
     public static ChatResponse clarify(String sessionId, String traceId, String question, List<String> missingSlots) {
-        return new ChatResponse(sessionId, traceId, "CLARIFY", question, List.of(), List.of(),
+        return new ChatResponse(sessionId, traceId, "CLARIFY", question, List.of(), List.of(), List.of(),
                 "ASK_CLARIFY", question, missingSlots == null ? List.of() : List.copyOf(missingSlots));
     }
 }
