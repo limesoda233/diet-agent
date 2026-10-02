@@ -20,13 +20,13 @@ CREATE TABLE IF NOT EXISTS `meal_knowledge` (
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_meal_knowledge_seed`;
 CREATE TEMPORARY TABLE `tmp_meal_knowledge_seed` (
-  `meal_source_type` VARCHAR(16) NOT NULL,
-  `meal_name` VARCHAR(128) NOT NULL,
+  `meal_source_type` VARCHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `meal_name` VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `ingredients` JSON NOT NULL,
-  `description` TEXT NOT NULL,
-  `preparation` TEXT NOT NULL,
+  `description` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `preparation` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`meal_source_type`, `meal_name`)
-);
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `tmp_meal_knowledge_seed`
   (`meal_source_type`, `meal_name`, `ingredients`, `description`, `preparation`)
