@@ -1,0 +1,13 @@
+diet:
+  video-mcp:
+    enabled: true
+    provider: bilibili-mcp
+    timeout: 30s
+    initialization-timeout: 30s
+    default-limit: 3
+    server-name: bilibili
+    arguments:
+      - -y
+      - "@wangshunnn/bilibili-mcp-server@0.0.7"
+    search-tool: search_videos
+    query-suffix: " 做法 教程"

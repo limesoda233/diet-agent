@@ -7,10 +7,19 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(VideoMcpProperties.class)
 public class VideoMcpConfiguration {
+    @Bean(destroyMethod = "close")
+    AgentScopeBilibiliMcpClient bilibiliMcpClient(VideoMcpProperties properties) {
+        return new AgentScopeBilibiliMcpClient(properties);
+    }
+
     @Bean
-    CookingVideoSearchProvider cookingVideoSearchProvider(VideoMcpProperties properties) {
+    CookingVideoSearchProvider cookingVideoSearchProvider(VideoMcpProperties properties,
+                                                           AgentScopeBilibiliMcpClient bilibiliMcpClient) {
         if (properties.isEnabled() && "fake".equalsIgnoreCase(properties.getProvider())) {
             return new FakeCookingVideoSearchProvider();
+        }
+        if (properties.isEnabled() && "bilibili-mcp".equalsIgnoreCase(properties.getProvider())) {
+            return new BilibiliMcpCookingVideoSearchProvider(bilibiliMcpClient, properties.getQuerySuffix());
         }
         return new DisabledCookingVideoSearchProvider();
     }

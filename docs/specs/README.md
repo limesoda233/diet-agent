@@ -17,8 +17,9 @@
 | 001 | 固定语料、可复核标注、真实 MySQL 检索基线、分切片报告 | 可复现、指标正确、限制与标注状态明确 |
 | 003（历史） | 已退役的本地食谱/替换 MCP 实验 | 代码已由阶段 004 删除，文档只保留历史证据 |
 | 004（当前） | 移除餐食 RAG；HowToCook 菜谱 RAG、并行混合检索、评测与视频 MCP 边界 | [规格](004-recipe-rag/spec.md) · [运行手册](004-recipe-rag/runbook.md) · [验收](004-recipe-rag/acceptance.md) |
+| 005（当前） | AgentScope stdio 接入固定版本 Bilibili MCP，只读搜索做饭教学视频 | [规格](005-bilibili-video-mcp/spec.md) · [运行手册](005-bilibili-video-mcp/runbook.md) · [验收](005-bilibili-video-mcp/acceptance.md) |
 
-第一阶段已完成工程验收，见 [001 验收记录](001-meal-retrieval-evaluation/acceptance.md)。阶段 002 的餐食 RAG 文档与代码已删除，阶段 003 只保留带退役标记的历史文档。阶段 004 是当前唯一现役设计；实现、运行与未验证项以阶段 004 文档为准。
+第一阶段已完成工程验收，见 [001 验收记录](001-meal-retrieval-evaluation/acceptance.md)。阶段 002 的餐食 RAG 文档与代码已删除，阶段 003 只保留带退役标记的历史文档。阶段 004 定义菜谱 RAG，阶段 005 定义真实视频 MCP；实现和运行状态以对应阶段文档为准。
 
 ## 开发约束
 
