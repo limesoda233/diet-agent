@@ -4,6 +4,7 @@ import com.diet.agent.factory.AgentFactory;
 import com.diet.service.recipe.rag.model.RecipeAnswer;
 import com.diet.service.recipe.rag.model.RecipeCitation;
 import com.diet.service.recipe.rag.model.RecipeDocument;
+import com.diet.service.recipe.rag.model.RecipeEvidenceContext;
 import com.diet.service.recipe.rag.model.RecipeQuery;
 import com.diet.service.recipe.rag.model.RecipeRetrievalResult;
 import com.diet.service.trace.AgentTraceService;
@@ -62,17 +63,18 @@ public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
                 if (agent == null) throw new IllegalStateException("recipe answer agent is unavailable");
                 raw = trace.callAgent(sessionId, "RecipeAnswerAgent", "main", agent, prompt).getTextContent();
             }
-            RecipeAnswer parsed = parse(raw, evidence.citations(), diagnostics);
+            RecipeAnswer parsed = parse(raw, evidence.citations(), diagnostics, evidence.contexts());
             return parsed == null ? deterministic(evidence, diagnostics) : parsed;
         } catch (RuntimeException error) {
             return deterministic(evidence, diagnostics);
         }
     }
 
-    private RecipeAnswer parse(String raw, List<RecipeCitation> available, Map<String, Object> diagnostics) {
+    private RecipeAnswer parse(String raw, List<RecipeCitation> available, Map<String, Object> diagnostics,
+                               List<RecipeEvidenceContext> evidenceContexts) {
         try {
             JsonNode root = json.readTree(stripFence(raw));
-            if (root.path("refused").asBoolean(false)) return RecipeAnswer.refused(REFUSAL, diagnostics);
+            if (root.path("refused").asBoolean(false)) return RecipeAnswer.refused(REFUSAL, diagnostics, evidenceContexts);
             String text = root.path("text").asText("").trim();
             if (text.isBlank() || !root.path("citationIds").isArray()) return null;
             Map<String, RecipeCitation> byId = new LinkedHashMap<>();
@@ -82,7 +84,7 @@ public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
             if (ids.isEmpty() || !byId.keySet().containsAll(ids)) return null;
             if (ids.stream().anyMatch(id -> !text.contains("[" + id + "]"))) return null;
             List<RecipeCitation> used = ids.stream().map(byId::get).toList();
-            return new RecipeAnswer(text + sourceFooter(used), used, false, withGeneration(diagnostics, "agent"));
+            return new RecipeAnswer(text + sourceFooter(used), used, false, withGeneration(diagnostics, "agent"), evidenceContexts);
         } catch (Exception ignored) {
             return null;
         }
@@ -112,7 +114,7 @@ public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
                 + "\n\n### 步骤\n" + String.join("\n", numbered)
                 + "\n\n### 来源\n- " + id + " `" + recipe.relativePath() + "`";
         return new RecipeAnswer(text, List.of(citation), false,
-                withGeneration(diagnostics, "deterministic_fallback"));
+                withGeneration(diagnostics, "deterministic_fallback"), evidence.contexts());
     }
 
     private String prompt(RecipeQuery query, String evidence) {

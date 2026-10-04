@@ -2,6 +2,7 @@ package com.diet.service.recipe.rag.answer;
 
 import com.diet.service.recipe.rag.model.RecipeCitation;
 import com.diet.service.recipe.rag.model.RecipeDocument;
+import com.diet.service.recipe.rag.model.RecipeEvidenceContext;
 import com.diet.service.recipe.rag.model.RecipeRetrievalResult;
 
 import java.util.ArrayList;
@@ -19,8 +20,9 @@ public class RecipeEvidenceAssembler {
     }
 
     public EvidenceBundle assemble(RecipeRetrievalResult retrieval) {
-        if (retrieval == null || retrieval.recipes().isEmpty()) return new EvidenceBundle("", List.of(), List.of());
+        if (retrieval == null || retrieval.recipes().isEmpty()) return new EvidenceBundle("", List.of(), List.of(), List.of());
         StringBuilder evidence = new StringBuilder();
+        List<RecipeEvidenceContext> contexts = new ArrayList<>();
         List<RecipeCitation> citations = new ArrayList<>();
         List<RecipeDocument> documents = new ArrayList<>();
         for (int i = 0; i < Math.min(maxRecipes, retrieval.recipes().size()); i++) {
@@ -30,12 +32,13 @@ public class RecipeEvidenceAssembler {
             int remaining = characterBudget - evidence.length();
             if (remaining <= 0) break;
             if (block.length() > remaining) block = block.substring(0, remaining);
+            contexts.add(new RecipeEvidenceContext(citationId, recipe.recipeId(), block));
             evidence.append(block);
             citations.add(new RecipeCitation(citationId, recipe.recipeId(), recipe.title(), recipe.relativePath(),
                     recipe.sourceCommit(), recipe.contentHash()));
             documents.add(recipe);
         }
-        return new EvidenceBundle(evidence.toString(), citations, documents);
+        return new EvidenceBundle(evidence.toString(), contexts, citations, documents);
     }
 
     private String render(String id, RecipeDocument recipe) {
@@ -45,11 +48,13 @@ public class RecipeEvidenceAssembler {
                 + "\n来源：" + recipe.relativePath() + "@" + recipe.sourceCommit() + "\n\n";
     }
 
-    public record EvidenceBundle(String promptEvidence, List<RecipeCitation> citations,
+    public record EvidenceBundle(String promptEvidence, List<RecipeEvidenceContext> contexts,
+                                 List<RecipeCitation> citations,
                                  List<RecipeDocument> documents) {
         public EvidenceBundle {
-            citations = List.copyOf(citations);
-            documents = List.copyOf(documents);
+            contexts = contexts == null ? List.of() : List.copyOf(contexts);
+            citations = citations == null ? List.of() : List.copyOf(citations);
+            documents = documents == null ? List.of() : List.copyOf(documents);
         }
     }
 }
