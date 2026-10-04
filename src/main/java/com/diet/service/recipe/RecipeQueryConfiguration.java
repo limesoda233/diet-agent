@@ -19,6 +19,7 @@ import com.diet.service.recipe.rag.retrieval.RecipeParentResolver;
 import com.diet.service.recipe.rag.retrieval.RecipeQueryRewriter;
 import com.diet.service.recipe.rag.retrieval.RecipeReranker;
 import com.diet.service.trace.AgentTraceService;
+import com.diet.service.video.CookingVideoSearchService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +32,11 @@ import java.util.List;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "diet.recipe-rag", name = "enabled", havingValue = "true")
 public class RecipeQueryConfiguration {
+
+    @Bean
+    RecipeVideoCoordinator recipeVideoCoordinator(CookingVideoSearchService videos) {
+        return new RecipeVideoCoordinator(videos);
+    }
 
     @Bean
     RecipeQueryRouter recipeQueryRouter() {
