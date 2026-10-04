@@ -10,6 +10,7 @@ import com.diet.service.video.VideoMcpProperties;
 import com.diet.service.video.VideoPlatform;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.Arguments;
 import org.mockito.ArgumentCaptor;
 import reactor.core.publisher.Mono;
@@ -132,6 +133,13 @@ class RecipeOrchestratorTest {
         verify(fixture.trace).recordEvent(eq(videoEvent), anyString(), isNull(), videoPayload.capture());
         assertThat(recipePayload.getValue().toString()).doesNotContain("secret-token", "internal", "path.md");
         assertThat(videoPayload.getValue().toString()).doesNotContain("secret-token", "https://");
+        var recipeTerminalEvents = java.util.Set.of("RECIPE_RAG_COMPLETED", "RECIPE_RAG_REFUSED", "RECIPE_RAG_FAILED");
+        var videoTerminalEvents = java.util.Set.of("VIDEO_MCP_COMPLETED", "VIDEO_MCP_EMPTY", "VIDEO_MCP_TIMEOUT", "VIDEO_MCP_FAILED");
+        var events = mockingDetails(fixture.trace).getInvocations().stream()
+                .filter(invocation -> invocation.getMethod().getName().equals("recordEvent"))
+                .map(invocation -> (String) invocation.getArgument(0)).toList();
+        assertThat(events.stream().filter(recipeTerminalEvents::contains).count()).isEqualTo(1);
+        assertThat(events.stream().filter(videoTerminalEvents::contains).count()).isEqualTo(1);
         verify(fixture.trace).recordEvent(eq("RECIPE_RESPONSE_COMPOSED"), anyString(), isNull(), any());
         verify(fixture.trace, never()).recordError(anyString(), anyString(), any(), any());
         verifyNoInteractions(fixture.videos);
@@ -167,6 +175,52 @@ class RecipeOrchestratorTest {
 
         fixture.assertRecipeResponse(fixture.chat("只要宫保鸡丁视频"), "找到", 1, "VIDEOS");
         verifyNoInteractions(fixture.recipes);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void videoProviderArgumentFailureNeverLeaksIntoResponseOrTrace(boolean synchronous) {
+        var fixture = new Fixture();
+        var properties = new VideoMcpProperties();
+        properties.setEnabled(true);
+        String sensitive = "internal-sensitive-provider-token";
+        var videos = new CookingVideoSearchService((query, platform, limit) -> {
+            var failure = new IllegalArgumentException(sensitive);
+            if (synchronous) throw failure;
+            return Mono.error(failure);
+        }, properties);
+        fixture.orchestrator.setCookingVideoSearchService(videos);
+
+        var response = fixture.chat("只要宫保鸡丁视频");
+
+        assertThat(response.speechText()).doesNotContain(sensitive);
+        fixture.assertRecipeResponse(response, "视频搜索暂时不可用", 0, "ANSWER");
+        var payload = ArgumentCaptor.forClass(Object.class);
+        verify(fixture.trace).recordEvent(eq("COOKING_VIDEO_SEARCH_FAILED"), eq("VIDEO_MCP"),
+                isNull(), payload.capture());
+        assertThat(payload.getValue()).isEqualTo(Map.of("status", FAILED, "errorType", "IllegalArgumentException"));
+        assertThat(mockingDetails(fixture.trace).getInvocations().toString()).doesNotContain(sensitive);
+        verify(fixture.trace, never()).recordError(anyString(), anyString(), any(), any());
+        verifyNoInteractions(fixture.recipes);
+    }
+
+    @Test
+    void invalidVideoInputGetsStableClarificationBeforeProviderIsCalled() {
+        var fixture = new Fixture();
+        var properties = new VideoMcpProperties();
+        properties.setEnabled(true);
+        var videos = new CookingVideoSearchService((query, platform, limit) -> {
+            throw new AssertionError("invalid route must not call provider");
+        }, properties);
+        fixture.orchestrator.setCookingVideoSearchService(videos);
+
+        var response = fixture.orchestrator.dietChat(7L, new ChatRequest("s", "找视频", SourceMode.PUBLIC,
+                Map.of("videoSearch", Map.of("query", ""))));
+
+        assertThat(response.responseType()).isEqualTo("CLARIFY");
+        assertThat(response.speechText()).contains("视频搜索参数无效");
+        assertThat(response.missingSlots()).containsExactly("videoSearch");
+        verifyNoInteractions(fixture.recipes, fixture.intent, fixture.meals, fixture.mealSearch);
     }
 
     @Test

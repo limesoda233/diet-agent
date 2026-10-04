@@ -247,22 +247,26 @@ public class DietOrchestratorService {
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", request.message(), Map.of("sessionId", sessionId, "sourceMode", sourceMode));
 
         if (cookingVideoSearchService != null && cookingVideoSearchService.isVideoOnly(request.message(), request.context())) {
+            CookingVideoSearchService.VideoSearchRequest videoRequest;
             try {
-                var videoRequest = cookingVideoSearchService.route(request.message(), request.context());
-                var videos = cookingVideoSearchService.search(videoRequest).block();
-                String text = cookingVideoSearchService.format(videos);
-                agentTraceService.recordEvent("COOKING_VIDEO_SEARCHED", "VIDEO_MCP", videoRequest,
-                        Map.of("resultCount", videos == null ? 0 : videos.size()));
-                return completeVideoSearch(sessionId, traceId, state, text, videos);
+                videoRequest = cookingVideoSearchService.route(request.message(), request.context());
             } catch (IllegalArgumentException invalid) {
                 return completeAsk(sessionId, traceId, state,
-                        ClarifyResult.ask(invalid.getMessage(), List.of("videoSearch")));
+                        ClarifyResult.ask("视频搜索参数无效，请检查搜索关键词、平台和数量。", List.of("videoSearch")));
+            }
+            List<CookingVideo> videos;
+            try {
+                videos = cookingVideoSearchService.search(videoRequest).block();
             } catch (RuntimeException unavailable) {
                 agentTraceService.recordEvent("COOKING_VIDEO_SEARCH_FAILED", "VIDEO_MCP", null,
                         Map.of("status", BranchStatus.FAILED, "errorType", sanitizedErrorType(unavailable.getClass().getSimpleName())));
                 return completeTextOnly(sessionId, traceId, state, Intent.RECIPE_QUERY,
                         ResponseResult.textOnly("视频搜索暂时不可用，文字菜谱仍可正常查询。"));
             }
+            String text = cookingVideoSearchService.format(videos);
+            agentTraceService.recordEvent("COOKING_VIDEO_SEARCHED", "VIDEO_MCP", videoRequest,
+                    Map.of("resultCount", videos == null ? 0 : videos.size()));
+            return completeVideoSearch(sessionId, traceId, state, text, videos);
         }
 
         if (recipeQueryService != null && recipeQueryService.matches(request.message(), request.context())) {
