@@ -36,6 +36,9 @@ import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
 import com.diet.service.recipe.RecipeQueryService;
+import com.diet.service.recipe.RecipeVideoCoordinator;
+import com.diet.service.recipe.RecipeVideoCoordinator.BranchOutcome;
+import com.diet.service.recipe.RecipeVideoCoordinator.BranchStatus;
 import com.diet.service.video.CookingVideo;
 import com.diet.service.video.CookingVideoSearchService;
 import org.springframework.stereotype.Service;
@@ -125,6 +128,12 @@ public class DietOrchestratorService {
     private final AgentTraceService agentTraceService;
     private final ConstraintParser constraintParser;
     private RecipeQueryService recipeQueryService;
+    private RecipeVideoCoordinator recipeVideoCoordinator;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRecipeVideoCoordinator(RecipeVideoCoordinator coordinator) {
+        this.recipeVideoCoordinator = coordinator;
+    }
     private CookingVideoSearchService cookingVideoSearchService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -237,7 +246,7 @@ public class DietOrchestratorService {
         // Trace 事件：USER_MESSAGE_RECORDED | 阶段 SESSION | 输入=用户原文 | 输出=sessionId+sourceMode
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", request.message(), Map.of("sessionId", sessionId, "sourceMode", sourceMode));
 
-        if (cookingVideoSearchService != null && cookingVideoSearchService.matches(request.message(), request.context())) {
+        if (cookingVideoSearchService != null && cookingVideoSearchService.isVideoOnly(request.message(), request.context())) {
             try {
                 var videoRequest = cookingVideoSearchService.route(request.message(), request.context());
                 var videos = cookingVideoSearchService.search(videoRequest).block();
@@ -249,24 +258,15 @@ public class DietOrchestratorService {
                 return completeAsk(sessionId, traceId, state,
                         ClarifyResult.ask(invalid.getMessage(), List.of("videoSearch")));
             } catch (RuntimeException unavailable) {
-                agentTraceService.recordError("COOKING_VIDEO_SEARCH_FAILED", "VIDEO_MCP", request.message(), unavailable);
-                return completeTextOnly(sessionId, traceId, state, Intent.OTHER,
+                agentTraceService.recordEvent("COOKING_VIDEO_SEARCH_FAILED", "VIDEO_MCP", null,
+                        Map.of("status", BranchStatus.FAILED, "errorType", sanitizedErrorType(unavailable.getClass().getSimpleName())));
+                return completeTextOnly(sessionId, traceId, state, Intent.RECIPE_QUERY,
                         ResponseResult.textOnly("视频搜索暂时不可用，文字菜谱仍可正常查询。"));
             }
         }
 
         if (recipeQueryService != null && recipeQueryService.matches(request.message(), request.context())) {
-            try {
-                var answer = recipeQueryService.answer(sessionId, userId, request.message(), request.context());
-                agentTraceService.recordEvent("RECIPE_ANSWER_READY", "RECIPE_RAG", request.message(),
-                        Map.of("refused", answer.refused(), "citations", answer.citations(),
-                                "diagnostics", answer.diagnostics()));
-                return completeTextOnly(sessionId, traceId, state, Intent.OTHER,
-                        ResponseResult.textOnly(answer.text()));
-            } catch (IllegalArgumentException invalid) {
-                return completeAsk(sessionId, traceId, state,
-                        ClarifyResult.ask(invalid.getMessage(), List.of("recipeQuery")));
-            }
+            return executeRecipeQuery(sessionId, userId, request.message(), request.context(), traceId, state);
         }
 
         // PERSONAL 模式且用户尚未录入任何个人餐食时，提前返回引导文案，跳过后续检索
@@ -321,6 +321,98 @@ public class DietOrchestratorService {
         } catch (IllegalArgumentException invalid) {
             return completeAsk(sessionId, traceId, state, ClarifyResult.ask(invalid.getMessage(), List.of("retrievalConstraints")));
         }
+    }
+
+    private ChatResponse executeRecipeQuery(String sessionId,
+                                            Long userId,
+                                            String message,
+                                            Map<String, Object> finalContext,
+                                            String traceId,
+                                            SessionState state) {
+        if (recipeVideoCoordinator == null) {
+            try {
+                var answer = recipeQueryService.answer(sessionId, userId, message, finalContext);
+                agentTraceService.recordEvent("RECIPE_ANSWER_READY", "RECIPE_RAG", null,
+                        Map.of("refused", answer.refused(), "citationCount", answer.citations().size()));
+                ChatResponse response = completeRecipeResponse(sessionId, traceId, state, answer.text(), List.of());
+                agentTraceService.recordEvent("RESPONSE_READY", "RESPONSE", null, response);
+                return response;
+            } catch (IllegalArgumentException invalid) {
+                return completeAsk(sessionId, traceId, state,
+                        ClarifyResult.ask(invalid.getMessage(), List.of("recipeQuery")));
+            }
+        }
+
+        agentTraceService.recordEvent("RECIPE_QUERY_NORMALIZED", "RECIPE", null,
+                Map.of("recipeQuery", message));
+        agentTraceService.recordEvent("RECIPE_RAG_STARTED", "RECIPE_RAG", null, Map.of());
+        agentTraceService.recordEvent("VIDEO_MCP_STARTED", "VIDEO_MCP", null, Map.of());
+        var result = recipeVideoCoordinator.execute(
+                () -> recipeQueryService.answer(sessionId, userId, message, finalContext), message).block();
+        var recipe = result.recipe();
+        var video = result.video();
+        boolean grounded = recipe.status() == BranchStatus.SUCCESS && recipe.value() != null;
+        List<CookingVideo> videos = video.status() == BranchStatus.SUCCESS && video.value() != null
+                ? video.value() : List.of();
+        int citations = recipe.value() == null ? 0 : recipe.value().citations().size();
+        String recipeEvent = switch (recipe.status()) {
+            case SUCCESS -> "RECIPE_RAG_COMPLETED";
+            case REFUSED -> "RECIPE_RAG_REFUSED";
+            default -> "RECIPE_RAG_FAILED";
+        };
+        String videoEvent = switch (video.status()) {
+            case SUCCESS -> "VIDEO_MCP_COMPLETED";
+            case EMPTY -> "VIDEO_MCP_EMPTY";
+            case TIMEOUT -> "VIDEO_MCP_TIMEOUT";
+            default -> "VIDEO_MCP_FAILED";
+        };
+        agentTraceService.recordEvent(recipeEvent, "RECIPE_RAG", null,
+                branchTrace(recipe, "citationCount", citations));
+        agentTraceService.recordEvent(videoEvent, "VIDEO_MCP", null,
+                branchTrace(video, "videoCount", videos.size()));
+
+        String text;
+        if (grounded) {
+            text = recipe.value().text();
+        } else if (recipe.status() == BranchStatus.REFUSED) {
+            text = videos.isEmpty() ? "未找到可信菜谱或教学视频，请尝试换一个菜名。"
+                    : recipe.value() == null || recipe.value().text().isBlank()
+                    ? "公共语料暂无可信菜谱，以下是可参考的教学视频。" : recipe.value().text();
+        } else {
+            text = videos.isEmpty() ? "菜谱和视频查询暂时不可用，请稍后再试。"
+                    : "暂无可信文字菜谱，以下是可参考的教学视频。";
+        }
+        ChatResponse response = completeRecipeResponse(sessionId, traceId, state, text, videos);
+        if (!grounded && !videos.isEmpty()) response.responseType("VIDEOS");
+        agentTraceService.recordEvent("RECIPE_RESPONSE_COMPOSED", "RECIPE", null,
+                Map.of("recipeStatus", recipe.status(), "videoStatus", video.status(),
+                        "recipeDurationMs", recipe.durationMs(), "videoDurationMs", video.durationMs(),
+                        "citationCount", citations, "videoCount", videos.size(),
+                        "degraded", !grounded || video.status() != BranchStatus.SUCCESS,
+                        "responseType", response.responseType()));
+        agentTraceService.recordEvent("RESPONSE_READY", "RESPONSE", null, response);
+        return response;
+    }
+
+    private Map<String, Object> branchTrace(BranchOutcome<?> outcome, String countKey, int count) {
+        return Map.of("status", outcome.status(), "durationMs", outcome.durationMs(), countKey, count,
+                "errorType", sanitizedErrorType(outcome.errorType()));
+    }
+
+    private String sanitizedErrorType(String errorType) {
+        if (errorType == null || errorType.isBlank()) return "";
+        return errorType.matches("[A-Za-z][A-Za-z0-9]{0,63}(Exception|Error)") ? errorType : "UnknownError";
+    }
+
+    private ChatResponse completeRecipeResponse(String sessionId,
+                                                String traceId,
+                                                SessionState state,
+                                                String text,
+                                                List<CookingVideo> videos) {
+        sessionStateService.save(state.withIntent(Intent.RECIPE_QUERY));
+        sessionService.appendMessage(sessionId, "assistant", text, Intent.RECIPE_QUERY.name(), traceId);
+        return videos.isEmpty() ? ChatResponse.answer(sessionId, traceId, text, List.of(), "WAIT_USER")
+                : ChatResponse.recipe(sessionId, traceId, text, videos);
     }
 
     /**
@@ -587,12 +679,12 @@ public class DietOrchestratorService {
                                              SessionState state,
                                              String text,
                                              List<CookingVideo> videos) {
-        SessionState savedState = state.withIntent(Intent.OTHER);
+        SessionState savedState = state.withIntent(Intent.RECIPE_QUERY);
         sessionStateService.save(savedState);
-        sessionService.appendMessage(sessionId, "assistant", text, Intent.OTHER.name(), traceId);
+        sessionService.appendMessage(sessionId, "assistant", text, Intent.RECIPE_QUERY.name(), traceId);
         ChatResponse response = ChatResponse.videos(sessionId, traceId, text, videos);
         agentTraceService.recordEvent("RESPONSE_READY", "RESPONSE",
-                Map.of("intent", Intent.OTHER, "state", savedState), response);
+                Map.of("intent", Intent.RECIPE_QUERY, "state", savedState), response);
         return response;
     }
 

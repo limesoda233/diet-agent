@@ -15,6 +15,26 @@ class ChatResponseVideoTest {
     private final ObjectMapper json = new ObjectMapper();
 
     @Test
+    void recipeResponseCanContainTextAndVideoCards() throws Exception {
+        var video = new CookingVideo("宫保鸡丁", "教学视频", "https://www.bilibili.com/video/BV1abc",
+                VideoPlatform.BILIBILI, "厨房", 120, "mcp:bilibili");
+        Method factory = ChatResponse.class.getMethod(
+                "recipe", String.class, String.class, String.class, List.class);
+        ChatResponse response = (ChatResponse) factory.invoke(null, "s", "t", "宫保鸡丁做法 [S1]", List.of(video));
+        JsonNode serialized = json.valueToTree(response);
+        assertThat(serialized.path("responseType").asText()).isEqualTo("ANSWER");
+        assertThat(serialized.path("speechText").asText()).contains("[S1]");
+        assertThat(serialized.path("videoBlocks")).hasSize(1);
+        assertThat(serialized.path("displayBlocks")).isEmpty();
+        assertThat(serialized.path("planBlocks")).isEmpty();
+        assertThat(serialized.path("nextAction").asText()).isEqualTo("WAIT_USER");
+        assertThat(serialized.path("sessionId").asText()).isEqualTo("s");
+        assertThat(serialized.path("traceId").asText()).isEqualTo("t");
+        ChatResponse withoutVideos = (ChatResponse) factory.invoke(null, "s", "t", "文字 [S1]", null);
+        assertThat(withoutVideos.videoBlocks()).isEmpty();
+    }
+
+    @Test
     void ordinaryAnswersExposeAnEmptyVideoBlockList() {
         JsonNode response = json.valueToTree(ChatResponse.answer("session", "trace", "text", List.of(), "WAIT_USER"));
 

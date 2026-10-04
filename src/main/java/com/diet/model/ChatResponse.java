@@ -50,6 +50,17 @@ public class ChatResponse {
                 List.of(), nextAction, null, List.of());
     }
 
+    public static ChatResponse recipe(String sessionId,
+                                      String traceId,
+                                      String speechText,
+                                      List<CookingVideo> videos) {
+        List<VideoResponse> blocks = videos == null ? List.of() : videos.stream()
+                .map(VideoResponse::from)
+                .toList();
+        return new ChatResponse(sessionId, traceId, "ANSWER", speechText,
+                List.of(), List.of(), blocks, "WAIT_USER", null, List.of());
+    }
+
     public static ChatResponse videos(String sessionId,
                                       String traceId,
                                       String speechText,
