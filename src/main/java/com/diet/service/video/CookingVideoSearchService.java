@@ -14,6 +14,9 @@ public class CookingVideoSearchService {
     public static final String TOOL_NAME = "search_cooking_videos";
     private static final Pattern VIDEO_REQUEST = Pattern.compile("(视频|跟做|教程|链接|哔哩哔哩|B站|bilibili|抖音)", Pattern.CASE_INSENSITIVE);
     private static final Pattern RECIPE_ACTION = Pattern.compile(
+            "(怎么做|咋做|如何做|怎么弄|咋弄|做法|菜谱|食谱|烹饪步骤|制作步骤)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern RECIPE_QUERY_CLEANUP = Pattern.compile(
             "(怎么做|咋做|如何做|怎么弄|咋弄|做法|菜谱|食谱|烹饪步骤|制作步骤|有视频吗|视频教程)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern VIDEO_ONLY = Pattern.compile(
@@ -75,7 +78,7 @@ public class CookingVideoSearchService {
         if (recipeText == null || recipeText.isBlank()) {
             throw new IllegalArgumentException("菜谱视频 query 不能为空");
         }
-        String query = RECIPE_ACTION.matcher(recipeText).replaceAll(" ")
+        String query = RECIPE_QUERY_CLEANUP.matcher(recipeText).replaceAll(" ")
                 .replaceAll("(?i)哔哩哔哩|bilibili|B站|抖音|视频|教程|链接|帮我|请|啊|呀", " ")
                 .replaceAll("[？?！!，,。\\s]+", " ")
                 .trim();

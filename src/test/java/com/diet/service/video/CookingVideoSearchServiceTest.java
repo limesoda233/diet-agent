@@ -64,7 +64,9 @@ class CookingVideoSearchServiceTest {
 
         assertThat(service.isVideoOnly("只要宫保鸡丁教学视频", Map.of())).isTrue();
         assertThat(service.isVideoOnly("找一个宫保鸡丁教学视频", Map.of())).isTrue();
+        assertThat(service.isVideoOnly("找一个宫保鸡丁视频教程", Map.of())).isTrue();
         assertThat(service.isVideoOnly("宫保鸡丁怎么做，有视频吗", Map.of())).isFalse();
+        assertThat(service.isVideoOnly("宫保鸡丁怎么做，想看视频教程", Map.of())).isFalse();
         assertThat(service.isVideoOnly("宫保鸡丁咋做啊", Map.of())).isFalse();
         assertThat(service.isVideoOnly("ignored", Map.of("videoSearch", Map.of("query", "宫保鸡丁"))))
                 .isTrue();
@@ -82,5 +84,6 @@ class CookingVideoSearchServiceTest {
         assertThat(request.query()).isEqualTo("宫保鸡丁");
         assertThat(request.platform()).isEqualTo(VideoPlatform.ANY);
         assertThat(request.limit()).isEqualTo(3);
+        assertThat(service.forRecipe("宫保鸡丁视频教程").query()).isEqualTo("宫保鸡丁");
     }
 }
