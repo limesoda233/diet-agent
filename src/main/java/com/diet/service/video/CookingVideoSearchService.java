@@ -18,7 +18,7 @@ public class CookingVideoSearchService {
             "(怎么做|咋做|如何做|怎么弄|咋弄|做法|菜谱|食谱|烹饪步骤|制作步骤|需要什么食材|要哪些食材|有视频吗|视频教程)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern VIDEO_ONLY = Pattern.compile(
-            "(只要|只看|仅看).{0,8}(视频|教程)|(不用|不要).{0,8}(文字|菜谱|做法)",
+            "(只要|只看|仅看)[^，,。！？!?；;\\r\\n]{0,8}(视频|教程)|(不用|不要)\\s*(文字|菜谱|做法)",
             Pattern.CASE_INSENSITIVE);
     private static final Set<String> ALLOWED_FIELDS = Set.of("query", "platform", "limit");
     private final CookingVideoSearchProvider provider;
@@ -67,10 +67,10 @@ public class CookingVideoSearchService {
 
     public boolean isVideoOnly(String message, Map<String, Object> context) {
         Map<String, Object> safe = context == null ? Map.of() : context;
+        if (!matches(message, safe)) return false;
         if (message != null && VIDEO_ONLY.matcher(message).find()) return true;
         if (recipeRouter.matches(message, safe)) return false;
-        return safe.containsKey("videoSearch")
-                || (message != null && VIDEO_REQUEST.matcher(message).find());
+        return true;
     }
 
     public VideoSearchRequest forRecipe(String recipeText) {

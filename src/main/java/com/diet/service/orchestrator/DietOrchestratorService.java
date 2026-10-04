@@ -355,6 +355,12 @@ public class DietOrchestratorService {
         } catch (IllegalArgumentException invalid) {
             return completeAsk(sessionId, traceId, state,
                     ClarifyResult.ask("菜谱查询参数无效，请检查菜名和食材限制。", List.of("recipeQuery")));
+        } catch (RuntimeException unavailable) {
+            agentTraceService.recordEvent("RECIPE_QUERY_PREPARATION_FAILED", "RECIPE", null,
+                    Map.of("status", BranchStatus.FAILED,
+                            "errorType", sanitizedErrorType(unavailable.getClass().getSimpleName())));
+            return completeRecipeResponse(sessionId, traceId, state,
+                    "菜谱和视频查询暂时不可用，请稍后再试。", List.of());
         }
         agentTraceService.recordEvent("RECIPE_QUERY_NORMALIZED", "RECIPE", null,
                 Map.of("originalText", message, "recipeQuery", prepared.query().text(),

@@ -1,6 +1,8 @@
 package com.diet.service.video;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.Map;
@@ -9,6 +11,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CookingVideoSearchServiceTest {
+
+    @ParameterizedTest
+    @ValueSource(strings = {"不要辣的菜谱", "只要清淡菜谱", "不用放辣椒的做法", "不要太咸，给我菜谱"})
+    void recipeConstraintsWithoutVideoRequestNeverSelectPureVideo(String question) {
+        var service = new CookingVideoSearchService(new FakeCookingVideoSearchProvider(), new VideoMcpProperties());
+
+        assertThat(service.isVideoOnly(question, Map.of())).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"只看宫保鸡丁视频", "不要菜谱，想看宫保鸡丁视频", "不用文字，给我宫保鸡丁视频教程"})
+    void explicitVideoRequestsStillSelectPureVideo(String question) {
+        var service = new CookingVideoSearchService(new FakeCookingVideoSearchProvider(), new VideoMcpProperties());
+
+        assertThat(service.isVideoOnly(question, Map.of())).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"宫保鸡丁不要辣的菜谱，有视频吗", "只要清淡菜谱，有视频吗"})
+    void recipeConstraintsWithOptionalVideoRemainMixedRequests(String question) {
+        var service = new CookingVideoSearchService(new FakeCookingVideoSearchProvider(), new VideoMcpProperties());
+
+        assertThat(service.isVideoOnly(question, Map.of())).isFalse();
+    }
 
     @Test
     void disabledProviderFailsFastWithoutPretendingToHavePlatformResults() {

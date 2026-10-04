@@ -171,6 +171,42 @@ class RecipeVideoFinalFixTest {
         assertThat(fixture.rows).hasSize(1);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"不要辣的菜谱", "只要清淡菜谱"})
+    void recipeConstraintsWithoutVideoWordsStillReachRealRecipeOrchestration(String question) {
+        var fixture = new Fixture("disabled");
+
+        var response = fixture.chat(question, Map.of());
+
+        assertThat(response.speechText()).contains("[S1]");
+        assertThat(response.responseType()).isEqualTo("ANSWER");
+        verifyNoInteractions(fixture.intent);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"meal", "knowledge"})
+    void mealPreparationDatabaseFailuresReturnStableUnavailableBeforeEitherBranch(String failureAt) throws Exception {
+        var fixture = new Fixture("success");
+        var sensitive = new IllegalStateException("internal-sensitive-database-token");
+        if (failureAt.equals("meal")) {
+            when(fixture.meals.findPersonalById(41L, 7L)).thenThrow(sensitive);
+        } else {
+            when(fixture.knowledge.findPersonal(41L, 7L)).thenThrow(sensitive);
+        }
+
+        var response = org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
+                fixture.chat("这道菜怎么做", Map.of("recipeQuery", Map.of("mealId", 41))));
+
+        assertThat(response.speechText()).contains("暂时不可用").doesNotContain("internal-sensitive");
+        assertThat(response.videoBlocks()).isEmpty();
+        verifyNoInteractions(fixture.retriever);
+        assertThat(fixture.actualVideoText).hasValue(null);
+        var trace = fixture.persistedTrace();
+        assertThat(event(trace, "RECIPE_QUERY_PREPARATION_FAILED").path("outputPayload").asText())
+                .contains("FAILED", "IllegalStateException").doesNotContain("internal-sensitive");
+        assertThat(trace.toString()).doesNotContain("internal-sensitive-database-token", "RECIPE_RAG_STARTED", "VIDEO_MCP_STARTED");
+    }
+
     private static JsonNode event(JsonNode trace, String name) {
         List<JsonNode> matches = new ArrayList<>();
         trace.path("events").forEach(value -> {
@@ -183,6 +219,7 @@ class RecipeVideoFinalFixTest {
     private static final class Fixture {
         final HybridRecipeRetriever retriever = mock(HybridRecipeRetriever.class);
         final MealMapper meals = mock(MealMapper.class);
+        final MealKnowledgeRepository knowledge = mock(MealKnowledgeRepository.class);
         final ReActAgent agent = mock(ReActAgent.class);
         final IntentAgentService intent = mock(IntentAgentService.class);
         final List<RequestTraceRow> rows = new ArrayList<>();
@@ -208,7 +245,7 @@ class RecipeVideoFinalFixTest {
             var generator = new AgentScopeRecipeAnswerGenerator(new RecipeEvidenceAssembler(6000, 3),
                     agents, trace, new ObjectMapper());
             when(retriever.retrieve(any(), any())).thenReturn(Mono.just(retrieval));
-            var recipes = new RecipeQueryService(new RecipeQueryRouter(), mock(MealKnowledgeRepository.class),
+            var recipes = new RecipeQueryService(new RecipeQueryRouter(), knowledge,
                     meals, query -> Mono.just(query), retriever,
                     (query, found) -> Mono.just(found), generator, new RecipeRagProperties());
             var properties = new VideoMcpProperties();
