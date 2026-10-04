@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -109,6 +110,20 @@ class RecipeRagasExporterTest {
         var exporter = new RecipeRagasExporter(new ObjectMapper().registerModule(module));
         assertThatThrownBy(() -> exporter.write(output, List.of(sample("rq-001"), sample("rq-002"))))
                 .isInstanceOf(IOException.class);
+        assertThat(Files.readString(output)).isEqualTo("old");
+        try (var files = Files.list(temp)) { assertThat(files.toList()).containsExactly(output); }
+    }
+
+    @Test
+    void unsupportedAtomicMovePreservesDestinationAndRemovesTemporaryFile() throws Exception {
+        Path output = temp.resolve("ragas.jsonl");
+        Files.writeString(output, "old");
+        var exporter = new RecipeRagasExporter(new ObjectMapper(), (source, destination) -> {
+            assertThat(Files.readString(source)).contains("rq-001");
+            throw new AtomicMoveNotSupportedException(source.toString(), destination.toString(), "unsupported");
+        });
+        assertThatThrownBy(() -> exporter.write(output, List.of(sample("rq-001"))))
+                .isInstanceOf(AtomicMoveNotSupportedException.class);
         assertThat(Files.readString(output)).isEqualTo("old");
         try (var files = Files.list(temp)) { assertThat(files.toList()).containsExactly(output); }
     }

@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -18,9 +17,21 @@ import java.util.Set;
 
 final class RecipeRagasExporter {
     private final ObjectWriter json;
+    private final AtomicMover atomicMover;
 
     RecipeRagasExporter(ObjectMapper json) {
+        this(json, (source, destination) -> Files.move(source, destination,
+                StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING));
+    }
+
+    RecipeRagasExporter(ObjectMapper json, AtomicMover atomicMover) {
         this.json = Objects.requireNonNull(json, "json").writer().without(SerializationFeature.INDENT_OUTPUT);
+        this.atomicMover = Objects.requireNonNull(atomicMover, "atomicMover");
+    }
+
+    @FunctionalInterface
+    interface AtomicMover {
+        void move(Path source, Path destination) throws IOException;
     }
 
     void write(Path output, List<RecipeRagasSample> samples) throws IOException {
@@ -36,11 +47,7 @@ final class RecipeRagasExporter {
                     writer.newLine();
                 }
             }
-            try {
-                Files.move(temporary, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException unsupported) {
-                Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING);
-            }
+            atomicMover.move(temporary, destination);
         } finally {
             Files.deleteIfExists(temporary);
         }
