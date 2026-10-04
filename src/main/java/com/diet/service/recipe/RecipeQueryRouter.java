@@ -2,6 +2,7 @@ package com.diet.service.recipe;
 
 import com.diet.service.recipe.rag.model.RecipeQuery;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +13,7 @@ import java.util.regex.Pattern;
 public class RecipeQueryRouter {
     private static final Pattern RECIPE_WORDS = Pattern.compile("(怎么做|如何做|做法|菜谱|食谱|烹饪步骤|需要什么食材)");
     private static final Set<String> ALLOWED_FIELDS = Set.of(
-            "mealId", "query", "requiredIngredients", "excludedIngredients");
+            "mealId", "query", "requiredIngredients", "excludedIngredients", "requiredTools", "maxMinutes");
 
     public boolean matches(String message, Map<String, Object> context) {
         return contextMap(context).containsKey("recipeQuery")
@@ -40,7 +41,8 @@ public class RecipeQueryRouter {
         if (query.isBlank()) query = message == null ? "" : message.trim();
         return Optional.of(new RoutedRecipeQuery(mealId, new RecipeQuery(query,
                 stringList(raw.get("requiredIngredients"), "requiredIngredients"),
-                stringList(raw.get("excludedIngredients"), "excludedIngredients"), List.of(), null)));
+                stringList(raw.get("excludedIngredients"), "excludedIngredients"),
+                stringList(raw.get("requiredTools"), "requiredTools"), minuteLimit(raw.get("maxMinutes")))));
     }
 
     private Map<String, Object> contextMap(Map<String, Object> context) {
@@ -58,6 +60,19 @@ public class RecipeQueryRouter {
             }
         }
         throw new IllegalArgumentException("mealId 必须是整数");
+    }
+
+    private Integer minuteLimit(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number number) {
+            try {
+                int minutes = new BigDecimal(number.toString()).intValueExact();
+                if (minutes > 0) return minutes;
+            } catch (NumberFormatException | ArithmeticException ignored) {
+                // Fractional, non-finite and overflowing values are not valid limits.
+            }
+        }
+        throw new IllegalArgumentException("maxMinutes 必须是正整数");
     }
 
     private String stringValue(Object value) {
