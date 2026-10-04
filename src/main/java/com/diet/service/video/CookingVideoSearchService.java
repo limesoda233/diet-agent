@@ -13,6 +13,12 @@ import java.util.regex.Pattern;
 public class CookingVideoSearchService {
     public static final String TOOL_NAME = "search_cooking_videos";
     private static final Pattern VIDEO_REQUEST = Pattern.compile("(视频|跟做|教程|链接|哔哩哔哩|B站|bilibili|抖音)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern RECIPE_ACTION = Pattern.compile(
+            "(怎么做|咋做|如何做|怎么弄|咋弄|做法|菜谱|食谱|烹饪步骤|制作步骤|有视频吗|视频教程)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern VIDEO_ONLY = Pattern.compile(
+            "(只要|只看|仅看).{0,8}(视频|教程)|(不用|不要).{0,8}(文字|菜谱|做法)",
+            Pattern.CASE_INSENSITIVE);
     private static final Set<String> ALLOWED_FIELDS = Set.of("query", "platform", "limit");
     private final CookingVideoSearchProvider provider;
     private final VideoMcpProperties properties;
@@ -55,6 +61,27 @@ public class CookingVideoSearchService {
     public String format(List<CookingVideo> videos) {
         if (videos == null || videos.isEmpty()) return "没有找到可用的做饭教学视频。";
         return "找到 " + videos.size() + " 个做饭教学视频，点击卡片即可观看。";
+    }
+
+    public boolean isVideoOnly(String message, Map<String, Object> context) {
+        Map<String, Object> safe = context == null ? Map.of() : context;
+        if (safe.containsKey("videoSearch")) return true;
+        if (message == null || !VIDEO_REQUEST.matcher(message).find()) return false;
+        if (VIDEO_ONLY.matcher(message).find()) return true;
+        return !RECIPE_ACTION.matcher(message).find();
+    }
+
+    public VideoSearchRequest forRecipe(String recipeText) {
+        if (recipeText == null || recipeText.isBlank()) {
+            throw new IllegalArgumentException("菜谱视频 query 不能为空");
+        }
+        String query = RECIPE_ACTION.matcher(recipeText).replaceAll(" ")
+                .replaceAll("(?i)哔哩哔哩|bilibili|B站|抖音|视频|教程|链接|帮我|请|啊|呀", " ")
+                .replaceAll("[？?！!，,。\\s]+", " ")
+                .trim();
+        if (query.isBlank()) query = recipeText.trim();
+        return new VideoSearchRequest(query, VideoPlatform.ANY,
+                validatedLimit(properties.getDefaultLimit()));
     }
 
     private VideoSearchRequest structured(Object structured) {

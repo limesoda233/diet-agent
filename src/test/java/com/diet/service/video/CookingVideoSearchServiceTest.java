@@ -55,4 +55,32 @@ class CookingVideoSearchServiceTest {
         assertThatThrownBy(() -> service.route("视频", Map.of("videoSearch", Map.of(
                 "query", "宫保鸡丁", "secret", "x")))).hasMessageContaining("secret");
     }
+
+    @Test
+    void distinguishesVideoOnlyFromRecipeQuestionsThatAlsoMentionVideo() {
+        var properties = new VideoMcpProperties();
+        properties.setEnabled(true);
+        var service = new CookingVideoSearchService(new FakeCookingVideoSearchProvider(), properties);
+
+        assertThat(service.isVideoOnly("只要宫保鸡丁教学视频", Map.of())).isTrue();
+        assertThat(service.isVideoOnly("找一个宫保鸡丁教学视频", Map.of())).isTrue();
+        assertThat(service.isVideoOnly("宫保鸡丁怎么做，有视频吗", Map.of())).isFalse();
+        assertThat(service.isVideoOnly("宫保鸡丁咋做啊", Map.of())).isFalse();
+        assertThat(service.isVideoOnly("ignored", Map.of("videoSearch", Map.of("query", "宫保鸡丁"))))
+                .isTrue();
+    }
+
+    @Test
+    void buildsCompactVideoRequestForOrdinaryRecipeQuestion() {
+        var properties = new VideoMcpProperties();
+        properties.setEnabled(true);
+        properties.setDefaultLimit(3);
+        var service = new CookingVideoSearchService(new FakeCookingVideoSearchProvider(), properties);
+
+        var request = service.forRecipe("宫保鸡丁咋做啊");
+
+        assertThat(request.query()).isEqualTo("宫保鸡丁");
+        assertThat(request.platform()).isEqualTo(VideoPlatform.ANY);
+        assertThat(request.limit()).isEqualTo(3);
+    }
 }
