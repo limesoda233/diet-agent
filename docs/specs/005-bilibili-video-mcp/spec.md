@@ -19,19 +19,19 @@
 3. `BILIBILI` 与 `ANY` 使用哔哩哔哩 provider；`DOUYIN` 明确返回不支持。
 4. MCP 包必须固定为 `0.0.7`，不得在运行时使用 `latest`。
 5. MCP 进程首次搜索时惰性初始化，应用关闭时释放；初始化或调用失败不得产生伪造结果。
-6. 普通推荐和菜谱 RAG 不得隐式调用视频搜索。
+6. 普通推荐不得隐式调用视频搜索。菜谱查询的视频调用规则已由 006 覆盖：仅在启用 `video-mcp` profile 后，菜谱 RAG 与视频搜索才会并行执行；默认配置仍关闭视频分支。
 7. 聊天接口通过 `videoBlocks` 返回标题、播放页 URL、平台、UP 主和时长；不得把播放链接拼入 `speechText`。
 8. 前端只接受 `https://(www.)bilibili.com/video/BV...` 播放页，把每个结果渲染为整卡可点击的视频卡片，并使用 `target="_blank"` 与 `rel="noopener noreferrer"` 在新窗口安全打开。
 
 ## 配置
 
-新增 `video-mcp` Spring profile。默认主配置仍禁用视频搜索。启用后使用：
+新增 `video-mcp` Spring profile。默认主配置仍禁用视频搜索。菜谱查询的并行编排与该规则的更新以 [006 并行规格](../006-parallel-recipe-video-ragas/spec.md) 为准。启用 profile 后使用：
 
 ```text
 --spring.profiles.active=recipe-rag,video-mcp
 ```
 
-可配置命令、参数、初始化超时和请求超时，Windows 默认命令为 `npx.cmd`，其他系统为 `npx`。
+可配置命令、参数、初始化超时和请求超时（视频搜索默认请求超时为 3 秒），Windows 默认命令为 `npx.cmd`，其他系统为 `npx`。
 
 ## 验收
 

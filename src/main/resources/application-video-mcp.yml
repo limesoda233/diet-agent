@@ -2,7 +2,7 @@ diet:
   video-mcp:
     enabled: true
     provider: bilibili-mcp
-    timeout: 30s
+    timeout: 3s
     initialization-timeout: 30s
     default-limit: 3
     server-name: bilibili
