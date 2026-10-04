@@ -68,6 +68,13 @@ class CookingVideoSearchServiceTest {
         assertThat(service.isVideoOnly("宫保鸡丁怎么做，有视频吗", Map.of())).isFalse();
         assertThat(service.isVideoOnly("宫保鸡丁怎么做，想看视频教程", Map.of())).isFalse();
         assertThat(service.isVideoOnly("宫保鸡丁咋做啊", Map.of())).isFalse();
+        assertThat(service.isVideoOnly("宫保鸡丁需要什么食材，有视频吗", Map.of())).isFalse();
+        assertThat(service.isVideoOnly("宫保鸡丁要哪些食材，想看视频", Map.of())).isFalse();
+        assertThat(service.isVideoOnly("只看视频，不用文字菜谱，宫保鸡丁需要什么食材", Map.of())).isTrue();
+        assertThat(service.isVideoOnly("想学这个菜，有视频吗",
+                Map.of("recipeQuery", Map.of("query", "宫保鸡丁怎么做")))).isFalse();
+        assertThat(service.isVideoOnly("宫保鸡丁需要什么食材",
+                Map.of("videoSearch", Map.of("query", "宫保鸡丁")))).isFalse();
         assertThat(service.isVideoOnly("ignored", Map.of("videoSearch", Map.of("query", "宫保鸡丁"))))
                 .isTrue();
     }
@@ -85,5 +92,6 @@ class CookingVideoSearchServiceTest {
         assertThat(request.platform()).isEqualTo(VideoPlatform.ANY);
         assertThat(request.limit()).isEqualTo(3);
         assertThat(service.forRecipe("宫保鸡丁视频教程").query()).isEqualTo("宫保鸡丁");
+        assertThat(service.forRecipe("宫保鸡丁需要什么食材，有视频吗").query()).isEqualTo("宫保鸡丁");
     }
 }

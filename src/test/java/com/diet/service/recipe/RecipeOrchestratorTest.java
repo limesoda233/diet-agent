@@ -104,13 +104,16 @@ class RecipeOrchestratorTest {
             RecipeVideoCoordinator.BranchStatus videoStatus, String text, int cards, String type) {
         var fixture = new Fixture();
         var coordinator = mock(RecipeVideoCoordinator.class);
+        when(coordinator.recipeVideoRequest(anyString())).thenAnswer(call ->
+                new CookingVideoSearchService((query, platform, limit) -> Mono.just(List.of()),
+                        new VideoMcpProperties()).forRecipe(call.getArgument(0)));
         fixture.orchestrator.setRecipeVideoCoordinator(coordinator);
         when(fixture.recipes.matches("宫保鸡丁怎么做", Map.of())).thenReturn(true);
         var result = new RecipeVideoCoordinator.Result(
                 new RecipeVideoCoordinator.BranchOutcome<>(recipeStatus, answer, "secret-token\nurl", 20),
                 new RecipeVideoCoordinator.BranchOutcome<>(videoStatus, cards > 0 ? List.of(video()) : List.of(),
                         "secret-token\nurl", 15));
-        when(coordinator.execute(any(), eq("宫保鸡丁怎么做"))).thenReturn(Mono.just(result));
+        when(coordinator.executePrepared(any(), any())).thenReturn(Mono.just(result));
 
         var response = fixture.chat("宫保鸡丁怎么做");
 
@@ -150,18 +153,21 @@ class RecipeOrchestratorTest {
         var fixture = new Fixture();
         fixture.orchestrator.setCookingVideoSearchService(fixture.videos);
         var coordinator = mock(RecipeVideoCoordinator.class);
+        when(coordinator.recipeVideoRequest(anyString())).thenAnswer(call ->
+                new CookingVideoSearchService((query, platform, limit) -> Mono.just(List.of()),
+                        new VideoMcpProperties()).forRecipe(call.getArgument(0)));
         fixture.orchestrator.setRecipeVideoCoordinator(coordinator);
         String question = "宫保鸡丁怎么做，有视频吗";
         when(fixture.videos.matches(question, Map.of())).thenReturn(true);
         when(fixture.videos.isVideoOnly(question, Map.of())).thenReturn(false);
         when(fixture.recipes.matches(question, Map.of())).thenReturn(true);
-        when(coordinator.execute(any(), eq(question))).thenReturn(Mono.just(new RecipeVideoCoordinator.Result(
+        when(coordinator.executePrepared(any(), any())).thenReturn(Mono.just(new RecipeVideoCoordinator.Result(
                 new RecipeVideoCoordinator.BranchOutcome<>(SUCCESS, grounded(), "", 20),
                 new RecipeVideoCoordinator.BranchOutcome<>(SUCCESS, List.of(video()), "", 15))));
 
         fixture.assertRecipeResponse(fixture.chat(question), "[S1]", 1, "ANSWER");
         verify(fixture.videos, never()).search(any(CookingVideoSearchService.VideoSearchRequest.class));
-        verify(coordinator).execute(any(), eq(question));
+        verify(coordinator).executePrepared(any(), argThat(query -> query.query().equals("宫保鸡丁")));
     }
 
     @Test
@@ -249,6 +255,15 @@ class RecipeOrchestratorTest {
         final DietOrchestratorService orchestrator;
 
         Fixture() {
+            when(trace.propagate(any())).thenAnswer(call -> call.getArgument(0));
+            when(recipes.prepareQuery(anyLong(), anyString(), any())).thenAnswer(call -> {
+                var routed = new RecipeQueryRouter().route(call.getArgument(1), call.getArgument(2)).orElseThrow();
+                return new RecipeQueryService.PreparedRecipeQuery(routed.query(), null, null, false, "recipe_rule");
+            });
+            when(recipes.answer(anyString(), any(RecipeQueryService.PreparedRecipeQuery.class))).thenAnswer(call -> {
+                RecipeQueryService.PreparedRecipeQuery prepared = call.getArgument(1);
+                return recipes.answer(call.getArgument(0), 7L, prepared.query().text(), Map.of());
+            });
             when(states.loadOrCreate("s", 7L, SourceMode.PUBLIC))
                     .thenReturn(SessionState.fresh("s", 7L, SourceMode.PUBLIC));
             orchestrator = new DietOrchestratorService(sessions, states, intent, mock(IntentReviseService.class),

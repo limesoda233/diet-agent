@@ -1,5 +1,6 @@
 package com.diet.service.video;
 
+import com.diet.service.recipe.RecipeQueryRouter;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -13,11 +14,8 @@ import java.util.regex.Pattern;
 public class CookingVideoSearchService {
     public static final String TOOL_NAME = "search_cooking_videos";
     private static final Pattern VIDEO_REQUEST = Pattern.compile("(视频|跟做|教程|链接|哔哩哔哩|B站|bilibili|抖音)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern RECIPE_ACTION = Pattern.compile(
-            "(怎么做|咋做|如何做|怎么弄|咋弄|做法|菜谱|食谱|烹饪步骤|制作步骤)",
-            Pattern.CASE_INSENSITIVE);
     private static final Pattern RECIPE_QUERY_CLEANUP = Pattern.compile(
-            "(怎么做|咋做|如何做|怎么弄|咋弄|做法|菜谱|食谱|烹饪步骤|制作步骤|有视频吗|视频教程)",
+            "(怎么做|咋做|如何做|怎么弄|咋弄|做法|菜谱|食谱|烹饪步骤|制作步骤|需要什么食材|要哪些食材|有视频吗|视频教程)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern VIDEO_ONLY = Pattern.compile(
             "(只要|只看|仅看).{0,8}(视频|教程)|(不用|不要).{0,8}(文字|菜谱|做法)",
@@ -25,6 +23,7 @@ public class CookingVideoSearchService {
     private static final Set<String> ALLOWED_FIELDS = Set.of("query", "platform", "limit");
     private final CookingVideoSearchProvider provider;
     private final VideoMcpProperties properties;
+    private final RecipeQueryRouter recipeRouter = new RecipeQueryRouter();
 
     public CookingVideoSearchService(CookingVideoSearchProvider provider, VideoMcpProperties properties) {
         this.provider = provider;
@@ -68,10 +67,10 @@ public class CookingVideoSearchService {
 
     public boolean isVideoOnly(String message, Map<String, Object> context) {
         Map<String, Object> safe = context == null ? Map.of() : context;
-        if (safe.containsKey("videoSearch")) return true;
-        if (message == null || !VIDEO_REQUEST.matcher(message).find()) return false;
-        if (VIDEO_ONLY.matcher(message).find()) return true;
-        return !RECIPE_ACTION.matcher(message).find();
+        if (message != null && VIDEO_ONLY.matcher(message).find()) return true;
+        if (recipeRouter.matches(message, safe)) return false;
+        return safe.containsKey("videoSearch")
+                || (message != null && VIDEO_REQUEST.matcher(message).find());
     }
 
     public VideoSearchRequest forRecipe(String recipeText) {

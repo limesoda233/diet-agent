@@ -54,18 +54,48 @@ public class RecipeQueryService {
     }
 
     public RecipeAnswer answer(String sessionId, Long userId, String message, Map<String, Object> context) {
+        return answer(sessionId, prepareQuery(userId, message, context, false));
+    }
+
+    /** Resolve and validate once on the request thread, before launching either branch. */
+    public PreparedRecipeQuery prepareQuery(Long userId, String message, Map<String, Object> context) {
+        return prepareQuery(userId, message, context, true);
+    }
+
+    private PreparedRecipeQuery prepareQuery(Long userId, String message, Map<String, Object> context,
+                                             boolean resolvePersonalName) {
         RecipeQueryRouter.RoutedRecipeQuery routed = router.route(message, context)
                 .orElseThrow(() -> new IllegalArgumentException("不是菜谱查询"));
         RecipeQuery query = routed.query();
+        MealKnowledge personal = null;
+        boolean missingMeal = false;
+        String source = context != null && context.get("recipeQuery") instanceof Map<?, ?> structured
+                && structured.get("query") instanceof String text && !text.isBlank()
+                ? "structured_recipe_query" : "recipe_rule";
         if (routed.mealId() != null) {
-            var personal = knowledgeRepository.findPersonal(routed.mealId(), userId);
-            if (personal.isPresent()) return personalAnswer(routed.mealId(), personal.get(), query);
-            MealItemRow meal = mealMapper.findPersonalById(routed.mealId(), userId);
-            if (meal == null) return RecipeAnswer.refused("没有找到这道个人餐食，无法确定要查询的菜谱。",
-                    Map.of("route", "meal_id_not_found"));
-            query = new RecipeQuery(meal.getName() + " 怎么做", query.requiredIngredients(),
-                    query.excludedIngredients(), query.requiredTools(), query.maxMinutes());
+            personal = knowledgeRepository.findPersonal(routed.mealId(), userId).orElse(null);
+            if (personal == null || resolvePersonalName) {
+                MealItemRow meal = mealMapper.findPersonalById(routed.mealId(), userId);
+                missingMeal = meal == null;
+                if (!missingMeal) {
+                    query = new RecipeQuery(meal.getName() + " 怎么做", query.requiredIngredients(),
+                            query.excludedIngredients(), query.requiredTools(), query.maxMinutes());
+                    source = "personal_meal";
+                } else if (resolvePersonalName) {
+                    throw new IllegalArgumentException("没有找到这道个人餐食，无法确定要查询的菜谱。");
+                }
+            }
         }
+        return new PreparedRecipeQuery(query, routed.mealId(), personal, missingMeal, source);
+    }
+
+    public RecipeAnswer answer(String sessionId, PreparedRecipeQuery prepared) {
+        RecipeQuery query = prepared.query();
+        if (prepared.personalKnowledge() != null) {
+            return personalAnswer(prepared.mealId(), prepared.personalKnowledge(), query);
+        }
+        if (prepared.missingMeal()) return RecipeAnswer.refused(
+                "没有找到这道个人餐食，无法确定要查询的菜谱。", Map.of("route", "meal_id_not_found"));
 
         try {
             RecipeQuery rewritten = queryRewriter.rewrite(query).block();
@@ -84,6 +114,9 @@ public class RecipeQueryService {
                     Map.of("route", "retrieval_failed", "error", error.getClass().getSimpleName()));
         }
     }
+
+    public record PreparedRecipeQuery(RecipeQuery query, Long mealId, MealKnowledge personalKnowledge,
+                                      boolean missingMeal, String source) { }
 
     private RecipeAnswer personalAnswer(long mealId, MealKnowledge knowledge, RecipeQuery query) {
         if ((!query.requiredIngredients().isEmpty() || !query.excludedIngredients().isEmpty())

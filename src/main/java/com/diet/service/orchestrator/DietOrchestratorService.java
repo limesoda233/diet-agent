@@ -347,12 +347,23 @@ public class DietOrchestratorService {
             }
         }
 
+        com.diet.service.recipe.RecipeQueryService.PreparedRecipeQuery prepared;
+        CookingVideoSearchService.VideoSearchRequest videoRequest;
+        try {
+            prepared = recipeQueryService.prepareQuery(userId, message, finalContext);
+            videoRequest = recipeVideoCoordinator.recipeVideoRequest(prepared.query().text());
+        } catch (IllegalArgumentException invalid) {
+            return completeAsk(sessionId, traceId, state,
+                    ClarifyResult.ask("菜谱查询参数无效，请检查菜名和食材限制。", List.of("recipeQuery")));
+        }
         agentTraceService.recordEvent("RECIPE_QUERY_NORMALIZED", "RECIPE", null,
-                Map.of("recipeQuery", message));
+                Map.of("originalText", message, "recipeQuery", prepared.query().text(),
+                        "videoQuery", videoRequest.query(), "source", prepared.source()));
         agentTraceService.recordEvent("RECIPE_RAG_STARTED", "RECIPE_RAG", null, Map.of());
         agentTraceService.recordEvent("VIDEO_MCP_STARTED", "VIDEO_MCP", null, Map.of());
-        var result = recipeVideoCoordinator.execute(
-                () -> recipeQueryService.answer(sessionId, userId, message, finalContext), message).block();
+        var result = recipeVideoCoordinator.executePrepared(
+                agentTraceService.propagate(
+                        () -> recipeQueryService.answer(sessionId, prepared)), videoRequest).block();
         var recipe = result.recipe();
         var video = result.video();
         boolean grounded = recipe.status() == BranchStatus.SUCCESS && recipe.value() != null;

@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 /**
  * Agent 链路追踪服务。
@@ -63,6 +64,22 @@ public class AgentTraceService {
         currentScope.set(scope);
         // 返回 scope 供 try-with-resources 在 finally 中 close
         return scope;
+    }
+
+    /** Capture this request's scope without transferring close/flush ownership. */
+    public <T> Supplier<T> propagate(Supplier<T> work) {
+        TraceScope captured = currentScope.get();
+        return () -> {
+            TraceScope previous = currentScope.get();
+            if (captured == null) currentScope.remove();
+            else currentScope.set(captured);
+            try {
+                return work.get();
+            } finally {
+                if (previous == null) currentScope.remove();
+                else currentScope.set(previous);
+            }
+        };
     }
 
     /**
@@ -196,27 +213,30 @@ public class AgentTraceService {
         if (scope == null) {
             return;
         }
-        // 将异常格式化为 "ClassName: message" 字符串，null 表示无异常
-        String errorMessage = error == null ? null : trim(error.getClass().getSimpleName() + ": " + error.getMessage());
-        // 构造 TraceEvent：stepOrder 自增，payload 序列化为 JSON 字符串
-        scope.addEvent(new TraceEvent(
-                scope.nextStep(),           // 事件序号，从 1 递增
-                eventType,                  // 事件类型，如 REQUEST_RECEIVED / AGENT_CALL
-                phase,                      // 阶段，如 HTTP / INTENT / AGENT
-                agentName,                  // Agent 名，仅 AGENT_CALL 时有值
-                modelName,                  // 模型名，仅 AGENT_CALL 时有值
-                toPayload(inputPayload),    // 输入 payload JSON 字符串
-                toPayload(outputPayload),   // 输出 payload JSON 字符串
-                latencyMs,                  // 耗时毫秒，可为 null
-                inputTokens,                // 输入 token 数，仅 AGENT_CALL 时有值
-                outputTokens,               // 输出 token 数，仅 AGENT_CALL 时有值
-                totalTokens,                // 输入 + 输出 token 数，仅 AGENT_CALL 时有值
-                errorMessage,               // 错误信息，可为 null
-                LocalDateTime.now().toString() // 事件创建时间 ISO 字符串
-        ));
-        // 若有异常，将整轮 Trace 状态标记为 FAILED
-        if (errorMessage != null) {
-            scope.markFailed(errorMessage);
+        synchronized (scope) {
+            if (scope.closed) return;
+            // 将异常格式化为 "ClassName: message" 字符串，null 表示无异常
+            String errorMessage = error == null ? null : trim(error.getClass().getSimpleName() + ": " + error.getMessage());
+            // 构造 TraceEvent：stepOrder 自增，payload 序列化为 JSON 字符串
+            scope.addEvent(new TraceEvent(
+                    scope.nextStep(),           // 事件序号，从 1 递增
+                    eventType,                  // 事件类型，如 REQUEST_RECEIVED / AGENT_CALL
+                    phase,                      // 阶段，如 HTTP / INTENT / AGENT
+                    agentName,                  // Agent 名，仅 AGENT_CALL 时有值
+                    modelName,                  // 模型名，仅 AGENT_CALL 时有值
+                    toPayload(inputPayload),    // 输入 payload JSON 字符串
+                    toPayload(outputPayload),   // 输出 payload JSON 字符串
+                    latencyMs,                  // 耗时毫秒，可为 null
+                    inputTokens,                // 输入 token 数，仅 AGENT_CALL 时有值
+                    outputTokens,               // 输出 token 数，仅 AGENT_CALL 时有值
+                    totalTokens,                // 输入 + 输出 token 数，仅 AGENT_CALL 时有值
+                    errorMessage,               // 错误信息，可为 null
+                    LocalDateTime.now().toString() // 事件创建时间 ISO 字符串
+            ));
+            // 若有异常，将整轮 Trace 状态标记为 FAILED
+            if (errorMessage != null) {
+                scope.markFailed(errorMessage);
+            }
         }
     }
 
@@ -390,7 +410,7 @@ public class AgentTraceService {
 
         /** close 时 flush 到 DB 并清除 ThreadLocal。 */
         @Override
-        public void close() {
+        public synchronized void close() {
             // 已 close 则直接返回，避免重复 INSERT
             if (closed) {
                 return;

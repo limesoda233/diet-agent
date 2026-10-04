@@ -19,13 +19,25 @@ public final class RecipeVideoCoordinator {
     }
 
     public Mono<Result> execute(Supplier<RecipeAnswer> recipeCall, String recipeText) {
+        return execute(recipeCall, () -> recipeVideoRequest(recipeText));
+    }
+
+    public CookingVideoSearchService.VideoSearchRequest recipeVideoRequest(String recipeText) {
+        return videos.forRecipe(recipeText);
+    }
+
+    public Mono<Result> executePrepared(Supplier<RecipeAnswer> recipeCall,
+                                       CookingVideoSearchService.VideoSearchRequest videoRequest) {
+        return execute(recipeCall, () -> videoRequest);
+    }
+
+    private Mono<Result> execute(Supplier<RecipeAnswer> recipeCall,
+                                 Supplier<CookingVideoSearchService.VideoSearchRequest> videoRequest) {
         Mono<BranchOutcome<RecipeAnswer>> recipe = Mono.defer(() -> {
             long started = System.nanoTime();
             return Mono.fromCallable(() -> Objects.requireNonNull(recipeCall.get()))
                     .subscribeOn(Schedulers.boundedElastic())
-                    .map(answer -> new BranchOutcome<>(
-                            answer.refused() ? BranchStatus.REFUSED : BranchStatus.SUCCESS,
-                            answer, "", elapsedMs(started)))
+                    .map(answer -> recipeOutcome(answer, elapsedMs(started)))
                     .onErrorResume(error -> Mono.just(new BranchOutcome<>(
                             BranchStatus.FAILED, null, error.getClass().getSimpleName(),
                             elapsedMs(started))));
@@ -33,7 +45,7 @@ public final class RecipeVideoCoordinator {
 
         Mono<BranchOutcome<List<CookingVideo>>> video = Mono.defer(() -> {
             long started = System.nanoTime();
-            return Mono.defer(() -> videos.search(videos.forRecipe(recipeText)))
+            return Mono.defer(() -> videos.search(videoRequest.get()))
                     .map(found -> new BranchOutcome<>(
                             found.isEmpty() ? BranchStatus.EMPTY : BranchStatus.SUCCESS,
                             List.copyOf(found), "", elapsedMs(started)))
@@ -54,6 +66,17 @@ public final class RecipeVideoCoordinator {
 
     public record Result(BranchOutcome<RecipeAnswer> recipe,
                          BranchOutcome<List<CookingVideo>> video) { }
+
+    private BranchOutcome<RecipeAnswer> recipeOutcome(RecipeAnswer answer, long durationMs) {
+        if ("retrieval_failed".equals(answer.diagnostics().get("route"))) {
+            Object error = answer.diagnostics().get("error");
+            String errorType = error instanceof String name
+                    && name.matches("[A-Za-z][A-Za-z0-9]{0,63}(Exception|Error)") ? name : "UnknownError";
+            return new BranchOutcome<>(BranchStatus.FAILED, null, errorType, durationMs);
+        }
+        return new BranchOutcome<>(answer.refused() ? BranchStatus.REFUSED : BranchStatus.SUCCESS,
+                answer, "", durationMs);
+    }
 
     private BranchStatus videoStatus(Throwable error) {
         if (error instanceof TimeoutException) return BranchStatus.TIMEOUT;
