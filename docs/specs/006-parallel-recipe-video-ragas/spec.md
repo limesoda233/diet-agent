@@ -205,8 +205,9 @@ RAGAS_EMBEDDING_MODEL
 - Judge 调用失败和解析失败统计；
 - Java 确定性报告的文件路径和 hash；
 - 输入 JSONL 的 hash。
+- `ragas-cases.csv` 的 SHA-256（`cases_csv_sha256`），以及实际拒答数 `excluded_refusal_count` 与语义评分排除数 `excluded_semantic_count`。
 
-`ragas-cases.csv` 保存每条样本的指标和简短失败原因，便于定位 bad case。报告生成使用临时文件加原子替换。部分 Judge 调用失败时报告状态为 `partial`；全部失败时命令返回非零退出码。
+`ragas-cases.csv` 保存每条样本的指标和简短失败原因，便于定位 bad case。报告先替换 CSV，再替换作为完成标记的 JSON；读取报告时必须核对当前 CSV 的 SHA-256 与 JSON 中的值。第二次替换失败会留下旧 JSON 与新 CSV，此时该报告不完整，不能用于汇总或验收。部分 Judge 调用失败时报告状态为 `partial`；全部失败时命令返回非零退出码。
 
 第一版只建立 baseline，不使用锁定 test 分数调参，也不设置 CI 阻断阈值。后续阈值只能先在 dev 集确定，再对锁定 test 运行一次验收。
 

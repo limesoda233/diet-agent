@@ -10,6 +10,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RecipeQueryRouterTest {
 
+    @Test
+    void recognizesColloquialRecipeQuestion() {
+        RecipeQueryRouter router = new RecipeQueryRouter();
+
+        assertThat(router.matches("宫保鸡丁咋做啊", Map.of())).isTrue();
+        assertThat(router.route("宫保鸡丁咋做啊", Map.of())).isPresent();
+    }
 
     @Test
     void preservesToolsAndMinuteLimitFromStructuredRecipeContext() {

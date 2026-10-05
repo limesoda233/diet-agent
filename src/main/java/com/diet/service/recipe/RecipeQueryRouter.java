@@ -11,7 +11,8 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 public class RecipeQueryRouter {
-    private static final Pattern RECIPE_WORDS = Pattern.compile("(怎么做|如何做|做法|菜谱|食谱|烹饪步骤|需要什么食材)");
+    private static final Pattern RECIPE_WORDS = Pattern.compile(
+            "(怎么做|咋做|如何做|怎么弄|咋弄|做法|菜谱|食谱|烹饪步骤|制作步骤|需要什么食材|要哪些食材)");
     private static final Set<String> ALLOWED_FIELDS = Set.of(
             "mealId", "query", "requiredIngredients", "excludedIngredients", "requiredTools", "maxMinutes");
 

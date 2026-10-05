@@ -24,7 +24,7 @@ def paths(tmp_path: Path, rows):
     output = tmp_path / "out"
     input_file.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
     java_report.write_text('{"metadata":{"datasetHash":"sha256:frozen",'
-                           '"datasetVersion":"v2"}}',
+                           '"datasetVersion":"v2","corpusCommit":"abc"}}',
                            encoding="utf-8")
     return input_file, java_report, output
 
@@ -88,9 +88,10 @@ def test_mixed_generator_models_exit_before_metric_creation(tmp_path: Path, monk
     {},
     {"datasetHash": "sha256:frozen"},
     {"datasetVersion": "v2"},
-    {"datasetHash": "sha256:other", "datasetVersion": "v2"},
-    {"datasetHash": "sha256:frozen", "datasetVersion": "v1"},
-    {"datasetHash": " ", "datasetVersion": "v2"},
+    {"datasetHash": "sha256:other", "datasetVersion": "v2", "corpusCommit": "abc"},
+    {"datasetHash": "sha256:frozen", "datasetVersion": "v1", "corpusCommit": "abc"},
+    {"datasetHash": " ", "datasetVersion": "v2", "corpusCommit": "abc"},
+    {"datasetHash": "sha256:frozen", "datasetVersion": "v2", "corpusCommit": " "},
     ["not an object"],
 ])
 def test_missing_or_mismatched_java_dataset_exits_before_scoring(

@@ -17,7 +17,7 @@ class RagasInput(BaseModel):
     retrieved_contexts: list[str]
     retrieved_context_ids: list[str]
     reference_context_ids: list[str]
-    answer_expectation: Literal["ANSWER", "REFUSE"]
+    answer_expectation: Literal["ANSWER", "REFUSE_OUT_OF_CORPUS", "REFUSE_UNSUPPORTED"]
     refused: bool
     citations: list[str]
     retrieval_latency_ms: int = Field(ge=0)

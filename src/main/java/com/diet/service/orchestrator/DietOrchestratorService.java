@@ -270,7 +270,9 @@ public class DietOrchestratorService {
         }
 
         if (recipeQueryService != null && recipeQueryService.matches(request.message(), request.context())) {
-            return executeRecipeQuery(sessionId, userId, request.message(), request.context(), traceId, state);
+            agentTraceService.recordEvent("ROUTE_SELECTED", "ROUTE", request.message(),
+                    Map.of("route", Intent.RECIPE_QUERY, "source", "recipe_rule"));
+            return handleRecipeQuery(sessionId, userId, request, traceId, state, false);
         }
 
         // PERSONAL 模式且用户尚未录入任何个人餐食时，提前返回引导文案，跳过后续检索
@@ -293,7 +295,9 @@ public class DietOrchestratorService {
         // Trace 事件：INTENT_REVISED | 阶段 INTENT | 输入=矫正前 rawIntent | 输出=矫正后 intent
         agentTraceService.recordEvent("INTENT_REVISED", "INTENT", rawIntent, intent);
 
-        if (intent.intent() != Intent.HEALTH_RISK && intent.intent() != Intent.OTHER) {
+        if (intent.intent() != Intent.HEALTH_RISK
+                && intent.intent() != Intent.OTHER
+                && intent.intent() != Intent.RECIPE_QUERY) {
             try {
                 state = state.withMealConstraintContext(constraintParser.resolveContext(request.message(), state.mealConstraintContext(), request.context(),
                         intent.intent() == Intent.MEAL_ADJUST || state.phase() == SessionPhase.CLARIFY));
@@ -317,6 +321,8 @@ public class DietOrchestratorService {
             case MEAL_ADJUST -> handleAdjust(sessionId, userId, request.message(), traceId, state, intent);
             // 多餐规划：标记 PLAN 阶段后走推荐流水线
             case MEAL_PLAN -> handlePlan(sessionId, userId, request.message(), traceId, state, intent);
+            // 菜谱查询：意图模型兜底识别后强制构造 recipeQuery，进入公共菜谱 RAG。
+            case RECIPE_QUERY -> handleRecipeQuery(sessionId, userId, request, traceId, state, true);
             // 健康风险：返回 NutritionGuard 保守提示，不走推荐
             case HEALTH_RISK -> handleHealthRisk(sessionId, traceId, state);
             // 其他无关饮食的内容：返回固定引导文案
@@ -325,6 +331,27 @@ public class DietOrchestratorService {
         } catch (IllegalArgumentException invalid) {
             return completeAsk(sessionId, traceId, state, ClarifyResult.ask(invalid.getMessage(), List.of("retrievalConstraints")));
         }
+    }
+
+    private ChatResponse handleRecipeQuery(String sessionId,
+                                           Long userId,
+                                           ChatRequest request,
+                                           String traceId,
+                                           SessionState state,
+                                           boolean forceRoute) {
+        if (recipeQueryService == null) {
+            return completeTextOnly(sessionId, traceId, state, Intent.RECIPE_QUERY,
+                    ResponseResult.textOnly("菜谱检索功能当前未启用。"));
+        }
+        Map<String, Object> context = request.context();
+        if (forceRoute && !recipeQueryService.matches(request.message(), context)) {
+            Map<String, Object> forcedContext = new LinkedHashMap<>();
+            if (context != null) forcedContext.putAll(context);
+            forcedContext.put("recipeQuery", Map.of("query", request.message()));
+            context = forcedContext;
+        }
+        final Map<String, Object> finalContext = context;
+        return executeRecipeQuery(sessionId, userId, request.message(), finalContext, traceId, state);
     }
 
     private ChatResponse executeRecipeQuery(String sessionId,

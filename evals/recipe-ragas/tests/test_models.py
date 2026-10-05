@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -89,12 +90,23 @@ def test_requires_evidence_for_successful_non_refused_answer() -> None:
 def test_refusal_and_non_answer_are_not_semantic_metric_eligible() -> None:
     refused = RagasInput.model_validate_json(json.dumps(valid_case() | {"refused": True}))
     non_answer = RagasInput.model_validate_json(
-        json.dumps(valid_case() | {"answer_expectation": "REFUSE", "refused": True,
+        json.dumps(valid_case() | {"answer_expectation": "REFUSE_OUT_OF_CORPUS", "refused": True,
                                   "response": "无法回答", "retrieved_contexts": [],
                                   "retrieved_context_ids": []})
     )
     assert not refused.eligible_for_semantic_metrics
     assert not non_answer.eligible_for_semantic_metrics
+
+
+@pytest.mark.parametrize("expectation", ["ANSWER", "REFUSE_OUT_OF_CORPUS", "REFUSE_UNSUPPORTED"])
+def test_java_answer_expectation_contract_fixture(expectation: str) -> None:
+    fixture = Path(__file__).parent / "fixtures" / "java-answer-expectations.jsonl"
+    rows = [RagasInput.model_validate_json(line) for line in fixture.read_text(encoding="utf-8").splitlines()]
+    assert {row.answer_expectation for row in rows} == {
+        "ANSWER", "REFUSE_OUT_OF_CORPUS", "REFUSE_UNSUPPORTED"
+    }
+    row = next(row for row in rows if row.answer_expectation == expectation)
+    assert row.eligible_for_semantic_metrics is (expectation == "ANSWER")
 
 
 def test_rejects_wrong_json_types_instead_of_coercing() -> None:

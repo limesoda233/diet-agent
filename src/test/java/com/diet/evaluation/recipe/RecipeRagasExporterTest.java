@@ -27,6 +27,28 @@ class RecipeRagasExporterTest {
     @TempDir Path temp;
 
     @Test
+    void pythonFixtureMatchesJavaExporterForEveryV2AnswerExpectation() throws Exception {
+        var fixture = Path.of("evals/recipe-ragas/tests/fixtures/java-answer-expectations.jsonl");
+        var mapper = new ObjectMapper();
+        var rows = Files.readAllLines(fixture, StandardCharsets.UTF_8);
+        assertThat(rows).hasSize(RecipeEvaluationDataset.AnswerExpectation.values().length);
+        for (int index = 0; index < rows.size(); index++) {
+            var expectation = RecipeEvaluationDataset.AnswerExpectation.values()[index];
+            var row = mapper.readTree(rows.get(index));
+            var sample = new RecipeRagasSample(row.path("query_id").asText(), "v2", "frozen",
+                    "generator", "test", "contract", row.path("user_input").asText(),
+                    row.path("response").asText(),
+                    mapper.convertValue(row.path("retrieved_contexts"), mapper.getTypeFactory().constructCollectionType(List.class, String.class)),
+                    mapper.convertValue(row.path("retrieved_context_ids"), mapper.getTypeFactory().constructCollectionType(List.class, String.class)),
+                    mapper.convertValue(row.path("reference_context_ids"), mapper.getTypeFactory().constructCollectionType(List.class, String.class)),
+                    expectation.name(), row.path("refused").asBoolean(),
+                    mapper.convertValue(row.path("citations"), mapper.getTypeFactory().constructCollectionType(List.class, String.class)),
+                    1, 2);
+            assertThat(mapper.readTree(mapper.writeValueAsString(sample))).isEqualTo(row);
+        }
+    }
+
+    @Test
     void writesSnakeCaseUtf8JsonlWithOrderedEvidenceAndMetadata() throws Exception {
         Path output = temp.resolve("nested/ragas-input.jsonl");
         new RecipeRagasExporter(new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT))

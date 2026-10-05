@@ -69,7 +69,7 @@ class RecipeOrchestratorTest {
 
         assertThat(response.speechText()).contains("宫保鸡丁", "[S1]");
         verifyNoInteractions(intent, meals);
-        verify(states).save(argThat(saved -> saved.currentIntent() == Intent.OTHER));
+        verify(states).save(argThat(saved -> saved.currentIntent() == Intent.RECIPE_QUERY));
     }
 
     private static RecipeAnswer grounded() {

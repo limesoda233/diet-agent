@@ -12,7 +12,7 @@ from recipe_ragas.config import RagasConfig, validate_paths
 from recipe_ragas.evaluator import evaluate_cases
 from recipe_ragas.metrics import build_metrics
 from recipe_ragas.models import RagasInput
-from recipe_ragas.report import build_report, validate_java_report, write_report
+from recipe_ragas.report import build_report, load_verified_report, validate_java_report, write_report
 
 
 def load_cases(path: Path) -> list[RagasInput]:
@@ -76,6 +76,7 @@ def main(argv: list[str] | None = None) -> int:
                                             timeout_seconds=config.llm_timeout_seconds))
         report = build_report(scores, config, input_file, java_report)
         write_report(report, output_dir)
+        load_verified_report(output_dir)
     except Exception as error:
         print(f"Ragas evaluation error: {type(error).__name__}", file=sys.stderr)
         return 1

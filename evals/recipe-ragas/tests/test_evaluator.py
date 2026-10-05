@@ -51,7 +51,7 @@ async def test_refusals_and_non_answers_are_skipped_without_fake_scores():
     metric = FakeMetric(0.8)
     scores = await evaluate_cases([
         case("answer"), case("refused", refused=True),
-        case("non-answer", answer_expectation="REFUSE", refused=False),
+        case("non-answer", answer_expectation="REFUSE_UNSUPPORTED", refused=False),
     ], {"faithfulness": metric}, 2)
     assert metric.case_ids == ["answer"]
     assert [score.status for score in scores] == ["complete", "skipped", "skipped"]

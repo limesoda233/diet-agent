@@ -8,7 +8,7 @@ import pytest
 from recipe_ragas.config import RagasConfig
 from recipe_ragas.evaluator import CaseScore
 from recipe_ragas.models import RagasInput
-from recipe_ragas.report import build_report, write_report
+from recipe_ragas.report import build_report, load_verified_report, write_report
 
 
 def sample(query_id: str, slice_name: str, *, generator_model: str = "judge-model",
@@ -109,6 +109,30 @@ def test_zero_successful_metric_values_is_failed(tmp_path: Path):
     assert report["slices"]["exact_name"]["faithfulness"] is None
 
 
+def test_refusal_count_distinguishes_all_semantic_exclusions(tmp_path: Path):
+    input_file, java_report = sources(tmp_path)
+    expected_refusal = sample("expected", "near_ood").model_copy(update={
+        "answer_expectation": "REFUSE_OUT_OF_CORPUS", "refused": False})
+    unexpected_refusal = sample("unexpected", "exact_name", refused=True)
+    report = build_report([
+        CaseScore(expected_refusal, {}, {}, "skipped"),
+        CaseScore(unexpected_refusal, {}, {}, "skipped"),
+    ], config(), input_file, java_report)
+    assert report["excluded_refusal_count"] == 1
+    assert report["excluded_semantic_count"] == 2
+
+
+@pytest.mark.parametrize("commit", [None, "", "  "])
+def test_java_report_requires_nonblank_corpus_commit(tmp_path: Path, commit):
+    input_file, java_report = sources(tmp_path)
+    metadata = {"datasetHash": "sha256:frozen", "datasetVersion": "v2",
+                "corpusCommit": commit}
+    java_report.write_text(json.dumps({"metadata": metadata}), encoding="utf-8")
+    with pytest.raises(ValueError, match="corpusCommit"):
+        build_report([CaseScore(sample("a", "exact_name"), {}, {}, "failed")],
+                     config(), input_file, java_report)
+
+
 def test_writes_stable_json_csv_and_keeps_previous_files_on_replace_error(
         tmp_path: Path, monkeypatch):
     input_file, java_report = sources(tmp_path)
@@ -133,6 +157,36 @@ def test_writes_stable_json_csv_and_keeps_previous_files_on_replace_error(
         write_report(report, output)
     assert (output / "ragas-report.json").read_bytes() == old_json
     assert (output / "ragas-cases.csv").read_bytes() == old_csv
+    assert not list(output.glob("*.tmp"))
+
+
+def test_second_replace_failure_marks_old_json_new_csv_incomplete(tmp_path: Path, monkeypatch):
+    input_file, java_report = sources(tmp_path)
+    first = build_report([CaseScore(sample("first", "exact_name"),
+                                    {"faithfulness": 0.8}, {}, "complete")],
+                         config(), input_file, java_report)
+    output = tmp_path / "out"
+    write_report(first, output)
+    old_json = (output / "ragas-report.json").read_bytes()
+    second = build_report([CaseScore(sample("second", "exact_name"),
+                                     {"faithfulness": 0.4}, {}, "complete")],
+                          config(), input_file, java_report)
+    real_replace = __import__("os").replace
+    calls = 0
+
+    def fail_second(source, destination):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("second replacement failed")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr("recipe_ragas.report.os.replace", fail_second)
+    with pytest.raises(OSError, match="second replacement failed"):
+        write_report(second, output)
+    assert (output / "ragas-report.json").read_bytes() == old_json
+    with pytest.raises(ValueError, match="incomplete"):
+        load_verified_report(output)
     assert not list(output.glob("*.tmp"))
 
 

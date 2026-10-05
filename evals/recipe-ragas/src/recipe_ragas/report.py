@@ -107,7 +107,8 @@ def build_report(scores: Sequence[CaseScore], config: RagasConfig,
         "java_report_sha256": _sha256(java_path),
         "total_input_count": len(scores),
         "eligible_count": eligible_count,
-        "excluded_refusal_count": len(scores) - eligible_count,
+        "excluded_refusal_count": sum(score.case.refused for score in scores),
+        "excluded_semantic_count": len(scores) - eligible_count,
         "case_status_counts": {name: status_counts[name]
                                for name in ("complete", "partial", "failed", "skipped")},
         "metric_error_counts": dict(sorted(error_counts.items())),
@@ -133,7 +134,26 @@ def validate_java_report(path: Path, dataset_hash: str, dataset_version: str) ->
             raise ValueError(f"Java report metadata.{name} is required")
         if actual != expected:
             raise ValueError(f"Java report metadata.{name} differs from Ragas input")
+    commit = metadata.get("corpusCommit")
+    if not isinstance(commit, str) or not commit.strip():
+        raise ValueError("Java report metadata.corpusCommit is required")
     return metadata
+
+
+def load_verified_report(output_dir: str | Path) -> dict[str, Any]:
+    """Read a completed report only when its case CSV matches the JSON marker."""
+    directory = Path(output_dir)
+    report = json.loads((directory / "ragas-report.json").read_text(encoding="utf-8"))
+    expected = report.get("cases_csv_sha256") if isinstance(report, dict) else None
+    if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+        raise ValueError("Ragas report is incomplete: missing CSV SHA-256")
+    try:
+        actual = _sha256(directory / "ragas-cases.csv")
+    except OSError as error:
+        raise ValueError("Ragas report is incomplete: case CSV is missing") from error
+    if actual != expected:
+        raise ValueError("Ragas report is incomplete: case CSV SHA-256 differs")
+    return report
 
 
 def write_report(report: dict[str, Any], output_dir: str | Path) -> tuple[Path, Path]:
@@ -145,10 +165,6 @@ def write_report(report: dict[str, Any], output_dir: str | Path) -> tuple[Path, 
     json_temp = json_path.with_name(json_path.name + ".tmp")
     csv_temp = csv_path.with_name(csv_path.name + ".tmp")
     try:
-        with json_temp.open("w", encoding="utf-8", newline="\n") as output:
-            json.dump(report, output, ensure_ascii=False, indent=2, allow_nan=False)
-            output.write("\n")
-            output.flush()
         with csv_temp.open("w", encoding="utf-8", newline="") as output:
             writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS)
             writer.writeheader()
@@ -160,6 +176,11 @@ def write_report(report: dict[str, Any], output_dir: str | Path) -> tuple[Path, 
                     "error_metrics": ";".join(
                         f"{name}:{reason}" for name, reason in case["errors"].items()),
                 })
+            output.flush()
+        report["cases_csv_sha256"] = _sha256(csv_temp)
+        with json_temp.open("w", encoding="utf-8", newline="\n") as output:
+            json.dump(report, output, ensure_ascii=False, indent=2, allow_nan=False)
+            output.write("\n")
             output.flush()
         os.replace(csv_temp, csv_path)
         os.replace(json_temp, json_path)

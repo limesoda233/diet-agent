@@ -116,7 +116,7 @@ try {
         (Get-WriteTime $ragasCases) -le $previousCasesWrite) {
         throw 'Ragas scoring did not refresh both expected artifacts.'
     }
-    $summary = Get-Content -LiteralPath $ragasReport -Raw | ConvertFrom-Json
+    $summary = & "$PSScriptRoot/Assert-RecipeRagasReport.ps1" -ReportPath $ragasReport -CasesPath $ragasCases
     $validCount = @($summary.metrics.PSObject.Properties | ForEach-Object { $_.Value.valid_count } |
         Measure-Object -Sum).Sum
     if ($summary.status -notin @('complete', 'partial') -or $validCount -le 0) {
