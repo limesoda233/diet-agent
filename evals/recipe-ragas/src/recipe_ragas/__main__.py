@@ -41,8 +41,9 @@ def load_cases(path: Path) -> list[RagasInput]:
 
 
 def validate_output_targets(input_file: Path, java_report: Path, output_dir: Path) -> None:
-    destinations = {(output_dir / name).resolve()
-                    for name in ("ragas-report.json", "ragas-cases.csv")}
+    destinations = {(output_dir / (name + suffix)).resolve()
+                    for name in ("ragas-report.json", "ragas-cases.csv")
+                    for suffix in ("", ".tmp")}
     if input_file in destinations or java_report in destinations:
         raise ValueError("an input path cannot be a Ragas output destination")
 

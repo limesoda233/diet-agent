@@ -108,6 +108,10 @@ def test_missing_or_mismatched_java_dataset_exits_before_scoring(
     ("input", "ragas-cases.csv"),
     ("java", "ragas-report.json"),
     ("java", "ragas-cases.csv"),
+    ("input", "ragas-report.json.tmp"),
+    ("input", "ragas-cases.csv.tmp"),
+    ("java", "ragas-report.json.tmp"),
+    ("java", "ragas-cases.csv.tmp"),
 ])
 def test_output_cannot_replace_an_input_file(tmp_path: Path, monkeypatch,
                                              source: str, destination: str):
