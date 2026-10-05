@@ -150,6 +150,34 @@ mvn "-Dtest=RecipeRetrievalEvaluationTest" "-Ddiet.recipe-rag.live=true" `
 
 报告写入 `target/evaluation/recipe/report.json`。报告分别列出 Recall@1/5/10、MRR@10、nDCG@10、Parent Recall、重复率、空结果率、p50/p95、降级次数和切片指标。回答引用覆盖、证据支持率和拒答准确率独立计算，不合并成不透明总分。查询改写与重排没有配置模型 provider 时是 identity 基线，报告不得把它们描述成模型增益。
 
+### Ragas 回答质量基线（显式启用）
+
+先准备上述固定 commit 的 HowToCook、Ollama `bge-m3:567m`、Qdrant 和主聊天模型的 `agentscope.deepseek.api-key`。还需要 Java 21、Maven、`uv`，以及可访问的 OpenAI-compatible Judge 和 embedding 服务。以下变量在当前 PowerShell 会话中设置；请在本机安全地填写真实密钥，不要将其写进仓库。脚本不会自动加载 `.env`，也不会下载 Judge 模型。
+
+```powershell
+$env:RAGAS_LLM_BASE_URL = "https://api.deepseek.com/v1"
+$env:RAGAS_LLM_API_KEY = "<set locally>"
+$env:RAGAS_LLM_MODEL = "deepseek-chat"
+$env:RAGAS_EMBEDDING_BASE_URL = "http://localhost:11434/v1"
+$env:RAGAS_EMBEDDING_API_KEY = "ollama"
+$env:RAGAS_EMBEDDING_MODEL = "bge-m3:567m"
+./scripts/evaluate-recipe-ragas.ps1 -CorpusPath E:/Mycode/HowToCook
+```
+
+脚本先以 opt-in Maven 测试运行真实检索与回答生成，得到 `target/evaluation/recipe/report.json` 和冻结的 `ragas-input.jsonl`；再执行 `uv sync --frozen`，调用 Python CLI 评分。正常输出为 `target/evaluation/recipe/ragas-report.json` 与 `ragas-cases.csv`。任一阶段退出非零、输入或报告缺失、报告没有有效值时脚本失败。`OutputDir` 可调整 Ragas 输出目录；`InputPath` 可在复用已有输入时指定。
+
+已有完整的 Java 报告和冻结 JSONL 时，可以跳过生成阶段，避免再次支付回答生成费用：
+
+```powershell
+./scripts/evaluate-recipe-ragas.ps1 -CorpusPath E:/Mycode/HowToCook -SkipJavaExport `
+  -InputPath target/evaluation/recipe/ragas-input.jsonl `
+  -OutputDir target/evaluation/recipe
+```
+
+复用时 CLI 会校验 JSONL 与 Java 报告的数据集版本和 hash；输入文件内容的 SHA-256 也写入 Ragas 报告。`-SkipJavaExport` 只省去生成费用，Judge 评分仍会发起请求。
+
+三个语义指标 `faithfulness`、`answer_relevancy`、`context_utilization` 只统计 `ANSWER` 且成功生成的样本。报告的每项 `mean` 应与 `valid_count`、`failure_count` 一起读；`partial` 表示已有有效值但部分指标失败，全部无有效值则失败并返回非零。`same_model_judge=true` 表示生成模型与 Judge 同名，该分数是同模型自动评测，不能当作独立人工评审。OOD 和不支持回答的拒答样本另由 Java 报告统计，不混入语义均值。锁定 test 的结果不得用于修改 qrels；评测集 v1 和既有 v2 基线保持原样。
+
 ## 8. 故障定位
 
 - `Recipe sparse index has not been built`：先运行索引命令，检查 Lucene 目录中的 `active.json`。
