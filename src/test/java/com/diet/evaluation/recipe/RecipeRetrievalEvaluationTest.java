@@ -73,9 +73,13 @@ class RecipeRetrievalEvaluationTest {
         answerMetrics.put("status", "not_run");
         answerMetrics.put("reason", "This command evaluates retrieval. Run answer evaluation with a configured main chat model.");
         answerMetrics.put("optionalStages", "rerank and rewrite use identity baselines until model providers are configured");
+        RecipeEvaluationDataset.Summary summary = dataset.summary();
         var report = new RecipeEvaluationReport(new RecipeEvaluationReport.Metadata(COMMIT,
-                corpus.manifest().corpusHash(), dataset.fingerprint(), "1.0-SNAPSHOT",
-                embedding.modelName(), embedding.dimensions()), experiments, answerMetrics);
+                corpus.manifest().corpusHash(), corpus.manifest().documentCount(),
+                dataset.version(), dataset.fingerprint(), summary.queryCount(), summary.relevantQueryCount(),
+                summary.uniqueGoldCount(), summary.multiGoldQueryCount(), summary.testRelevantQueryCount(),
+                summary.testUniqueGoldCount(), summary.maxSingleTestQueryImpactPercentage(),
+                "1.0-SNAPSHOT", embedding.modelName(), embedding.dimensions()), experiments, answerMetrics);
         report.write(Path.of("target/evaluation/recipe/report.json"));
     }
 

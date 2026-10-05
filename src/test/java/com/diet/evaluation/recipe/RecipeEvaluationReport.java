@@ -19,19 +19,27 @@ record RecipeEvaluationReport(Metadata metadata, List<ExperimentResult> experime
         }
     }
 
-    record Metadata(String corpusCommit, String corpusHash, String datasetHash,
+    record Metadata(String corpusCommit, String corpusHash, int corpusDocumentCount,
+                    String datasetVersion, String datasetHash,
+                    int datasetQueryCount, int relevantQueryCount, int uniqueGoldCount,
+                    int multiGoldQueryCount, int testRelevantQueryCount, int testUniqueGoldCount,
+                    double maxSingleTestQueryImpactPercentage,
                     String applicationVersion, String embeddingModel, int dimensions) {
     }
 
     record ExperimentResult(RecipeExperiment experiment, int queryCount,
+                            int relevantQueryCount, int emptyExpectedQueryCount,
                             double recallAt1, double recallAt5, double recallAt10,
                             double mrrAt10, double ndcgAt10, double parentRecall,
                             double duplicateRate, double emptyResultRate,
+                            double emptyExpectationAccuracy, double nearOodFalsePositiveRate,
                             double p50LatencyMs, double p95LatencyMs,
                             int degradedQueries, Map<String, SliceMetrics> slices) {
     }
 
-    record SliceMetrics(int queryCount, double recallAt5, double mrrAt10, double emptyResultRate) {
+    record SliceMetrics(int queryCount, int relevantQueryCount, int emptyExpectedQueryCount,
+                        double recallAt5, double mrrAt10, double emptyResultRate,
+                        double emptyExpectationAccuracy) {
     }
 
     static double percentile(List<Long> values, double percentile) {

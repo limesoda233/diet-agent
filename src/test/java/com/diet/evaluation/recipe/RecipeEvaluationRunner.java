@@ -14,18 +14,27 @@ final class RecipeEvaluationRunner {
         for (RecipeEvaluationDataset.Example example : examples) {
             results.add(retrieval.retrieve(experiment, example));
         }
-        List<QueryResult> judged = results.stream().filter(result -> !result.example().mustRefuse()).toList();
+        List<QueryResult> judged = results.stream()
+                .filter(result -> result.example().retrievalExpectedRelevant()).toList();
+        List<QueryResult> expectedEmpty = results.stream()
+                .filter(result -> result.example().retrievalExpectedEmpty()).toList();
+        List<QueryResult> nearOod = results.stream()
+                .filter(result -> "near_ood".equals(result.example().slice())).toList();
         Map<String, RecipeEvaluationReport.SliceMetrics> slices = new LinkedHashMap<>();
         examples.stream().map(RecipeEvaluationDataset.Example::slice).distinct().forEach(slice -> {
             List<QueryResult> values = results.stream().filter(result -> result.example().slice().equals(slice)).toList();
-            List<QueryResult> relevant = values.stream().filter(result -> !result.example().mustRefuse()).toList();
-            slices.put(slice, new RecipeEvaluationReport.SliceMetrics(values.size(),
+            List<QueryResult> relevant = values.stream()
+                    .filter(result -> result.example().retrievalExpectedRelevant()).toList();
+            List<QueryResult> empty = values.stream()
+                    .filter(result -> result.example().retrievalExpectedEmpty()).toList();
+            slices.put(slice, new RecipeEvaluationReport.SliceMetrics(values.size(), relevant.size(), empty.size(),
                     average(relevant, result -> recall(result, 5)),
                     average(relevant, RecipeEvaluationRunner::mrr),
-                    values.isEmpty() ? 0 : (double) values.stream().filter(result -> result.rankedParentIds().isEmpty()).count() / values.size()));
+                    values.isEmpty() ? 0 : (double) values.stream().filter(result -> result.rankedParentIds().isEmpty()).count() / values.size(),
+                    emptyExpectationAccuracy(empty)));
         });
         List<Long> latencies = results.stream().map(QueryResult::latencyMs).toList();
-        return new RecipeEvaluationReport.ExperimentResult(experiment, results.size(),
+        return new RecipeEvaluationReport.ExperimentResult(experiment, results.size(), judged.size(), expectedEmpty.size(),
                 average(judged, result -> recall(result, 1)),
                 average(judged, result -> recall(result, 5)),
                 average(judged, result -> recall(result, 10)),
@@ -35,9 +44,20 @@ final class RecipeEvaluationRunner {
                 average(judged, result -> recall(result, 10)),
                 average(results, result -> RecipeRetrievalMetrics.duplicateRate(result.rankedParentIds())),
                 results.isEmpty() ? 0 : (double) results.stream().filter(result -> result.rankedParentIds().isEmpty()).count() / results.size(),
+                emptyExpectationAccuracy(expectedEmpty), falsePositiveRate(nearOod),
                 RecipeEvaluationReport.percentile(latencies, 0.50),
                 RecipeEvaluationReport.percentile(latencies, 0.95),
                 (int) results.stream().filter(QueryResult::degraded).count(), Map.copyOf(slices));
+    }
+
+    private static double emptyExpectationAccuracy(List<QueryResult> results) {
+        return results.isEmpty() ? 0 : (double) results.stream()
+                .filter(result -> result.rankedParentIds().isEmpty()).count() / results.size();
+    }
+
+    private static double falsePositiveRate(List<QueryResult> results) {
+        return results.isEmpty() ? 0 : (double) results.stream()
+                .filter(result -> !result.rankedParentIds().isEmpty()).count() / results.size();
     }
 
     private static double recall(QueryResult result, int k) {

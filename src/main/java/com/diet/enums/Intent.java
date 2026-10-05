@@ -17,6 +17,9 @@ public enum Intent {
     /** 用户要求早餐、午餐、晚餐等多餐规划。 */
     MEAL_PLAN,
 
+    /** 用户询问具体菜品的食材、步骤或烹饪方法。 */
+    RECIPE_QUERY,
+
     /** 用户问题涉及医疗诊断、治疗承诺、极端节食等健康风险。 */
     HEALTH_RISK,
 
