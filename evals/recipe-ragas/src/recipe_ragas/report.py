@@ -37,8 +37,12 @@ def build_report(scores: Sequence[CaseScore], config: RagasConfig,
         raise ValueError("Ragas report requires at least one input case")
     dataset_versions = {score.case.dataset_version for score in scores}
     dataset_hashes = {score.case.dataset_hash for score in scores}
+    generator_models = {score.case.generator_model for score in scores}
     if len(dataset_versions) != 1 or len(dataset_hashes) != 1:
         raise ValueError("Ragas cases must share a dataset version and hash")
+    if len(generator_models) != 1:
+        raise ValueError("Ragas cases must share one generator_model")
+    generator_model = next(iter(generator_models))
 
     values: dict[str, list[float]] = defaultdict(list)
     slice_values: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
@@ -86,16 +90,14 @@ def build_report(scores: Sequence[CaseScore], config: RagasConfig,
     failed = sum(failures.values())
     status = "failed" if successful == 0 else "partial" if failed else "complete"
     java_path = Path(java_report_file)
-    java_data = json.loads(java_path.read_text(encoding="utf-8"))
-    metadata = java_data.get("metadata", {}) if isinstance(java_data, dict) else {}
-    if not isinstance(metadata, dict):
-        metadata = {}
+    metadata = validate_java_report(java_path, next(iter(dataset_hashes)),
+                                    next(iter(dataset_versions)))
     return {
         "status": status,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "ragas_version": version("ragas"),
         "judge": config.metadata(),
-        "same_model_judge": same_model_count > 0,
+        "same_model_judge": generator_model == config.llm_model,
         "same_model_judge_count": same_model_count,
         "dataset_version": next(iter(dataset_versions)),
         "dataset_hash": next(iter(dataset_hashes)),
@@ -117,6 +119,21 @@ def build_report(scores: Sequence[CaseScore], config: RagasConfig,
                    for slice_name, by_metric in sorted(slice_values.items())},
         "cases": case_rows,
     }
+
+
+def validate_java_report(path: Path, dataset_hash: str, dataset_version: str) -> dict[str, Any]:
+    """Require the deterministic report to identify the same frozen dataset."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    metadata = data.get("metadata") if isinstance(data, dict) else None
+    if not isinstance(metadata, dict):
+        raise ValueError("Java report metadata must be an object")
+    for name, expected in (("datasetHash", dataset_hash), ("datasetVersion", dataset_version)):
+        actual = metadata.get(name)
+        if not isinstance(actual, str) or not actual.strip():
+            raise ValueError(f"Java report metadata.{name} is required")
+        if actual != expected:
+            raise ValueError(f"Java report metadata.{name} differs from Ragas input")
+    return metadata
 
 
 def write_report(report: dict[str, Any], output_dir: str | Path) -> tuple[Path, Path]:

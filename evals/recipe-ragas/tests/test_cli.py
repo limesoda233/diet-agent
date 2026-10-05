@@ -23,7 +23,8 @@ def paths(tmp_path: Path, rows):
     java_report = tmp_path / "java.json"
     output = tmp_path / "out"
     input_file.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
-    java_report.write_text('{"metadata":{"datasetHash":"sha256:frozen"}}',
+    java_report.write_text('{"metadata":{"datasetHash":"sha256:frozen",'
+                           '"datasetVersion":"v2"}}',
                            encoding="utf-8")
     return input_file, java_report, output
 
@@ -31,6 +32,15 @@ def paths(tmp_path: Path, rows):
 def args(input_file: Path, java_report: Path, output: Path):
     return ["--input", str(input_file), "--java-report", str(java_report),
             "--output-dir", str(output)]
+
+
+def configured(monkeypatch):
+    for key, value in {
+        "RAGAS_LLM_BASE_URL": "https://judge.invalid/v1", "RAGAS_LLM_API_KEY": "fake",
+        "RAGAS_LLM_MODEL": "judge", "RAGAS_EMBEDDING_BASE_URL": "https://embed.invalid/v1",
+        "RAGAS_EMBEDDING_API_KEY": "fake", "RAGAS_EMBEDDING_MODEL": "embed",
+    }.items():
+        monkeypatch.setenv(key, value)
 
 
 def test_missing_config_exits_before_metric_creation_or_output(tmp_path: Path, monkeypatch,
@@ -60,6 +70,60 @@ def test_missing_java_report_is_input_error(tmp_path: Path):
     java_report.unlink()
     assert main(args(input_file, java_report, output)) == 2
     assert not output.exists()
+
+
+def test_mixed_generator_models_exit_before_metric_creation(tmp_path: Path, monkeypatch):
+    input_file, java_report, output = paths(tmp_path, [
+        payload("a", generator_model="judge"),
+        payload("b", generator_model="other-model"),
+    ])
+    configured(monkeypatch)
+    monkeypatch.setattr("recipe_ragas.__main__.build_metrics", lambda _: pytest.fail("built"))
+    assert main(args(input_file, java_report, output)) == 2
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("metadata", [
+    None,
+    {},
+    {"datasetHash": "sha256:frozen"},
+    {"datasetVersion": "v2"},
+    {"datasetHash": "sha256:other", "datasetVersion": "v2"},
+    {"datasetHash": "sha256:frozen", "datasetVersion": "v1"},
+    {"datasetHash": " ", "datasetVersion": "v2"},
+    ["not an object"],
+])
+def test_missing_or_mismatched_java_dataset_exits_before_scoring(
+        tmp_path: Path, monkeypatch, metadata):
+    input_file, java_report, output = paths(tmp_path, [payload()])
+    java_report.write_text(json.dumps({"metadata": metadata}), encoding="utf-8")
+    configured(monkeypatch)
+    monkeypatch.setattr("recipe_ragas.__main__.build_metrics", lambda _: pytest.fail("built"))
+    assert main(args(input_file, java_report, output)) == 2
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("source,destination", [
+    ("input", "ragas-report.json"),
+    ("input", "ragas-cases.csv"),
+    ("java", "ragas-report.json"),
+    ("java", "ragas-cases.csv"),
+])
+def test_output_cannot_replace_an_input_file(tmp_path: Path, monkeypatch,
+                                             source: str, destination: str):
+    input_file, java_report, output = paths(tmp_path, [payload()])
+    output.mkdir()
+    collision = output / destination
+    original = input_file.read_bytes() if source == "input" else java_report.read_bytes()
+    collision.write_bytes(original)
+    if source == "input":
+        input_file = collision
+    else:
+        java_report = collision
+    configured(monkeypatch)
+    monkeypatch.setattr("recipe_ragas.__main__.build_metrics", lambda _: pytest.fail("built"))
+    assert main(args(input_file, java_report, output)) == 2
+    assert collision.read_bytes() == original
 
 
 def test_fake_metric_path_writes_reports_and_single_case_failure_is_partial(

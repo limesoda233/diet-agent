@@ -33,7 +33,8 @@ def sources(tmp_path: Path) -> tuple[Path, Path]:
     input_file = tmp_path / "input.jsonl"
     java_report = tmp_path / "java.json"
     input_file.write_text('{"frozen":true}\n', encoding="utf-8")
-    java_report.write_text('{"metadata":{"corpusCommit":"abc"}}', encoding="utf-8")
+    java_report.write_text('{"metadata":{"corpusCommit":"abc","datasetHash":"sha256:frozen",'
+                           '"datasetVersion":"v2"}}', encoding="utf-8")
     return input_file, java_report
 
 
@@ -42,7 +43,7 @@ def test_aggregates_finite_values_failures_slices_and_model_provenance(tmp_path:
     scores = [
         CaseScore(sample("a", "exact_name"), {"faithfulness": 0.8,
                   "answer_relevancy": 0.7, "context_utilization": 0.6}, {}, "complete"),
-        CaseScore(sample("b", "constraint", generator_model="other-model"),
+        CaseScore(sample("b", "constraint"),
                   {"faithfulness": 0.7, "context_utilization": float("nan")},
                   {"answer_relevancy": "RuntimeError"}, "partial"),
         CaseScore(sample("c", "constraint", refused=True), {}, {}, "skipped"),
@@ -65,10 +66,10 @@ def test_aggregates_finite_values_failures_slices_and_model_provenance(tmp_path:
     assert report["case_status_counts"] == {"complete": 1, "partial": 1,
                                              "failed": 0, "skipped": 1}
     assert report["same_model_judge"] is True
-    assert report["same_model_judge_count"] == 1
+    assert report["same_model_judge_count"] == 2
     assert report["cases"][0]["generator_model"] == "judge-model"
     assert report["cases"][0]["same_model_judge"] is True
-    assert report["cases"][1]["same_model_judge"] is False
+    assert report["cases"][1]["same_model_judge"] is True
     assert report["cases"][1]["metrics"] == {"faithfulness": 0.7}
     assert report["cases"][1]["errors"] == {"answer_relevancy": "RuntimeError",
                                              "context_utilization": "NonFiniteScore"}
@@ -76,6 +77,25 @@ def test_aggregates_finite_values_failures_slices_and_model_provenance(tmp_path:
     assert "secret-key" not in serialized
     assert "embedding-key" not in serialized
     assert "/private/v1" not in serialized
+
+
+def test_report_rejects_mixed_generator_models(tmp_path: Path):
+    input_file, java_report = sources(tmp_path)
+    scores = [CaseScore(sample("a", "exact_name"), {"faithfulness": 0.8}, {}, "partial"),
+              CaseScore(sample("b", "constraint", generator_model="other-model"),
+                        {"faithfulness": 0.7}, {}, "partial")]
+    with pytest.raises(ValueError, match="generator_model"):
+        build_report(scores, config(), input_file, java_report)
+
+
+def test_report_marks_distinct_single_generator_as_independent(tmp_path: Path):
+    input_file, java_report = sources(tmp_path)
+    score = CaseScore(sample("a", "exact_name", generator_model="other-model"),
+                      {"faithfulness": 0.8}, {}, "partial")
+    report = build_report([score], config(), input_file, java_report)
+    assert report["same_model_judge"] is False
+    assert report["same_model_judge_count"] == 0
+    assert report["cases"][0]["same_model_judge"] is False
 
 
 def test_zero_successful_metric_values_is_failed(tmp_path: Path):

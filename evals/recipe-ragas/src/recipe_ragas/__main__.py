@@ -2,7 +2,6 @@
 
 import argparse
 import asyncio
-import json
 import os
 import sys
 from pathlib import Path
@@ -13,7 +12,7 @@ from recipe_ragas.config import RagasConfig, validate_paths
 from recipe_ragas.evaluator import evaluate_cases
 from recipe_ragas.metrics import build_metrics
 from recipe_ragas.models import RagasInput
-from recipe_ragas.report import build_report, write_report
+from recipe_ragas.report import build_report, validate_java_report, write_report
 
 
 def load_cases(path: Path) -> list[RagasInput]:
@@ -36,7 +35,16 @@ def load_cases(path: Path) -> list[RagasInput]:
         raise ValueError("Ragas JSONL contains mixed dataset hashes")
     if len({case.dataset_version for case in cases}) != 1:
         raise ValueError("Ragas JSONL contains mixed dataset versions")
+    if len({case.generator_model for case in cases}) != 1:
+        raise ValueError("Ragas JSONL contains mixed generator_model values")
     return cases
+
+
+def validate_output_targets(input_file: Path, java_report: Path, output_dir: Path) -> None:
+    destinations = {(output_dir / name).resolve()
+                    for name in ("ragas-report.json", "ragas-cases.csv")}
+    if input_file in destinations or java_report in destinations:
+        raise ValueError("an input path cannot be a Ragas output destination")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -49,14 +57,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         input_file, java_report, output_dir = validate_paths(
             args.input, args.java_report, args.output_dir)
+        validate_output_targets(input_file, java_report, output_dir)
         cases = load_cases(input_file)
-        java_data = json.loads(java_report.read_text(encoding="utf-8"))
-        if not isinstance(java_data, dict):
-            raise ValueError("Java report must be a JSON object")
-        java_metadata = java_data.get("metadata", {})
-        if (isinstance(java_metadata, dict) and java_metadata.get("datasetHash")
-                and java_metadata["datasetHash"] != cases[0].dataset_hash):
-            raise ValueError("Java report dataset hash differs from Ragas input")
+        validate_java_report(java_report, cases[0].dataset_hash, cases[0].dataset_version)
         config = RagasConfig.from_env(os.environ)
     except ValueError as error:
         # These messages are constructed by path, schema and config validation.
