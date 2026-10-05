@@ -164,7 +164,7 @@ $env:RAGAS_EMBEDDING_MODEL = "bge-m3:567m"
 ./scripts/evaluate-recipe-ragas.ps1 -CorpusPath E:/Mycode/HowToCook
 ```
 
-脚本先以 opt-in Maven 测试运行真实检索与回答生成，得到 `target/evaluation/recipe/report.json` 和冻结的 `ragas-input.jsonl`；再执行 `uv sync --frozen`，调用 Python CLI 评分。正常输出为 `target/evaluation/recipe/ragas-report.json` 与 `ragas-cases.csv`。任一阶段退出非零、输入或报告缺失、报告没有有效值时脚本失败。`OutputDir` 可调整 Ragas 输出目录；`InputPath` 可在复用已有输入时指定。
+脚本先运行真实检索 Maven 评测并验证新生成的 `target/evaluation/recipe/report.json`，再单独运行回答导出 Maven 测试，得到冻结的 `ragas-input.jsonl`；随后执行 `uv sync --frozen`，调用 Python CLI 评分。正常输出为 `target/evaluation/recipe/ragas-report.json` 与 `ragas-cases.csv`。任一阶段退出非零、输入或报告缺失、报告没有有效值时脚本失败，后续阶段不会启动。`OutputDir` 可调整 Ragas 输出目录；`InputPath` 可在复用已有输入时指定。
 
 已有完整的 Java 报告和冻结 JSONL 时，可以跳过生成阶段，避免再次支付回答生成费用：
 

@@ -68,19 +68,33 @@ try {
         if (-not (Test-Path -LiteralPath $CorpusPath -PathType Container)) {
             throw "CorpusPath is not a directory: $CorpusPath"
         }
-        $previousInputWrite = Get-WriteTime $inputFile
         $previousJavaWrite = Get-WriteTime $javaReport
 
-        & mvn "-Dtest=RecipeRetrievalEvaluationTest,RecipeAnswerEvaluationExportTest" `
+        & mvn "-Dtest=RecipeRetrievalEvaluationTest" `
             "-Ddiet.recipe-rag.live=true" `
+            "-Ddiet.recipe-rag.corpus-path=$CorpusPath" test
+        Assert-ExitCode 'Java retrieval evaluation'
+        Assert-File $javaReport 'Java retrieval report'
+        if ((Get-WriteTime $javaReport) -le $previousJavaWrite) {
+            throw 'Java retrieval evaluation did not refresh its report.'
+        }
+        try {
+            $parsedJavaReport = Get-Content -LiteralPath $javaReport -Raw | ConvertFrom-Json -ErrorAction Stop
+            if ($parsedJavaReport -isnot [pscustomobject]) {
+                throw 'not an object'
+            }
+        } catch {
+            throw 'Java retrieval report is not a valid JSON object.'
+        }
+
+        $previousInputWrite = Get-WriteTime $inputFile
+        & mvn "-Dtest=RecipeAnswerEvaluationExportTest" `
             "-Ddiet.recipe-ragas.export.live=true" `
             "-Ddiet.recipe-rag.corpus-path=$CorpusPath" test
-        Assert-ExitCode 'Java export'
+        Assert-ExitCode 'Java answer export'
         Assert-File $inputFile 'Ragas input'
-        Assert-File $javaReport 'Java retrieval report'
-        if ((Get-WriteTime $inputFile) -le $previousInputWrite -or
-            (Get-WriteTime $javaReport) -le $previousJavaWrite) {
-            throw 'Java export did not refresh both expected artifacts.'
+        if ((Get-WriteTime $inputFile) -le $previousInputWrite) {
+            throw 'Java answer export did not refresh Ragas input.'
         }
     }
 

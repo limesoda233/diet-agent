@@ -23,7 +23,7 @@ v1 数据集及既有 v2 检索 baseline 保持原样；本轮没有修改 qrels
 
 ```text
 Invoke-Pester -Script <临时 runner 测试文件> -PassThru
-4 passed, 0 failed（缺输入、路径冲突、uv sync 失败、正常串行路径）
+8 passed, 0 failed（缺输入、路径冲突、uv sync 失败、正常 Python 路径，以及 Java 检索→回答导出顺序、检索失败/报告陈旧、导出失败即停）
 
 mvn test
 Tests run: 190, Failures: 0, Errors: 0, Skipped: 8; BUILD SUCCESS
@@ -41,7 +41,7 @@ uv run --project evals/recipe-ragas pytest evals/recipe-ragas/tests -q
 92 passed
 ```
 
-八项跳过包括显式 opt-in 的真实集成评测。runner 测试用临时 PowerShell 文件和本地进程替身，仅验证编排与失败路径，不调用真实 Judge。Python 测试使用 fake scorer，能够验证 schema、报告聚合、部分失败与全失败行为。
+八项跳过包括显式 opt-in 的真实集成评测。runner 测试用临时 PowerShell 文件和本地进程替身，仅验证串行编排与失败路径，不调用真实 Judge。检索 Maven 成功后先验证本轮新报告，再启动回答导出 Maven；任一阶段失败立即停止。Python 测试使用 fake scorer，能够验证 schema、报告聚合、部分失败与全失败行为。
 
 ## 在线基线待执行
 
