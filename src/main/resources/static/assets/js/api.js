@@ -83,6 +83,7 @@
         createSession: () => request("/sessions", { method: "POST" }),
         chat: (payload) => request("/chat", { method: "POST", body: payload }),
         listPersonalMeals: () => request("/meals/personal"),
+        generateMealDraft: (text) => request("/meals/personal/draft", { method: "POST", body: { text } }),
         createPersonalMeal: (payload) => request("/meals/personal", { method: "POST", body: payload }),
         updatePersonalMeal: (mealId, payload) => request(`/meals/personal/${encodeURIComponent(mealId)}`, { method: "PUT", body: payload }),
         deletePersonalMeal: (mealId) => request(`/meals/personal/${encodeURIComponent(mealId)}`, { method: "DELETE" }),

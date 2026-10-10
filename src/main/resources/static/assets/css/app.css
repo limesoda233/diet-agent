@@ -345,6 +345,70 @@ button {
     line-height: 1.5;
 }
 
+.draft-preview {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-md);
+    background: var(--surface-soft);
+    line-height: 1.55;
+}
+
+.draft-preview.full {
+    grid-column: 1 / -1;
+}
+
+.draft-preview > strong {
+    color: var(--primary-dark);
+}
+
+.draft-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.draft-original,
+.draft-detail,
+.draft-warning {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.draft-detail b {
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.draft-original {
+    padding-left: 10px;
+    border-left: 3px solid var(--accent);
+}
+
+.draft-warning {
+    color: var(--warning);
+}
+
+.chat-draft {
+    min-width: 0;
+    background: #fff;
+}
+
+.chat-draft .button-row {
+    margin-top: 4px;
+}
+
+.btn:focus-visible,
+.field input:focus-visible,
+.field textarea:focus-visible,
+.slot-select:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+}
+
 .slot-select {
     width: 100%;
     min-height: 118px;

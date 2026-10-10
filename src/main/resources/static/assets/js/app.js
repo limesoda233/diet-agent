@@ -27,10 +27,13 @@
         personalMeals: [],
         publicMeals: [],
         editingMeal: null,
+        intake: { text: "", draft: null, generating: false, saving: false, epoch: 0 },
         chat: {
             sourceMode: "PERSONAL",
             sessionId: null,
             sending: false,
+            epoch: 0,
+            revision: 0,
             messages: [
                 {
                     role: "assistant",
@@ -244,7 +247,7 @@
                     <div id="messages" class="messages">${state.chat.messages.map(renderMessage).join("")}</div>
                     <form id="chatForm" class="composer">
                         <textarea name="message" placeholder="例如：今晚想吃清淡一点，最好快手一点" required></textarea>
-                        <button class="btn primary" type="submit">${state.chat.sending ? "发送中..." : "发送"}</button>
+                        <button class="btn primary" type="submit" ${state.chat.sending ? "disabled" : ""}>${state.chat.sending ? "发送中..." : "发送"}</button>
                     </form>
                 </div>
                 <aside class="grid">
@@ -295,6 +298,7 @@
             ? DietChatRenderer.renderMarkdown(message.text)
             : escapeHtml(message.text);
         const videoCards = DietChatRenderer.renderVideoCards(message.videos);
+        const draftCard = message.mealDraft ? renderChatDraft(message) : "";
         return `
             <article class="message ${message.role}">
                 <div class="bubble">${messageText}</div>
@@ -302,9 +306,33 @@
                 ${planSections ? `<div class="meal-plan">${planSections}</div>` : ""}
                 ${mealCards ? `<div class="grid">${mealCards}</div>` : ""}
                 ${videoCards}
+                ${draftCard}
                 ${trace ? `<div class="message-meta">${trace}</div>` : ""}
             </article>
         `;
+    }
+    function renderChatDraft(message) {
+        const draft = message.mealDraft;
+        const data = draft.data || {};
+        const knowledge = data.knowledge || {};
+        const missing = (draft.missingFields || []).map((key) => SLOT_LABELS[key] || (key === "name" ? "餐食名称" : key));
+        const latest = message.revision === state.chat.revision && message.sessionId === state.chat.sessionId
+            && message.userId === DietApi.getUserId();
+        const actionable = latest && !state.chat.sending && draft.draftId;
+        const fields = [data.name, ...mealTags(data), ...(knowledge.ingredients || []), knowledge.description, knowledge.preparation]
+            .filter(Boolean).map((value) => `<span class="chip selected">${escapeHtml(value)}</span>`).join("");
+        const status = draft.status === "SAVED" ? `已保存，餐食 ID：${escapeHtml(draft.savedMealId || "")}`
+            : draft.status === "CANCELLED" ? "已取消录入"
+            : missing.length ? `待补充：${escapeHtml(missing.join("、"))}` : "请核对草稿后确认保存";
+        const attrs = `data-draft-id="${escapeHtml(draft.draftId || "")}" data-session-id="${escapeHtml(message.sessionId || "")}" data-revision="${escapeHtml(message.revision)}" data-user-id="${escapeHtml(message.userId || "")}"`;
+        const actions = draft.status === "READY" || draft.status === "NEEDS_INPUT"
+            ? `<div class="button-row">${draft.status === "READY" ? `<button class="btn primary" data-action="save-meal-draft" ${attrs} ${actionable ? "" : "disabled"}>确认保存</button>` : ""}
+                <button class="btn ghost" data-action="cancel-meal-draft" ${attrs} ${actionable ? "" : "disabled"}>取消录入</button></div>` : "";
+        return `<section class="draft-preview chat-draft" aria-label="餐食录入草稿">
+            <strong>${status}</strong><div class="chips">${fields}</div>
+            ${missing.length ? `<p class="field-hint">请在聊天框补充${escapeHtml(missing.join("、"))}，再确认保存。</p>` : ""}
+            ${(draft.warnings || []).map((warning) => `<p class="draft-warning">${escapeHtml(warning)}</p>`).join("")}
+            ${actions}</section>`;
     }
     function scrollMessagesToBottom() {
         const messages = document.getElementById("messages");
@@ -318,6 +346,10 @@
         if (!message || state.chat.sending) {
             return;
         }
+        const epoch = state.chat.epoch;
+        const userId = DietApi.getUserId();
+        const current = () => epoch === state.chat.epoch && userId === DietApi.getUserId();
+        state.chat.revision++;
         state.chat.messages.push({ role: "user", text: message });
         messageInput.value = "";
         state.chat.sending = true;
@@ -325,6 +357,7 @@
         try {
             if (!state.chat.sessionId) {
                 const session = await DietApi.createSession();
+                if (!current()) return;
                 state.chat.sessionId = session.sessionId;
             }
             const response = await DietApi.chat({
@@ -333,6 +366,7 @@
                 sourceMode: state.chat.sourceMode,
                 context: {}
             });
+            if (!current()) return;
             state.chat.sessionId = response.sessionId || state.chat.sessionId;
             state.chat.messages.push({
                 role: "assistant",
@@ -343,17 +377,59 @@
                 videos: response.videoBlocks || [],
                 missingSlots: response.missingSlots || [],
                 traceId: response.traceId,
-                sessionId: response.sessionId || state.chat.sessionId
+                sessionId: response.sessionId || state.chat.sessionId,
+                mealDraft: response.mealDraft || null,
+                revision: state.chat.revision,
+                userId
             });
         } catch (error) {
+            if (!current()) return;
             showToast(error.message || "聊天请求失败", "error");
             state.chat.messages.push({ role: "assistant", text: "这轮请求失败了，请稍后重试。" });
         } finally {
-            state.chat.sending = false;
-            renderChat();
+            if (current()) {
+                state.chat.sending = false;
+                renderChat();
+            }
+        }
+    }
+    async function actOnChatDraft(target, action) {
+        const draftId = target.dataset.draftId;
+        const sessionId = target.dataset.sessionId;
+        const revision = Number(target.dataset.revision);
+        const userId = target.dataset.userId;
+        const latest = state.chat.messages.at(-1);
+        if (state.chat.sending || userId !== DietApi.getUserId() || sessionId !== state.chat.sessionId
+            || revision !== state.chat.revision || !latest?.mealDraft || latest.revision !== revision
+            || latest.mealDraft.draftId !== draftId || !["READY", "NEEDS_INPUT"].includes(latest.mealDraft.status)
+            || (action === "SAVE" && latest.mealDraft.status !== "READY")) return;
+        const epoch = state.chat.epoch;
+        const current = () => epoch === state.chat.epoch && userId === DietApi.getUserId();
+        state.chat.sending = true;
+        renderChat();
+        try {
+            const response = await DietApi.chat({ sessionId, message: action === "SAVE" ? "确认保存" : "取消录入",
+                sourceMode: state.chat.sourceMode, context: { mealDraftAction: { draftId, action } } });
+            if (!current()) return;
+            state.chat.revision++;
+            state.chat.sessionId = response.sessionId || sessionId;
+            state.chat.messages.push({ role: "assistant", text: response.clarifyQuestion || response.speechText || "",
+                mealDraft: response.mealDraft || null, sessionId: state.chat.sessionId,
+                revision: state.chat.revision, userId });
+            if (response.mealDraft?.status === "SAVED") await ensurePersonalMeals(true);
+        } catch (error) {
+            if (current()) showToast(error.message || "草稿操作失败，请重试", "error");
+        } finally {
+            if (current()) {
+                state.chat.sending = false;
+                renderChat();
+            }
         }
     }
     function resetChat() {
+        state.chat.epoch++;
+        state.chat.revision = 0;
+        state.chat.sending = false;
         state.chat.sessionId = null;
         state.chat.messages = [
             {
@@ -395,6 +471,7 @@
     }
     function renderMealForm() {
         const meal = state.editingMeal || emptyMeal();
+        const knowledge = meal.knowledge || {};
         const title = meal.id ? "编辑餐食" : "新增餐食";
         return `
             <div class="card-title">
@@ -405,20 +482,88 @@
             </div>
             <form id="mealForm" class="form-grid">
                 <input type="hidden" name="mealId" value="${escapeHtml(meal.id || "")}">
+                ${meal.id ? `<p class="field-hint full">编辑已有餐食。要用口语整理新餐食，请点击“新增餐食”。</p>` : `
+                    <div class="field full">
+                        <label for="mealText">用一句话描述餐食</label>
+                        <textarea id="mealText" name="text" maxlength="4000" placeholder="例如：番茄鸡蛋面，中午吃，食材是番茄和鸡蛋，先炒再煮">${escapeHtml(state.intake.text)}</textarea>
+                        <div class="button-row"><button class="btn soft" type="button" data-action="generate-meal-draft" ${state.intake.generating || state.intake.saving ? "disabled" : ""}>${state.intake.generating ? "整理中..." : "AI 整理"}</button></div>
+                        <p class="field-hint">整理后请核对并修改下方表单，再保存到我的餐食库。</p>
+                    </div>
+                    ${state.intake.draft ? renderDraftPreview(state.intake.draft) : ""}
+                `}
                 <div class="field full">
                     <label for="mealName">餐食名称</label>
                     <input id="mealName" name="name" value="${escapeHtml(meal.name || "")}" placeholder="例如：番茄鸡蛋面" required>
                 </div>
                 <p class="field-hint full">标签下拉框支持多选：Windows 按住 Ctrl，Mac 按住 Command 点击可多项选择。</p>
                 ${Object.entries(SLOT_LABELS).map(([key, label]) => renderSlotPicker(key, label, meal[key] || [])).join("")}
+                <div class="field full"><label for="mealIngredients">食材（每行一项）</label><textarea id="mealIngredients" name="ingredients">${escapeHtml((knowledge.ingredients || []).join("\n"))}</textarea></div>
+                <div class="field full"><label for="mealDescription">描述</label><textarea id="mealDescription" name="description" maxlength="2000">${escapeHtml(knowledge.description || "")}</textarea></div>
+                <div class="field full"><label for="mealPreparation">我的做法</label><textarea id="mealPreparation" name="preparation" maxlength="4000">${escapeHtml(knowledge.preparation || "")}</textarea></div>
                 <div class="field full">
                     <div class="button-row">
-                        <button class="btn primary" type="submit">${meal.id ? "保存修改" : "创建餐食"}</button>
+                        <button class="btn primary" type="submit" ${state.intake.saving || state.intake.generating ? "disabled" : ""}>${state.intake.saving ? "保存中..." : meal.id ? "保存修改" : "保存到我的餐食库"}</button>
                         <button class="btn ghost" type="button" data-action="cancel-edit">清空</button>
                     </div>
                 </div>
             </form>
         `;
+    }
+    function renderDraftPreview(draft) {
+        const missing = (draft.missingFields || []).map((key) => SLOT_LABELS[key] || (key === "name" ? "餐食名称" : key));
+        const data = draft.data || {};
+        const knowledge = data.knowledge || {};
+        const details = [
+            ["餐食名称", data.name],
+            ["食材", (knowledge.ingredients || []).join("、")],
+            ["描述", knowledge.description],
+            ["我的做法", knowledge.preparation]
+        ].filter(([, value]) => value).map(([label, value]) => `<p class="draft-detail"><b>${label}：</b>${escapeHtml(value)}</p>`).join("");
+        return `<section class="draft-preview full" aria-live="polite">
+            <strong>整理预览</strong><div class="draft-steps"><span>原话</span><span aria-hidden="true">→</span><span>已识别槽位</span><span aria-hidden="true">→</span><span>${missing.length ? `待补充：${escapeHtml(missing.join("、"))}` : "请核对后保存"}</span></div>
+            <p class="draft-original">${escapeHtml(draft.originalText)}</p>
+            <div class="chips">${mealTags(draft.data || {}).map((tag) => `<span class="chip selected">${escapeHtml(tag)}</span>`).join("")}</div>
+            ${details}
+            ${(draft.warnings || []).map((warning) => `<p class="draft-warning">${escapeHtml(warning)}</p>`).join("")}
+        </section>`;
+    }
+    function clearMealEditor(meal) {
+        state.intake.epoch++;
+        state.intake.text = "";
+        state.intake.draft = null;
+        state.intake.generating = false;
+        state.editingMeal = meal || null;
+    }
+    async function generateMealDraft() {
+        if (state.intake.generating || state.intake.saving || state.editingMeal?.id) return;
+        const form = document.getElementById("mealForm");
+        if (form) {
+            state.editingMeal = mealPayloadFromForm(form).payload;
+            state.intake.text = String(new FormData(form).get("text") || "");
+        }
+        const text = state.intake.text.trim();
+        if (!text || text.length > 4000) {
+            showToast("请描述一道餐食，最多 4000 字", "error");
+            return;
+        }
+        const epoch = ++state.intake.epoch;
+        const userId = DietApi.getUserId();
+        const current = () => epoch === state.intake.epoch && userId === DietApi.getUserId();
+        state.intake.generating = true;
+        renderPersonalMeals();
+        try {
+            const draft = await DietApi.generateMealDraft(text);
+            if (!current()) return;
+            state.intake.draft = draft;
+            state.editingMeal = { ...emptyMeal(), ...draft.data };
+        } catch (error) {
+            if (current()) showToast(error.message || "整理失败，请重试或手动填写", "error");
+        } finally {
+            if (current()) {
+                state.intake.generating = false;
+                if (currentRoute() === "/diet/meals/personal") renderPersonalMeals();
+            }
+        }
     }
     function renderSlotPicker(key, label, selected) {
         const options = state.slotOptions && state.slotOptions[key] ? state.slotOptions[key] : [];
@@ -498,10 +643,14 @@
             return;
         }
         try {
-            state.personalMeals = await DietApi.listPersonalMeals();
+            const userId = DietApi.getUserId();
+            const meals = await DietApi.listPersonalMeals();
+            if (userId !== DietApi.getUserId()) return;
+            state.personalMeals = meals;
             state.home.loaded = false;
             if (currentRoute() === "/diet/meals/personal") {
-                document.getElementById("personalMealList").innerHTML = renderMealList(state.personalMeals, { editable: true });
+                const list = document.getElementById("personalMealList");
+                if (list) list.innerHTML = renderMealList(state.personalMeals, { editable: true });
             }
         } catch (error) {
             showToast(error.message || "个人餐食加载失败", "error");
@@ -519,6 +668,7 @@
         }
     }
     async function saveMeal(form) {
+        if (state.intake.saving || state.intake.generating) return;
         const { id, payload } = mealPayloadFromForm(form);
         if (!payload.name) {
             showToast("请填写餐食名称", "error");
@@ -529,17 +679,21 @@
             return;
         }
         const restore = setLoading(form.querySelector("button[type=submit]"), "保存中...");
+        state.intake.saving = true;
+        const epoch = state.intake.epoch;
+        const userId = DietApi.getUserId();
         try {
-            await guard(async () => {
-                if (id) {
-                    return DietApi.updatePersonalMeal(id, payload);
-                }
-                return DietApi.createPersonalMeal(payload);
-            }, id ? "餐食已更新" : "餐食已创建");
-            state.editingMeal = null;
+            if (id) await DietApi.updatePersonalMeal(id, payload);
+            else await DietApi.createPersonalMeal(payload);
+            if (epoch !== state.intake.epoch || userId !== DietApi.getUserId()) return;
+            showToast(id ? "餐食已更新" : "餐食已创建");
+            clearMealEditor();
             await ensurePersonalMeals(true);
-            renderPersonalMeals();
+            if (currentRoute() === "/diet/meals/personal") renderPersonalMeals();
+        } catch (error) {
+            if (epoch === state.intake.epoch && userId === DietApi.getUserId()) showToast(error.message || "保存失败，请重试", "error");
         } finally {
+            state.intake.saving = false;
             restore();
         }
     }
@@ -551,6 +705,15 @@
         Object.keys(SLOT_LABELS).forEach((key) => {
             payload[key] = formData.getAll(key).filter(Boolean);
         });
+        const existing = state.editingMeal?.knowledge;
+        const knowledge = {
+            ingredients: String(formData.get("ingredients") || "").split(/\r?\n/).map((value) => value.trim()).filter(Boolean),
+            description: String(formData.get("description") || "").trim(),
+            preparation: String(formData.get("preparation") || "").trim(),
+            sourceType: existing?.sourceType || "USER_PROVIDED",
+            sourceReference: existing?.sourceReference || ""
+        };
+        if (existing || knowledge.ingredients.length || knowledge.description || knowledge.preparation) payload.knowledge = knowledge;
         return {
             id: String(formData.get("mealId") || "").trim(),
             payload
@@ -562,7 +725,7 @@
             showToast("没有找到要编辑的餐食", "error");
             return;
         }
-        state.editingMeal = JSON.parse(JSON.stringify(meal));
+        clearMealEditor(JSON.parse(JSON.stringify(meal)));
         renderPersonalMeals();
     }
     async function deleteMeal(id) {
@@ -970,14 +1133,18 @@
         } else if (action === "feedback") {
             saveFeedback(target);
         } else if (action === "new-meal") {
-            state.editingMeal = emptyMeal();
+            clearMealEditor(emptyMeal());
             renderPersonalMeals();
+        } else if (action === "generate-meal-draft") {
+            generateMealDraft();
+        } else if (action === "save-meal-draft" || action === "cancel-meal-draft") {
+            actOnChatDraft(target, action === "save-meal-draft" ? "SAVE" : "CANCEL");
         } else if (action === "edit-meal") {
             editMeal(target.dataset.id);
         } else if (action === "delete-meal") {
             deleteMeal(target.dataset.id);
         } else if (action === "cancel-edit") {
-            state.editingMeal = null;
+            clearMealEditor();
             renderPersonalMeals();
         } else if (action === "select-trace") {
             selectTrace(target.dataset.traceId);
@@ -1015,6 +1182,7 @@
         userIdInput.addEventListener("change", () => {
             DietApi.setUserId(userIdInput.value);
             state.home.loaded = false;
+            clearMealEditor();
             state.personalMeals = [];
             state.publicMeals = [];
             state.traces.rows = [];
