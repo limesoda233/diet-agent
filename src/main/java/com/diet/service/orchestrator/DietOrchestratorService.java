@@ -30,6 +30,7 @@ import com.diet.service.meal.MealPlanService;
 import com.diet.service.meal.MealRankService;
 import com.diet.service.meal.MealSearchService;
 import com.diet.service.meal.MealService;
+import com.diet.service.meal.intake.MealIntakeWorkflow;
 import com.diet.service.recommend.RecommendResponseAgentService;
 import com.diet.service.session.SessionService;
 import com.diet.service.session.SessionStateService;
@@ -49,6 +50,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -135,6 +137,12 @@ public class DietOrchestratorService {
     private final ConstraintParser constraintParser;
     private RecipeQueryService recipeQueryService;
     private RecipeVideoCoordinator recipeVideoCoordinator;
+    private MealIntakeWorkflow mealIntakeWorkflow;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setMealIntakeWorkflow(MealIntakeWorkflow workflow) {
+        this.mealIntakeWorkflow = workflow;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setRecipeVideoCoordinator(RecipeVideoCoordinator coordinator) {
@@ -208,7 +216,21 @@ public class DietOrchestratorService {
         }
 
         // 从 DB 加载已有会话状态，或按 sessionId/userId 创建新会话，得到 slots/phase/lastRecommendations 等
-        SessionState initialState = sessionStateService.loadOrCreate(request.sessionId(), userId, request.sourceMode());
+        boolean draftAction = request.context() != null && request.context().containsKey("mealDraftAction");
+        if (draftAction) {
+            Object raw = request.context().get("mealDraftAction");
+            if (request.sessionId() == null || request.sessionId().isBlank()
+                    || !(raw instanceof Map<?,?> action)
+                    || !(action.get("draftId") instanceof String id) || id.isBlank()
+                    || !(action.get("action") instanceof String kind)
+                    || !Set.of("SAVE", "CANCEL").contains(kind)) {
+                throw new DietException("草稿操作无效，请使用当前草稿的确认保存或取消按钮。");
+            }
+        }
+        SessionState initialState = draftAction
+                ? sessionStateService.loadExisting(request.sessionId(), userId, request.sourceMode())
+                : sessionStateService.loadOrCreate(request.sessionId(), userId, request.sourceMode());
+        if (initialState == null) throw new DietException("草稿会话不存在或不属于当前用户，请重新录入。");
 
         // 开启 Trace 上下文；try-with-resources 结束时 TraceScope#close 会将整轮事件写入 agent_traces 表
         try (AgentTraceService.TraceScope ignored = agentTraceService.openTrace(traceId, initialState.sessionId(), userId)) {
@@ -222,7 +244,11 @@ public class DietOrchestratorService {
                 Object lock = sessionLocks.computeIfAbsent(initialState.sessionId(), key -> new Object());
                 synchronized (lock) {
                     // 在锁内执行完整状态机，处理本轮用户输入
-                    ChatResponse response = handleTurn(userId, request, traceId, initialState);
+                    SessionState currentState = draftAction
+                            ? sessionStateService.loadExisting(initialState.sessionId(), userId, request.sourceMode())
+                            : sessionStateService.loadOrCreate(initialState.sessionId(), userId, request.sourceMode());
+                    if (currentState == null) throw new DietException("草稿会话不存在或不属于当前用户，请重新录入。");
+                    ChatResponse response = handleTurn(userId, request, traceId, currentState);
                     // Trace 事件：REQUEST_FINISHED | 阶段 HTTP | 输入=ChatRequest | 输出=ChatResponse | 耗时 ms
                     agentTraceService.recordEvent("REQUEST_FINISHED", "HTTP", request, response, elapsedMs(startedAt));
                     // 将最终响应返回给 Controller
@@ -251,6 +277,16 @@ public class DietOrchestratorService {
 
         // Trace 事件：USER_MESSAGE_RECORDED | 阶段 SESSION | 输入=用户原文 | 输出=sessionId+sourceMode
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", request.message(), Map.of("sessionId", sessionId, "sourceMode", sourceMode));
+
+        if (mealIntakeWorkflow != null) {
+            var intake = mealIntakeWorkflow.handle(userId, request, state);
+            if (intake.isPresent()) {
+                var result = intake.get();
+                if (!result.persisted()) sessionStateService.save(result.state());
+                sessionService.appendMessage(sessionId, "assistant", result.speechText(), null, traceId);
+                return ChatResponse.mealDraft(sessionId, traceId, result.speechText(), result.state().mealDraft());
+            }
+        }
 
         if (cookingVideoSearchService != null && cookingVideoSearchService.isVideoOnly(request.message(), request.context())) {
             CookingVideoSearchService.VideoSearchRequest videoRequest;

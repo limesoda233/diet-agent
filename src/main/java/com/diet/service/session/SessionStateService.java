@@ -10,6 +10,7 @@ import com.diet.model.SlotBundle;
 import com.diet.enums.SourceMode;
 import com.diet.service.meal.constraint.MealConstraintContext;
 import com.diet.service.recipe.RecipeConversationContext;
+import com.diet.service.meal.intake.MealDraft;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -80,6 +81,13 @@ public class SessionStateService {
         return fromRow(row, sourceMode);
     }
 
+    /** Draft actions must target a session already owned by this user; never create one. */
+    public SessionState loadExisting(String sessionId, Long userId, SourceMode sourceMode) {
+        if (sessionId == null || sessionId.isBlank()) return null;
+        SessionRow row = sessionMapper.findById(sessionId, userId);
+        return row == null ? null : fromRow(row, sourceMode);
+    }
+
     /**
      * 持久化 Orchestrator 更新后的会话状态。
      * 澄清/推荐/固定回复分支结束前都会调用。
@@ -130,7 +138,8 @@ public class SessionStateService {
                     // 旧会话没有新字段时默认空；不从累计推荐 ID 猜最新展示顺序。
                     meta.hasNonNull("recipeConversation")
                             ? objectMapper.treeToValue(meta.get("recipeConversation"), RecipeConversationContext.class)
-                            : RecipeConversationContext.empty()
+                            : RecipeConversationContext.empty(),
+                    meta.hasNonNull("mealDraft") ? objectMapper.treeToValue(meta.get("mealDraft"),MealDraft.class) : null
             );
         } catch (Exception e) {
             throw new DietException("会话状态解析失败", e);
@@ -168,6 +177,7 @@ public class SessionStateService {
         meta.set("mealConstraintContext", objectMapper.valueToTree(state.mealConstraintContext()));
         // 使用既有 slots JSON 的 _meta 保存上下文，无需新增列；它不是推荐的七维槽位。
         meta.set("recipeConversation", objectMapper.valueToTree(state.recipeConversation()));
+        meta.set("mealDraft", objectMapper.valueToTree(state.mealDraft()));
         root.set("_meta", meta);
         return root.toString();
     }

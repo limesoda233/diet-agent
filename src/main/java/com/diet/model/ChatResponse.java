@@ -3,6 +3,7 @@ package com.diet.model;
 import java.util.List;
 
 import com.diet.service.video.CookingVideo;
+import com.diet.service.meal.intake.MealDraft;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 
 import lombok.AllArgsConstructor;
@@ -26,6 +27,26 @@ public class ChatResponse {
     private String nextAction;
     private String clarifyQuestion;
     private List<String> missingSlots;
+    private MealDraft mealDraft;
+
+    public ChatResponse(String sessionId, String traceId, String responseType, String speechText,
+                        List<MealResponse> displayBlocks, List<MealPlanBlock> planBlocks,
+                        List<VideoResponse> videoBlocks, String nextAction, String clarifyQuestion,
+                        List<String> missingSlots) {
+        this(sessionId, traceId, responseType, speechText, displayBlocks, planBlocks, videoBlocks,
+                nextAction, clarifyQuestion, missingSlots, null);
+    }
+
+    public static ChatResponse mealDraft(String sessionId, String traceId, String speechText, MealDraft draft) {
+        String next = draft == null ? "WAIT_USER" : switch (draft.status()) {
+            case NEEDS_INPUT -> "ASK_CLARIFY";
+            case READY -> "WAIT_USER";
+            case SAVED, CANCELLED -> "WAIT_USER";
+        };
+        return new ChatResponse(sessionId, traceId, "MEAL_DRAFT", speechText,
+                List.of(), List.of(), List.of(), next, null,
+                draft == null ? List.of() : draft.missingFields(), draft);
+    }
 
     public static ChatResponse answer(String sessionId, String speechText, List<MealResponse> displayBlocks, String nextAction) {
         return answer(sessionId, null, speechText, displayBlocks, nextAction);
