@@ -18,6 +18,9 @@ agentscope:
     api-key: ${DEEPSEEK_API_KEY:}
     base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
 diet:
+  meal-intake:
+    timeout: 10s
+    max-input-chars: 4000
   llm:
     main-model: ${DEEPSEEK_MAIN_MODEL:deepseek-chat}
     light-model: ${DEEPSEEK_LIGHT_MODEL:deepseek-chat}
