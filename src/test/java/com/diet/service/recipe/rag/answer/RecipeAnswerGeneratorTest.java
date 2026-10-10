@@ -7,6 +7,15 @@ import com.diet.service.recipe.rag.model.RecipeQuery;
 import com.diet.service.recipe.rag.model.RecipeRetrievalResult;
 import com.diet.service.recipe.rag.model.RetrievedRecipe;
 import com.diet.service.recipe.rag.retrieval.RecipeRetrievalMode;
+import com.diet.agent.factory.AgentFactory;
+import com.diet.mapper.AgentTraceMapper;
+import com.diet.model.RequestTraceRow;
+import com.diet.service.trace.AgentTraceService;
+import io.agentscope.core.ReActAgent;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.MsgRole;
+import org.mockito.ArgumentCaptor;
+import reactor.core.publisher.Mono;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -20,8 +29,61 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class RecipeAnswerGeneratorTest {
+
+    @ParameterizedTest
+    @ValueSource(strings = {"agent", "invalid_json", "invalid_citation", "model_error", "refused", "no_evidence", "named_recipe"})
+    void recordsOneSanitizedTerminalEventForEveryAnswerGenerationOutcome(String outcome) throws Exception {
+        var mapper = mock(AgentTraceMapper.class);
+        var persisted = new AtomicReference<RequestTraceRow>();
+        doAnswer(call -> { persisted.set(call.getArgument(0)); return 1; }).when(mapper).insert(any());
+        var trace = spy(new AgentTraceService(mapper, new ObjectMapper()));
+        var agents = mock(AgentFactory.class);
+        var agent = mock(ReActAgent.class);
+        when(agents.get("s")).thenReturn(new AgentFactory.AgentSet(null, null, null, agent));
+        if (outcome.equals("model_error")) {
+            when(agent.call(any(Msg.class))).thenReturn(Mono.error(new IllegalStateException("sensitive-model-error")));
+        } else {
+            String raw = switch (outcome) {
+                case "invalid_json" -> "invalid json";
+                case "invalid_citation" -> "{\"text\":\"invalid [S9]\",\"citationIds\":[\"S9\"]}";
+                case "refused" -> "{\"refused\":true}";
+                default -> "{\"text\":\"做法 [S1]\",\"citationIds\":[\"S1\"]}";
+            };
+            when(agent.call(any(Msg.class))).thenReturn(Mono.just(Msg.builder().role(MsgRole.ASSISTANT).textContent(raw).build()));
+        }
+        var generator = new AgentScopeRecipeAnswerGenerator(new RecipeEvidenceAssembler(6000, 3), agents, trace, new ObjectMapper());
+        RecipeAnswer answer;
+        try (var scope = trace.openTrace("t", "s", 7L)) {
+            answer = generator.generate("s", outcome.equals("named_recipe") ? query() : ingredientQuery(),
+                    outcome.equals("no_evidence") ? retrieval() : retrieval(kungPao("r1")));
+        }
+
+        boolean refused = outcome.equals("refused") || outcome.equals("no_evidence");
+        String generation = switch (outcome) {
+            case "no_evidence" -> "not_called";
+            case "invalid_json", "invalid_citation", "model_error" -> "deterministic_fallback";
+            default -> "agent";
+        };
+        String purpose = outcome.equals("named_recipe") ? "RECIPE" : "INGREDIENT_SUGGESTION";
+        assertThat(answer.refused()).isEqualTo(refused);
+        var captured = ArgumentCaptor.forClass(Object.class);
+        verify(trace, times(1)).recordEvent(eq("RECIPE_ANSWER_GENERATED"), eq("RECIPE"), isNull(), captured.capture());
+        assertThat(captured.getValue()).isEqualTo(Map.of("answerPurpose", purpose, "generation", generation,
+                "refused", refused, "citationCount", refused ? 0 : 1));
+        var recorded = new ObjectMapper().readTree(persisted.get().getTraceJson());
+        var terminalEvents = new ArrayList<com.fasterxml.jackson.databind.JsonNode>();
+        recorded.path("events").forEach(event -> {
+            if (event.path("eventType").asText().equals("RECIPE_ANSWER_GENERATED")) terminalEvents.add(event);
+        });
+        assertThat(terminalEvents).singleElement().satisfies(event -> {
+            assertThat(event.path("outputPayload").asText()).contains(purpose, generation).doesNotContain("sensitive-model-error");
+        });
+        verify(agent, times(outcome.equals("no_evidence") ? 0 : 1)).call(any(Msg.class));
+    }
 
     @Test
     void ingredientSuggestionAddsCitedPrefaceForRecipeOnlyModelOutputInOneCall() {

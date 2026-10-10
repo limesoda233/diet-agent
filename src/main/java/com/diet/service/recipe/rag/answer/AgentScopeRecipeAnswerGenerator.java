@@ -63,7 +63,10 @@ public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
         RecipeAnswerPurpose purpose = RecipeAnswerPurpose.fromText(query.text());
         Map<String, Object> diagnostics = diagnostics(retrieval);
         diagnostics.put("answerPurpose", purpose.name());
-        if (evidence.citations().isEmpty()) return RecipeAnswer.refused(REFUSAL, diagnostics);
+        if (evidence.citations().isEmpty()) {
+            return recordOutcome(RecipeAnswer.refused(REFUSAL, withGeneration(diagnostics, "not_called")));
+        }
+        RecipeAnswer answer;
         try {
             String prompt = prompt(query, evidence.promptEvidence(), purpose);
             String raw;
@@ -75,10 +78,22 @@ public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
                 raw = trace.callAgent(sessionId, "RecipeAnswerAgent", "main", agent, prompt).getTextContent();
             }
             RecipeAnswer parsed = parse(raw, evidence.citations(), diagnostics, evidence.contexts(), purpose);
-            return parsed == null ? deterministic(evidence, diagnostics, purpose) : parsed;
+            answer = parsed == null ? deterministic(evidence, diagnostics, purpose) : parsed;
         } catch (RuntimeException error) {
-            return deterministic(evidence, diagnostics, purpose);
+            answer = deterministic(evidence, diagnostics, purpose);
         }
+        return recordOutcome(answer);
+    }
+
+    private RecipeAnswer recordOutcome(RecipeAnswer answer) {
+        if (trace != null) {
+            trace.recordEvent("RECIPE_ANSWER_GENERATED", "RECIPE", null, Map.of(
+                    "answerPurpose", answer.diagnostics().get("answerPurpose"),
+                    "generation", answer.diagnostics().get("generation"),
+                    "refused", answer.refused(),
+                    "citationCount", answer.citations().size()));
+        }
+        return answer;
     }
 
     private RecipeAnswer parse(String raw, List<RecipeCitation> available, Map<String, Object> diagnostics,
@@ -86,7 +101,9 @@ public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
         try {
             JsonNode root = json.readTree(stripFence(raw));
             // 模型明确拒答时尊重它，不用确定性模板强行补出一个答案。
-            if (root.path("refused").asBoolean(false)) return RecipeAnswer.refused(REFUSAL, diagnostics, evidenceContexts);
+            if (root.path("refused").asBoolean(false)) {
+                return RecipeAnswer.refused(REFUSAL, withGeneration(diagnostics, "agent"), evidenceContexts);
+            }
             String text = root.path("text").asText("").trim();
             if (text.isBlank() || !root.path("citationIds").isArray()) return null;
             Map<String, RecipeCitation> byId = new LinkedHashMap<>();
