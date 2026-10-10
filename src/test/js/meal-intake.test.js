@@ -28,6 +28,17 @@ test('AI 整理 only fills editable fields and save carries edited knowledge', a
     assert.ok(f.calls.filter((c) => c.route === '/meals/personal' && c.method === 'GET').length >= 2);
 });
 
+test('saving an unedited AI draft sends all displayed knowledge to create', async () => {
+    const f = fixture({ 'POST /meals/personal/draft': () => draft(), 'POST /meals/personal': () => ({ id: 9 }) });
+    await f.flush();
+    await f.input(f.form('mealForm'), 'text', '番茄面中午吃');
+    await f.click('generate-meal-draft');
+    await f.submit(f.form('mealForm'));
+    const created = f.calls.find((c) => c.method === 'POST' && c.route === '/meals/personal').body;
+    assert.deepEqual(created.knowledge, { ingredients: ['番茄', '面'], description: '家常面',
+        preparation: '煮面', sourceType: 'USER_PROVIDED', sourceReference: '' });
+});
+
 test('missing name or meal time blocks save until user supplies both', async () => {
     const f = fixture({ 'POST /meals/personal/draft': () => draft({ data: { name: '', mealTime: [] }, missingFields: ['name', 'mealTime'], status: 'NEEDS_INPUT' }) });
     await f.flush();
@@ -221,8 +232,15 @@ test('a failed second extraction retires the first preview while keeping new tex
     const form = f.form('mealForm');
     assert.equal(form.values.text, '新描述晚餐吃');
     assert.equal(form.values.name, '番茄面');
+    assert.equal(form.values.ingredients, '番茄\n面');
+    assert.equal(form.values.description, '家常面');
+    assert.equal(form.values.preparation, '煮面');
     assert.match(f.elements.app.innerHTML, /整理失败，已保留表单内容/);
     assert.match(f.elements.toast.textContent, /模型失败/);
+    await f.submit(form);
+    const saved = f.calls.find((c) => c.method === 'POST' && c.route === '/meals/personal').body;
+    assert.deepEqual(saved.knowledge, { ingredients: ['番茄', '面'], description: '家常面',
+        preparation: '煮面', sourceType: 'USER_PROVIDED', sourceReference: '' });
 });
 
 test('draft preview names every generated detail and escapes model text', async () => {

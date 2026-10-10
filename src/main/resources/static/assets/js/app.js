@@ -713,6 +713,7 @@
     }
     function mealPayloadFromForm(form) {
         const formData = new FormData(form);
+        const id = String(formData.get("mealId") || "").trim();
         const payload = {
             name: String(formData.get("name") || "").trim()
         };
@@ -735,11 +736,11 @@
         const changed = !original || JSON.stringify(original) !== JSON.stringify({
             ingredients: knowledge.ingredients, description: knowledge.description, preparation: knowledge.preparation
         });
-        if (changed && (existing || knowledge.ingredients.length || knowledge.description || knowledge.preparation)) {
+        if ((!id || changed) && (existing || knowledge.ingredients.length || knowledge.description || knowledge.preparation)) {
             payload.knowledge = knowledge;
         }
         return {
-            id: String(formData.get("mealId") || "").trim(),
+            id,
             payload
         };
     }
