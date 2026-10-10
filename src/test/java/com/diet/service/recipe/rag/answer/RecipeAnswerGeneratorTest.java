@@ -9,16 +9,146 @@ import com.diet.service.recipe.rag.model.RetrievedRecipe;
 import com.diet.service.recipe.rag.retrieval.RecipeRetrievalMode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RecipeAnswerGeneratorTest {
+
+    @Test
+    void ingredientSuggestionAddsCitedPrefaceForRecipeOnlyModelOutputInOneCall() {
+        var calls = new AtomicInteger();
+        var generator = new AgentScopeRecipeAnswerGenerator(new RecipeEvidenceAssembler(6000, 3), prompt -> {
+            calls.incrementAndGet();
+            return "{\"text\":\"## 宫保鸡丁 [S2]\\n\\n### 食材\\n- 鸡腿肉 [S2]\\n\\n### 步骤\\n1. 炒熟 [S2]\",\"citationIds\":[\"S2\"]}";
+        }, new ObjectMapper());
+
+        var answer = generator.generate("s", ingredientQuery(),
+                retrieval(recipe("r1", "番茄炒蛋"), kungPao("r2")));
+
+        assertThat(answer.text()).startsWith("根据本轮检索，可以优先考虑宫保鸡丁 [S2]")
+                .contains("需核对", "原料", "调味料", "处理状态", "## 宫保鸡丁 [S2]")
+                .doesNotContain("番茄炒蛋", "食材齐全", "低脂", "替换");
+        assertThat(answer.citations()).extracting(c -> c.id()).containsExactly("S2");
+        assertThat(answer.diagnostics()).containsEntry("answerPurpose", "INGREDIENT_SUGGESTION")
+                .containsEntry("generation", "agent");
+        assertThat(calls.get()).isEqualTo(1);
+    }
+
+    @Test
+    void ingredientPromptKeepsOriginalInventoryAndRequiresEvidenceForMatchesAndUnconfirmedIngredients() {
+        var captured = new AtomicReference<String>();
+        var generator = new AgentScopeRecipeAnswerGenerator(new RecipeEvidenceAssembler(6000, 3), prompt -> {
+            captured.set(prompt);
+            return "{\"refused\":true}";
+        }, new ObjectMapper());
+
+        generator.generate("s", ingredientQuery(), retrieval(kungPao("r1")));
+
+        assertThat(captured.get()).contains(ingredientQuery().text(), "INGREDIENT_SUGGESTION", "recommendation",
+                "主要食材", "还需确认／准备", "生／熟", "鲜／干", "调味料", "只有", "不要")
+                .contains("不要求每道菜使用全部", "推荐说明", "[S1]");
+    }
+
+    @Test
+    void ingredientSuggestionAcceptsStructuredRecommendationWithCurrentCitation() {
+        var generator = new AgentScopeRecipeAnswerGenerator(new RecipeEvidenceAssembler(6000, 3), prompt ->
+                "{\"recommendation\":\"可考虑宫保鸡丁；原文鸡肉可对应所述鸡腿肉，花生状态还需确认 [S1]\","
+                        + "\"text\":\"## 宫保鸡丁 [S1]\\n\\n### 食材\\n- 鸡肉 [S1]\\n\\n### 步骤\\n1. 炒熟 [S1]\","
+                        + "\"citationIds\":[\"S1\"]}", new ObjectMapper());
+
+        var answer = generator.generate("s", ingredientQuery(), retrieval(kungPao("r1")));
+
+        assertThat(answer.text()).startsWith("可考虑宫保鸡丁；原文鸡肉可对应所述鸡腿肉，花生状态还需确认 [S1]\n\n##")
+                .doesNotContain("根据本轮检索");
+        assertThat(answer.diagnostics()).containsEntry("generation", "agent");
+    }
+
+    @Test
+    void recommendationCanCiteAnotherCurrentCandidateNotRepeatedInPrimaryRecipe() {
+        var generator = new AgentScopeRecipeAnswerGenerator(new RecipeEvidenceAssembler(6000, 3), prompt ->
+                "{\"recommendation\":\"可考虑宫保鸡丁 [S1]；另有番茄炒蛋，需确认其原料 [S2]\","
+                        + "\"text\":\"## 宫保鸡丁 [S1]\\n\\n### 食材\\n- 鸡肉 [S1]\\n\\n### 步骤\\n1. 炒熟 [S1]\","
+                        + "\"citationIds\":[\"S1\",\"S2\"]}", new ObjectMapper());
+
+        var answer = generator.generate("s", ingredientQuery(), retrieval(kungPao("r1"), recipe("r2", "番茄炒蛋")));
+
+        assertThat(answer.text()).startsWith("可考虑宫保鸡丁 [S1]；另有番茄炒蛋，需确认其原料 [S2]");
+        assertThat(answer.citations()).extracting(c -> c.id()).containsExactly("S1", "S2");
+        assertThat(answer.diagnostics()).containsEntry("generation", "agent");
+    }
+
+    @Test
+    void conservativePrefaceUsesFirstRecipeCitationInTextRatherThanDeclaredCitationOrder() {
+        var generator = new AgentScopeRecipeAnswerGenerator(new RecipeEvidenceAssembler(6000, 3), prompt ->
+                "{\"text\":\"## 宫保鸡丁 [S2]\\n做法 [S2]；另有番茄炒蛋 [S1]\",\"citationIds\":[\"S1\",\"S2\"]}",
+                new ObjectMapper());
+
+        var answer = generator.generate("s", ingredientQuery(), retrieval(recipe("r1", "番茄炒蛋"), kungPao("r2")));
+
+        assertThat(answer.text()).startsWith("根据本轮检索，可以优先考虑宫保鸡丁 [S2]");
+        assertThat(answer.diagnostics()).containsEntry("generation", "agent");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"not json", "{\"text\":\"伪造 [S9]\",\"citationIds\":[\"S9\"]}",
+            "{\"recommendation\":\"伪造推荐 [S9]\",\"text\":\"做法 [S1]\",\"citationIds\":[\"S1\"]}",
+            "{\"recommendation\":\"没有引用的推荐\",\"text\":\"做法 [S1]\",\"citationIds\":[\"S1\"]}",
+            "{\"recommendation\":\"伪造推荐 [S1] [S9]\",\"text\":\"做法 [S1]\",\"citationIds\":[\"S1\"]}",
+            "{\"recommendation\":\"伪造推荐 [S1] [P1]\",\"text\":\"做法 [S1]\",\"citationIds\":[\"S1\"]}"})
+    void invalidIngredientAnswersFallBackToCitedConservativePreface(String raw) {
+        var generator = new AgentScopeRecipeAnswerGenerator(new RecipeEvidenceAssembler(6000, 3),
+                prompt -> raw, new ObjectMapper());
+
+        var answer = generator.generate("s", ingredientQuery(), retrieval(kungPao("r1")));
+
+        assertThat(answer.text()).startsWith("根据本轮检索，可以优先考虑宫保鸡丁 [S1]")
+                .contains("需核对", "### 食材", "### 步骤").doesNotContain("S9", "伪造", "食材齐全");
+        assertThat(answer.diagnostics()).containsEntry("generation", "deterministic_fallback");
+    }
+
+    @Test
+    void ingredientModelExceptionFallsBackWithoutInventingInventoryMatches() {
+        var generator = new AgentScopeRecipeAnswerGenerator(new RecipeEvidenceAssembler(6000, 3), prompt -> {
+            throw new IllegalStateException("unavailable");
+        }, new ObjectMapper());
+
+        var answer = generator.generate("s", ingredientQuery(), retrieval(kungPao("r1")));
+
+        assertThat(answer.text()).startsWith("根据本轮检索，可以优先考虑宫保鸡丁 [S1]")
+                .contains("需核对").doesNotContain("鸡腿肉", "完全匹配", "缺少", "替换", "低脂");
+        assertThat(answer.diagnostics()).containsEntry("generation", "deterministic_fallback");
+    }
+
+    @Test
+    void ingredientRefusalNeverGetsRecommendationPreface() {
+        var generator = new AgentScopeRecipeAnswerGenerator(new RecipeEvidenceAssembler(6000, 3),
+                prompt -> "{\"refused\":true,\"recommendation\":\"强行推荐 [S1]\"}", new ObjectMapper());
+
+        var answer = generator.generate("s", ingredientQuery(), retrieval(kungPao("r1")));
+
+        assertThat(answer.refused()).isTrue();
+        assertThat(answer.text()).doesNotContain("优先考虑", "强行推荐", "宫保鸡丁");
+        assertThat(answer.citations()).isEmpty();
+    }
+
+    private RecipeQuery ingredientQuery() {
+        return new RecipeQuery("冰箱里只有鸡腿肉丁、花生米、辣椒、大葱，不要蒜，能做什么菜", List.of(), List.of(), List.of(), null);
+    }
+
+    private RecipeDocument kungPao(String id) {
+        return new RecipeDocument(id, "宫保鸡丁", List.of(), List.of("鸡肉", "熟花生米", "干辣椒", "大葱", "酱油"),
+                List.of("炒熟鸡肉", "加入花生米和调味料翻炒"), "", Map.of(),
+                "dishes/meat_dish/宫保鸡丁.md", "commit", "hash");
+    }
 
     @Test
     void exposesExactlyTheEvidenceBlocksSentToTheAnswerModel() {

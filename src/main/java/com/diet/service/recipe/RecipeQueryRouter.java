@@ -1,6 +1,7 @@
 package com.diet.service.recipe;
 
 import com.diet.service.recipe.rag.model.RecipeQuery;
+import com.diet.service.recipe.rag.model.RecipeAnswerPurpose;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashSet;
@@ -18,6 +19,7 @@ public class RecipeQueryRouter {
 
     public boolean matches(String message, Map<String, Object> context) {
         return contextMap(context).containsKey("recipeQuery")
+                || RecipeAnswerPurpose.fromText(message) == RecipeAnswerPurpose.INGREDIENT_SUGGESTION
                 || (message != null && RECIPE_WORDS.matcher(message).find());
     }
 
