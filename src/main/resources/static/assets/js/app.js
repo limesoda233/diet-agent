@@ -27,7 +27,7 @@
         personalMeals: [],
         publicMeals: [],
         editingMeal: null,
-        intake: { text: "", draft: null, generating: false, saving: false, epoch: 0 },
+        intake: { text: "", draft: null, error: "", generating: false, saving: false, epoch: 0, saveToken: 0 },
         chat: {
             sourceMode: "PERSONAL",
             sessionId: null,
@@ -488,6 +488,7 @@
                         <textarea id="mealText" name="text" maxlength="4000" placeholder="例如：番茄鸡蛋面，中午吃，食材是番茄和鸡蛋，先炒再煮">${escapeHtml(state.intake.text)}</textarea>
                         <div class="button-row"><button class="btn soft" type="button" data-action="generate-meal-draft" ${state.intake.generating || state.intake.saving ? "disabled" : ""}>${state.intake.generating ? "整理中..." : "AI 整理"}</button></div>
                         <p class="field-hint">整理后请核对并修改下方表单，再保存到我的餐食库。</p>
+                        ${state.intake.error ? `<p class="draft-warning" role="status">${escapeHtml(state.intake.error)}</p>` : ""}
                     </div>
                     ${state.intake.draft ? renderDraftPreview(state.intake.draft) : ""}
                 `}
@@ -529,9 +530,12 @@
     }
     function clearMealEditor(meal) {
         state.intake.epoch++;
+        state.intake.saveToken++;
         state.intake.text = "";
         state.intake.draft = null;
+        state.intake.error = "";
         state.intake.generating = false;
+        state.intake.saving = false;
         state.editingMeal = meal || null;
     }
     async function generateMealDraft() {
@@ -549,6 +553,8 @@
         const epoch = ++state.intake.epoch;
         const userId = DietApi.getUserId();
         const current = () => epoch === state.intake.epoch && userId === DietApi.getUserId();
+        state.intake.draft = null;
+        state.intake.error = "";
         state.intake.generating = true;
         renderPersonalMeals();
         try {
@@ -557,7 +563,10 @@
             state.intake.draft = draft;
             state.editingMeal = { ...emptyMeal(), ...draft.data };
         } catch (error) {
-            if (current()) showToast(error.message || "整理失败，请重试或手动填写", "error");
+            if (current()) {
+                state.intake.error = "整理失败，已保留表单内容，请重试或手动保存。";
+                showToast(error.message || "整理失败，请重试或手动填写", "error");
+            }
         } finally {
             if (current()) {
                 state.intake.generating = false;
@@ -681,20 +690,25 @@
         const restore = setLoading(form.querySelector("button[type=submit]"), "保存中...");
         state.intake.saving = true;
         const epoch = state.intake.epoch;
+        const saveToken = ++state.intake.saveToken;
         const userId = DietApi.getUserId();
         try {
             if (id) await DietApi.updatePersonalMeal(id, payload);
             else await DietApi.createPersonalMeal(payload);
-            if (epoch !== state.intake.epoch || userId !== DietApi.getUserId()) return;
+            if (userId !== DietApi.getUserId()) return;
             showToast(id ? "餐食已更新" : "餐食已创建");
-            clearMealEditor();
+            const sameEditor = epoch === state.intake.epoch && saveToken === state.intake.saveToken;
+            if (sameEditor) clearMealEditor();
+            const afterClearToken = state.intake.saveToken;
             await ensurePersonalMeals(true);
-            if (currentRoute() === "/diet/meals/personal") renderPersonalMeals();
+            if (sameEditor && afterClearToken === state.intake.saveToken && currentRoute() === "/diet/meals/personal") renderPersonalMeals();
         } catch (error) {
-            if (epoch === state.intake.epoch && userId === DietApi.getUserId()) showToast(error.message || "保存失败，请重试", "error");
+            if (userId === DietApi.getUserId()) showToast(error.message || "保存失败，请重试", "error");
         } finally {
-            state.intake.saving = false;
-            restore();
+            if (saveToken === state.intake.saveToken) {
+                state.intake.saving = false;
+                restore();
+            }
         }
     }
     function mealPayloadFromForm(form) {
@@ -710,10 +724,20 @@
             ingredients: String(formData.get("ingredients") || "").split(/\r?\n/).map((value) => value.trim()).filter(Boolean),
             description: String(formData.get("description") || "").trim(),
             preparation: String(formData.get("preparation") || "").trim(),
-            sourceType: existing?.sourceType || "USER_PROVIDED",
-            sourceReference: existing?.sourceReference || ""
+            sourceType: "USER_PROVIDED",
+            sourceReference: ""
         };
-        if (existing || knowledge.ingredients.length || knowledge.description || knowledge.preparation) payload.knowledge = knowledge;
+        const original = existing && {
+            ingredients: existing.ingredients || [],
+            description: existing.description || "",
+            preparation: existing.preparation || ""
+        };
+        const changed = !original || JSON.stringify(original) !== JSON.stringify({
+            ingredients: knowledge.ingredients, description: knowledge.description, preparation: knowledge.preparation
+        });
+        if (changed && (existing || knowledge.ingredients.length || knowledge.description || knowledge.preparation)) {
+            payload.knowledge = knowledge;
+        }
         return {
             id: String(formData.get("mealId") || "").trim(),
             payload

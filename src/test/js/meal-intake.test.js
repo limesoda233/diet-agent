@@ -45,7 +45,24 @@ test('editing an existing meal retains its knowledge and cannot AI overwrite the
     await f.click(f.target('generate-meal-draft'));
     assert.equal(f.calls.filter((c) => c.route.endsWith('/draft')).length, 0);
     await f.submit(form);
-    assert.equal(f.calls.find((c) => c.method === 'PUT').body.knowledge.preparation, '煮面');
+    assert.equal(f.calls.find((c) => c.method === 'PUT').body.knowledge, undefined,
+        'unchanged knowledge stays in the database without rewriting provenance');
+});
+
+test('seeded knowledge is preserved on ordinary edit and becomes user provided only after explicit knowledge edits', async () => {
+    const seeded = { id: 12, ...draft().data, knowledge: { ...draft().data.knowledge,
+        sourceType: 'SYNTHETIC_EVALUATION', sourceReference: 'seed-case' } };
+    const f = fixture({ 'GET /meals/personal': () => [seeded], 'PUT /meals/personal/12': () => ({ id: 12 }) });
+    await f.flush();
+    await f.click(f.button('edit-meal', { id: 12 }));
+    assert.equal(f.form('mealForm').values.preparation, '煮面');
+    await f.submit(f.form('mealForm', { name: '番茄面改名' }));
+    assert.equal(f.calls.find((c) => c.method === 'PUT').body.knowledge, undefined);
+    await f.click(f.button('edit-meal', { id: 12 }));
+    await f.submit(f.form('mealForm', { description: '我改过的描述' }));
+    const edited = f.calls.filter((c) => c.method === 'PUT')[1].body.knowledge;
+    assert.deepEqual(edited, { ingredients: ['番茄', '面'], description: '我改过的描述',
+        preparation: '煮面', sourceType: 'USER_PROVIDED', sourceReference: '' });
 });
 
 test('chat READY card saves the owning session and draft, refreshes list and becomes a receipt', async () => {
@@ -164,6 +181,48 @@ test('management serializes save while a create request is pending', async () =>
     assert.equal(f.calls.filter((c) => c.method === 'POST' && c.route === '/meals/personal').length, 1);
     pending.resolve({ id: 31 });
     await f.flush();
+});
+
+for (const action of ['cancel-edit', 'new-meal', 'edit-meal', 'user-switch']) {
+    for (const outcome of ['success', 'failure']) {
+        test(`pending save ${outcome} after ${action} leaves the new context usable`, async () => {
+            const pending = deferred();
+            const row = { id: 12, ...draft().data };
+            const f = fixture({ 'GET /meals/personal': () => [row], 'POST /meals/personal': () => pending.promise });
+            await f.flush();
+            await f.submit(f.form('mealForm', { name: '待存的面', mealTime: ['午餐'] }));
+            if (action === 'user-switch') await f.user('2');
+            else await f.click(action === 'edit-meal' ? f.button('edit-meal', { id: 12 }) : action);
+            const html = f.elements.app.innerHTML.match(/<form id="mealForm"[\s\S]*?<\/form>/)?.[0] || '';
+            assert.doesNotMatch(html, /type="submit" disabled/, 'current editor must not inherit old pending state');
+            if (outcome === 'success') pending.resolve({ id: 31 });
+            else pending.reject(new Error('旧请求失败'));
+            await f.flush();
+            const currentHtml = f.elements.app.innerHTML.match(/<form id="mealForm"[\s\S]*?<\/form>/)?.[0] || '';
+            assert.doesNotMatch(currentHtml, /type="submit" disabled/);
+            if (action !== 'user-switch' && outcome === 'success') {
+                assert.ok(f.calls.filter((c) => c.method === 'GET' && c.route === '/meals/personal').length >= 2,
+                    'successful old write still refreshes this user list');
+            }
+        });
+    }
+}
+
+test('a failed second extraction retires the first preview while keeping new text and editable fields', async () => {
+    let attempts = 0;
+    const f = fixture({ 'POST /meals/personal/draft': () => ++attempts === 1 ? draft() : Promise.reject(new Error('模型失败')) });
+    await f.flush();
+    await f.input(f.form('mealForm'), 'text', '番茄面中午吃');
+    await f.click('generate-meal-draft');
+    assert.match(f.elements.app.innerHTML, /整理预览/);
+    await f.input(f.form('mealForm'), 'text', '新描述晚餐吃');
+    await f.click('generate-meal-draft');
+    assert.doesNotMatch(f.elements.app.innerHTML, /整理预览[\s\S]*番茄面中午吃/);
+    const form = f.form('mealForm');
+    assert.equal(form.values.text, '新描述晚餐吃');
+    assert.equal(form.values.name, '番茄面');
+    assert.match(f.elements.app.innerHTML, /整理失败，已保留表单内容/);
+    assert.match(f.elements.toast.textContent, /模型失败/);
 });
 
 test('draft preview names every generated detail and escapes model text', async () => {
