@@ -8,6 +8,7 @@ import com.diet.model.SessionState;
 import com.diet.model.ChatResponse;
 import com.diet.service.meal.intake.MealDraft;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
@@ -295,6 +296,7 @@ public class AgentTraceService {
 
     /** Preserve routing metadata while keeping the full server-held draft out of generic traces. */
     private Object redactMealDraft(Object payload) {
+        if (payload instanceof MealDraft draft) return draftSummary(draft);
         if (payload instanceof SessionState state && state.mealDraft() != null) {
             Map<String,Object> summary = new LinkedHashMap<>();
             summary.put("sessionId", state.sessionId());
@@ -302,17 +304,17 @@ public class AgentTraceService {
             summary.put("phase", state.phase());
             summary.put("sourceMode", state.sourceMode());
             summary.put("currentIntent", state.currentIntent());
+            summary.put("slots", state.slots());
+            summary.put("lastRecommendations", state.lastRecommendations());
+            summary.put("mealConstraintContext", state.mealConstraintContext());
+            summary.put("recipeConversation", state.recipeConversation());
             summary.put("mealDraft", draftSummary(state.mealDraft()));
             return summary;
         }
         if (payload instanceof ChatResponse response && response.mealDraft() != null) {
-            Map<String,Object> summary = new LinkedHashMap<>();
-            summary.put("sessionId", response.sessionId());
-            summary.put("traceId", response.traceId());
-            summary.put("responseType", response.responseType());
-            summary.put("nextAction", response.nextAction());
-            summary.put("mealDraft", draftSummary(response.mealDraft()));
-            return summary;
+            ObjectNode safe = objectMapper.valueToTree(response);
+            safe.set("mealDraft", objectMapper.valueToTree(draftSummary(response.mealDraft())));
+            return safe;
         }
         if (payload instanceof Map<?,?> map) {
             Map<Object,Object> copy = new LinkedHashMap<>();

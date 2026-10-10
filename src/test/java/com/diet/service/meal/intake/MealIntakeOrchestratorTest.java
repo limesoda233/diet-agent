@@ -82,7 +82,8 @@ class MealIntakeOrchestratorTest {
                 new MealDraftData("番茄面",List.of("午餐"),null,null,null,null,null,null,
                         new MealKnowledge(List.of("PRIVATE_INGREDIENT"),"PRIVATE_DESCRIPTION","PRIVATE_PREPARATION","USER_PROVIDED","")),
                 List.of(),List.of(),Map.of("name",List.of("PRIVATE_EVIDENCE")),MealDraftStatus.READY,null);
-        var state=SessionState.fresh("s",7L,SourceMode.PERSONAL).withMealDraft(draft);
+        var state=SessionState.fresh("s",7L,SourceMode.PERSONAL).withMealDraft(draft)
+                .withLastRecommendations(List.of(42L));
         when(states.loadOrCreate("s",7L,SourceMode.PERSONAL)).thenReturn(state);
         var workflow=mock(MealIntakeWorkflow.class);
         when(workflow.handle(eq(7L),any(),eq(state)))
@@ -98,7 +99,8 @@ class MealIntakeOrchestratorTest {
         var rows=ArgumentCaptor.forClass(RequestTraceRow.class);
         verify(mapper).insert(rows.capture());
         String traceJson=rows.getValue().getTraceJson();
-        assertThat(traceJson).contains("REQUEST_RECEIVED","REQUEST_FINISHED","READY");
+        assertThat(traceJson).contains("REQUEST_RECEIVED","REQUEST_FINISHED","READY",
+                "lastRecommendations","42","speechText","草稿仍在","displayBlocks","missingSlots");
         assertThat(traceJson).doesNotContain("PRIVATE_ORIGINAL","PRIVATE_INGREDIENT","PRIVATE_DESCRIPTION",
                 "PRIVATE_PREPARATION","PRIVATE_EVIDENCE");
     }
@@ -110,7 +112,7 @@ class MealIntakeOrchestratorTest {
                 List.of(),List.of(),Map.of(),MealDraftStatus.READY,null);
         var state=SessionState.fresh("s",7L,SourceMode.PUBLIC).withMealDraft(draft);
         try (var ignored=trace.openTrace("t","s",7L)) {
-            trace.recordEvent("NESTED","SESSION",Map.of("state",state),
+            trace.recordEvent("NESTED","SESSION",Map.of("state",state,"drafts",List.of(draft)),
                     Map.of("responses",List.of(ChatResponse.mealDraft("s","t","草稿仍在",draft))));
         }
         var rows=ArgumentCaptor.forClass(RequestTraceRow.class);

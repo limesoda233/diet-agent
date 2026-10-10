@@ -19,6 +19,7 @@ public class MealIntakeWorkflow {
     private static final Pattern LIBRARY = Pattern.compile("(?:录入|保存|加入|添加).*(?:餐食库|个人库)");
     private static final Pattern NEW = Pattern.compile("(?:录入|新增)(?:一道|一份)?餐食(?=$|[，。！？、\\s])|(?:录入|新增)(?:一道|一份)?[\\p{IsHan}A-Za-z0-9]{1,40}(?:饭|面|菜|汤|粥|鸡|鱼|肉|蛋|饺子|包子|沙拉|牛排|豆腐|丁|骨|锅|饼|粉|寿司|披萨)(?=$|[，。！？、\\s])");
     private static final Pattern EDIT = Pattern.compile("(?:(?:草稿|餐食).*(?:修改|改成|改为|补充|添加|加上|清空|去掉|删除))|(?:(?:修改|补充|清空|去掉|删除).*草稿)|^(?:餐次|菜名|名字|口味|食材|做法|描述|心情|场景|菜系|健康目标|便捷度)(?:修改|改成|改为|补充|添加|加上|清空|去掉|删除)");
+    private static final Pattern NOT_A_REQUEST = Pattern.compile("如何|怎么|怎样|不要|别|不想|不必|不用|不再|禁止");
     private static final Set<String> TIMES = Set.of("早餐","午餐","晚餐","早上","上午","中午","晚上");
 
     /** Empty means this turn belongs to the existing recommendation / recipe routes. */
@@ -57,7 +58,7 @@ public class MealIntakeWorkflow {
                 return result(state,"餐食保存失败，本次未保存。草稿已保留，请重试确认保存。",true);
             }
         }
-        boolean start=NEW.matcher(text).find() || LIBRARY.matcher(text).find();
+        boolean start=explicitIntake(text,NEW) || explicitIntake(text,LIBRARY);
         boolean active=draft!=null && (draft.status()==MealDraftStatus.READY || draft.status()==MealDraftStatus.NEEDS_INPUT);
         boolean missingReply=active && draft.status()==MealDraftStatus.NEEDS_INPUT
                 && ((draft.missingFields().contains("mealTime") && TIMES.contains(text))
@@ -81,6 +82,16 @@ public class MealIntakeWorkflow {
             if (trace != null) trace.recordEvent("MEAL_DRAFT_CHAT_FAILED","MEAL_INTAKE",Map.of("entry","CHAT"),Map.of("reason","generation"));
             return result(state,failure.getMessage(),false);
         }
+    }
+    private boolean explicitIntake(String text, Pattern route) {
+        var match=route.matcher(text);
+        while (match.find()) {
+            int boundary=Math.max(Math.max(text.lastIndexOf('，',match.start()),text.lastIndexOf('。',match.start())),
+                    Math.max(text.lastIndexOf('；',match.start()),text.lastIndexOf('！',match.start())));
+            String lead=text.substring(boundary+1,match.start());
+            if (!NOT_A_REQUEST.matcher(lead).find()) return true;
+        }
+        return false;
     }
     private boolean dishNameReply(String text) {
         return text.matches("(?:菜名(?:是|叫)|名字(?:是|叫)|叫).{1,128}")

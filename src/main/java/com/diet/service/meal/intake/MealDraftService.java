@@ -108,7 +108,10 @@ public class MealDraftService {
                 if (value.isEmpty()) { state.clear(key); return; }
                 value.forEach(entry -> updates.acceptUpdate(key,cited(entry)));
             }
-            if (!updates.get(key).isEmpty()) state.replaceFrom(key,updates);
+            if (!updates.get(key).isEmpty()) {
+                if (key.equals("ingredients") && additiveIngredients(currentText)) state.mergeFrom(key,updates);
+                else state.replaceFrom(key,updates);
+            }
         });
         state.warnings.addAll(updates.warnings);
         if (state.values.values().stream().allMatch(List::isEmpty))
@@ -123,6 +126,13 @@ public class MealDraftService {
         if (data.mealTime().isEmpty()) missing.add("mealTime");
         return new MealDraft(previous == null ? UUID.randomUUID().toString() : previous.draftId(),original,data,
                 missing,state.warnings,state.evidence,missing.isEmpty() ? MealDraftStatus.READY : MealDraftStatus.NEEDS_INPUT,null);
+    }
+
+    private boolean additiveIngredients(String text) {
+        if (text.matches(".*(?:食材|原料|配料).*(?:改成|改为|替换|换成|清空|去掉|删除).*")
+                || text.matches(".*(?:改成|改为|替换|换成|清空|去掉|删除).*(?:食材|原料|配料).*")) return false;
+        return text.matches(".*(?:食材|原料|配料).*(?:补充|添加|加上|再加).*")
+                || text.matches(".*(?:补充|添加|加上|再加).*(?:食材|原料|配料).*");
     }
 
     private JsonNode strictJson(String response) {
@@ -164,6 +174,18 @@ public class MealDraftService {
         private void replaceFrom(String key,ValidatedFields updates) {
             values.put(key,new ArrayList<>(updates.get(key)));
             evidence.put(key,new ArrayList<>(updates.evidence.get(key)));
+        }
+        private void mergeFrom(String key,ValidatedFields updates) {
+            List<String> kept=values.computeIfAbsent(key,unused -> new ArrayList<>());
+            List<String> proofs=evidence.computeIfAbsent(key,unused -> new ArrayList<>());
+            List<String> newValues=updates.get(key);
+            List<String> newProofs=updates.evidence.get(key);
+            for (int i=0;i<newValues.size();i++) {
+                if (!kept.contains(newValues.get(i))) {
+                    kept.add(newValues.get(i));
+                    proofs.add(newProofs.get(i));
+                }
+            }
         }
         private void acceptUpdate(String key,CitedValue cited) {
             if (cited.value().isEmpty()) {
