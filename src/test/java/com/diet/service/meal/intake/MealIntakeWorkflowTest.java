@@ -32,8 +32,18 @@ class MealIntakeWorkflowTest {
         assertThat(result.state().slots().mealTime()).isEmpty();
         assertThat(result.state().phase()).isEqualTo(SessionPhase.START);
     }
+    @Test void embeddedExplicitIntakeWithUnnamedMealCreatesMissingFieldDraft() {
+        outputs.add("{\"ingredients\":[{\"value\":\"鸡肉\",\"evidence\":\"鸡肉\"}]}");
+        var result = workflow.handle(1L,request("有鸡肉和花生，帮我录入一份餐食"),state).orElseThrow();
+        assertThat(result.state().mealDraft().missingFields()).containsExactlyInAnyOrder("name","mealTime");
+    }
+    @Test void explicitNamedDishWithoutLibraryWordRoutesToDraft() {
+        outputs.add("{\"name\":{\"value\":\"宫保鸡丁\",\"evidence\":\"宫保鸡丁\"}}");
+        var result = workflow.handle(1L,request("帮我录入宫保鸡丁"),state).orElseThrow();
+        assertThat(result.state().mealDraft().data().name()).isEqualTo("宫保鸡丁");
+    }
     @Test void ordinaryMessagesAndYesPassThrough() {
-        for (String text : List.of("中午吃了宫保鸡丁","鸡肉能做什么菜","番茄面怎么做","是","好","如何录入系统日志"))
+        for (String text : List.of("中午吃了宫保鸡丁","鸡肉能做什么菜","番茄面怎么做","是","好","如何录入系统日志","帮我录入系统日志","帮我录入鸡肉报告"))
             assertThat(workflow.handle(1L,request(text),state)).isEmpty();
     }
     @Test void missingMealTimeCanBeCompletedAndExplicitEditPreservesName() {
@@ -54,6 +64,18 @@ class MealIntakeWorkflowTest {
         state = workflow.handle(1L,request("帮我录入一道餐食，中午吃"),state).orElseThrow().state();
         assertThat(state.mealDraft().missingFields()).contains("name");
         assertThat(workflow.handle(1L,request("天气"),state)).isEmpty();
+    }
+    @Test void fieldFirstSupplementUpdatesActiveDraft() {
+        outputs.add("{\"name\":{\"value\":\"番茄面\",\"evidence\":\"番茄面\"},\"mealTime\":[{\"value\":\"午餐\",\"evidence\":\"中午\"}]}");
+        state = workflow.handle(1L,request("帮我录入番茄面，中午吃"),state).orElseThrow().state();
+        outputs.add("{\"ingredients\":[{\"value\":\"花生\",\"evidence\":\"花生\"}]}");
+        state = workflow.handle(1L,request("食材补充花生"),state).orElseThrow().state();
+        assertThat(state.mealDraft().data().name()).isEqualTo("番茄面");
+        assertThat(state.mealDraft().data().mealTime()).containsExactly("午餐");
+        assertThat(state.mealDraft().data().knowledge().ingredients()).contains("花生");
+        outputs.add("{\"ingredients\":[{\"value\":\"鸡蛋\",\"evidence\":\"鸡蛋\"}]}");
+        assertThat(workflow.handle(1L,request("食材加上鸡蛋"),state)).isPresent();
+        assertThat(workflow.handle(1L,request("食材怎么保存"),state)).isEmpty();
     }
     @Test void invalidActionsRejectWithoutExtractionOrSaveAndCancelIsTerminal() {
         outputs.add("{\"name\":{\"value\":\"番茄面\",\"evidence\":\"番茄面\"}}");

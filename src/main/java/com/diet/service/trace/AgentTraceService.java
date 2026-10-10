@@ -4,6 +4,9 @@ import com.diet.mapper.AgentTraceMapper;
 import com.diet.exception.DietException;
 import com.diet.model.TraceLabelRequest;
 import com.diet.model.RequestTraceRow;
+import com.diet.model.SessionState;
+import com.diet.model.ChatResponse;
+import com.diet.service.meal.intake.MealDraft;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
@@ -283,10 +286,51 @@ public class AgentTraceService {
             return trim(text);
         }
         try {
-            return trim(objectMapper.writeValueAsString(payload));
+            return trim(objectMapper.writeValueAsString(redactMealDraft(payload)));
         } catch (Exception ignored) {
-            return trim(String.valueOf(payload));
+            // Never fall back to record.toString(): SessionState would print the full draft.
+            return "{\"serializationFailed\":true}";
         }
+    }
+
+    /** Preserve routing metadata while keeping the full server-held draft out of generic traces. */
+    private Object redactMealDraft(Object payload) {
+        if (payload instanceof SessionState state && state.mealDraft() != null) {
+            Map<String,Object> summary = new LinkedHashMap<>();
+            summary.put("sessionId", state.sessionId());
+            summary.put("userId", state.userId());
+            summary.put("phase", state.phase());
+            summary.put("sourceMode", state.sourceMode());
+            summary.put("currentIntent", state.currentIntent());
+            summary.put("mealDraft", draftSummary(state.mealDraft()));
+            return summary;
+        }
+        if (payload instanceof ChatResponse response && response.mealDraft() != null) {
+            Map<String,Object> summary = new LinkedHashMap<>();
+            summary.put("sessionId", response.sessionId());
+            summary.put("traceId", response.traceId());
+            summary.put("responseType", response.responseType());
+            summary.put("nextAction", response.nextAction());
+            summary.put("mealDraft", draftSummary(response.mealDraft()));
+            return summary;
+        }
+        if (payload instanceof Map<?,?> map) {
+            Map<Object,Object> copy = new LinkedHashMap<>();
+            map.forEach((key,value) -> copy.put(key,redactMealDraft(value)));
+            return copy;
+        }
+        if (payload instanceof List<?> list) return list.stream().map(this::redactMealDraft).toList();
+        return payload;
+    }
+
+    private Map<String,Object> draftSummary(MealDraft draft) {
+        Map<String,Object> summary = new LinkedHashMap<>();
+        summary.put("draftId", draft.draftId());
+        summary.put("status", draft.status());
+        summary.put("missingFields", draft.missingFields());
+        summary.put("warningCount", draft.warnings().size());
+        summary.put("savedMealId", draft.savedMealId());
+        return summary;
     }
 
     /** 截断超长字符串，防止 trace_json 单条 payload 过大。 */

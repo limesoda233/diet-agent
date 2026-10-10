@@ -13,6 +13,11 @@ import com.diet.service.risk.RiskGuardService;
 import com.diet.service.session.*;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
+import com.diet.mapper.AgentTraceMapper;
+import com.diet.model.RequestTraceRow;
+import com.diet.service.meal.knowledge.MealKnowledge;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -67,6 +72,50 @@ class MealIntakeOrchestratorTest {
                 .hasMessageContaining("不属于当前用户");
         verify(fixture.states,never()).loadOrCreate(any(),any(),any());
         verifyNoInteractions(fixture.workflow,fixture.intent,fixture.meals);
+    }
+
+    @Test void genericTraceDoesNotCopyStoredDraftOriginalKnowledgeOrEvidence() {
+        var mapper=mock(AgentTraceMapper.class);
+        var trace=new AgentTraceService(mapper,new ObjectMapper());
+        var states=mock(SessionStateService.class);
+        var draft=new MealDraft("d","PRIVATE_ORIGINAL",
+                new MealDraftData("番茄面",List.of("午餐"),null,null,null,null,null,null,
+                        new MealKnowledge(List.of("PRIVATE_INGREDIENT"),"PRIVATE_DESCRIPTION","PRIVATE_PREPARATION","USER_PROVIDED","")),
+                List.of(),List.of(),Map.of("name",List.of("PRIVATE_EVIDENCE")),MealDraftStatus.READY,null);
+        var state=SessionState.fresh("s",7L,SourceMode.PERSONAL).withMealDraft(draft);
+        when(states.loadOrCreate("s",7L,SourceMode.PERSONAL)).thenReturn(state);
+        var workflow=mock(MealIntakeWorkflow.class);
+        when(workflow.handle(eq(7L),any(),eq(state)))
+                .thenReturn(Optional.of(new MealIntakeWorkflow.Result(state,"草稿仍在",false)));
+        var orchestrator=new DietOrchestratorService(mock(SessionService.class),states,mock(IntentAgentService.class),
+                mock(IntentReviseService.class),new SlotMergeService(),mock(ClarifyAgentService.class),
+                mock(MealSearchService.class),mock(MealRankService.class),mock(MealPlanService.class),
+                mock(RecommendResponseAgentService.class),mock(MealService.class),mock(RiskGuardService.class),
+                trace,new ConstraintParser(new IngredientCatalog()));
+        orchestrator.setMealIntakeWorkflow(workflow);
+        var response=orchestrator.dietChat(7L,new ChatRequest("s","好",SourceMode.PERSONAL,Map.of()));
+        assertThat(response.mealDraft()).isEqualTo(draft);
+        var rows=ArgumentCaptor.forClass(RequestTraceRow.class);
+        verify(mapper).insert(rows.capture());
+        String traceJson=rows.getValue().getTraceJson();
+        assertThat(traceJson).contains("REQUEST_RECEIVED","REQUEST_FINISHED","READY");
+        assertThat(traceJson).doesNotContain("PRIVATE_ORIGINAL","PRIVATE_INGREDIENT","PRIVATE_DESCRIPTION",
+                "PRIVATE_PREPARATION","PRIVATE_EVIDENCE");
+    }
+    @Test void nestedGenericTracePayloadRedactsDraftToo() {
+        var mapper=mock(AgentTraceMapper.class);
+        var trace=new AgentTraceService(mapper,new ObjectMapper());
+        var draft=new MealDraft("d","PRIVATE_NESTED_ORIGINAL",
+                new MealDraftData("番茄面",List.of("午餐"),null,null,null,null,null,null,null),
+                List.of(),List.of(),Map.of(),MealDraftStatus.READY,null);
+        var state=SessionState.fresh("s",7L,SourceMode.PUBLIC).withMealDraft(draft);
+        try (var ignored=trace.openTrace("t","s",7L)) {
+            trace.recordEvent("NESTED","SESSION",Map.of("state",state),
+                    Map.of("responses",List.of(ChatResponse.mealDraft("s","t","草稿仍在",draft))));
+        }
+        var rows=ArgumentCaptor.forClass(RequestTraceRow.class);
+        verify(mapper).insert(rows.capture());
+        assertThat(rows.getValue().getTraceJson()).contains("NESTED","READY").doesNotContain("PRIVATE_NESTED_ORIGINAL");
     }
 
     private static class Fixture {
