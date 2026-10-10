@@ -8,6 +8,11 @@ import com.diet.service.recipe.rag.model.RecipeRetrievalResult;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 将最终父菜谱列表裁剪成 Answer Agent 实际看到的证据，并生成本轮 S1/S2 等引用编号。
+ * characterBudget 是字符预算，不是模型 token 预算；超过剩余预算时当前实现按字符截断。
+ * contexts 保存实际裁剪后的块供 Ragas 导出，不能用未裁剪的完整文档代替评测上下文。
+ */
 public class RecipeEvidenceAssembler {
     private final int characterBudget;
     private final int maxRecipes;
@@ -32,6 +37,7 @@ public class RecipeEvidenceAssembler {
             int remaining = characterBudget - evidence.length();
             if (remaining <= 0) break;
             if (block.length() > remaining) block = block.substring(0, remaining);
+            // 先记录裁剪后 block，保证 Judge 的 retrieved_contexts 与本轮 prompt 一致。
             contexts.add(new RecipeEvidenceContext(citationId, recipe.recipeId(), block));
             evidence.append(block);
             citations.add(new RecipeCitation(citationId, recipe.recipeId(), recipe.title(), recipe.relativePath(),

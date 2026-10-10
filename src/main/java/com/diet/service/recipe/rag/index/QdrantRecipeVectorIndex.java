@@ -43,34 +43,86 @@ public class QdrantRecipeVectorIndex implements RecipeVectorIndex {
     }
 
     @Override
-    public void stageVersion(String indexVersion, List<RecipeChunk> chunks, List<double[]> vectors) {
-        if (indexVersion == null || indexVersion.isBlank()) throw new IllegalArgumentException("indexVersion must not be blank");
-        if (chunks == null || chunks.isEmpty() || vectors == null || chunks.size() != vectors.size()) {
-            throw new IllegalArgumentException("Recipe chunks and vectors must be non-empty and aligned");
+    public void stageVersion(
+            String indexVersion,
+            List<RecipeChunk> chunks,
+            List<double[]> vectors) {
+
+        if (indexVersion == null || indexVersion.isBlank()) {
+            throw new IllegalArgumentException("indexVersion must not be blank");
         }
+
+        if (chunks == null
+                || chunks.isEmpty()
+                || vectors == null
+                || chunks.size() != vectors.size()) {
+
+            throw new IllegalArgumentException(
+                    "Recipe chunks and vectors must be non-empty and aligned"
+            );
+        }
+
+        // 先检查所有向量维度是否正确
         vectors.forEach(this::validateVector);
+
+        // 确保 Qdrant Collection 已经存在
         ensureCollection();
 
-        ObjectNode request = json.createObjectNode();
-        ArrayNode points = request.putArray("points");
-        for (int index = 0; index < chunks.size(); index++) {
-            RecipeChunk chunk = chunks.get(index);
-            ObjectNode point = points.addObject();
-            point.put("id", UUID.nameUUIDFromBytes(
-                    (indexVersion + "\n" + chunk.chunkId()).getBytes(StandardCharsets.UTF_8)).toString());
-            ArrayNode vector = point.putArray("vector");
-            for (double value : vectors.get(index)) vector.add(value);
-            ObjectNode payload = point.putObject("payload");
-            payload.put("indexVersion", indexVersion);
-            payload.put("chunkId", chunk.chunkId());
-            payload.put("parentRecipeId", chunk.parentRecipeId());
-            payload.put("contentHash", chunk.contentHash());
-            payload.put("sourcePath", chunk.sourcePath());
-            payload.put("chunkType", chunk.type().name());
-            payload.put("title", extractTitle(chunk.text()));
-            payload.put("text", chunk.text());
+        // 每次只往 Qdrant 写 100 个 point
+        final int batchSize = 100;
+
+        for (int start = 0; start < chunks.size(); start += batchSize) {
+
+            // 当前这一批的结束位置
+            int end = Math.min(start + batchSize, chunks.size());
+
+            ObjectNode request = json.createObjectNode();
+            ArrayNode points = request.putArray("points");
+
+            // 只构造 [start, end) 这一小批
+            for (int index = start; index < end; index++) {
+
+                RecipeChunk chunk = chunks.get(index);
+
+                ObjectNode point = points.addObject();
+
+                // 生成稳定的 UUID
+                point.put(
+                        "id",
+                        UUID.nameUUIDFromBytes(
+                                (indexVersion + "\n" + chunk.chunkId())
+                                        .getBytes(StandardCharsets.UTF_8)
+                        ).toString()
+                );
+
+                // 写入 1024 维向量
+                ArrayNode vector = point.putArray("vector");
+                for (double value : vectors.get(index)) {
+                    vector.add(value);
+                }
+
+                // 写入 payload
+                ObjectNode payload = point.putObject("payload");
+
+                payload.put("indexVersion", indexVersion);
+                payload.put("chunkId", chunk.chunkId());
+                payload.put("parentRecipeId", chunk.parentRecipeId());
+                payload.put("contentHash", chunk.contentHash());
+                payload.put("sourcePath", chunk.sourcePath());
+                payload.put("chunkType", chunk.type().name());
+                payload.put("title", extractTitle(chunk.text()));
+                payload.put("text", chunk.text());
+            }
+
+            // 当前 100 条写入成功后，再进入下一批
+            send(
+                    "PUT",
+                    collectionUri("/points?wait=true"),
+                    request,
+                    200,
+                    201
+            );
         }
-        send("PUT", collectionUri("/points?wait=true"), request, 200, 201);
     }
 
     @Override
@@ -181,8 +233,15 @@ public class QdrantRecipeVectorIndex implements RecipeVectorIndex {
         }
     }
 
-    private RecipeRagDependencyException dependencyError(String code, HttpResponse<String> response) {
-        return new RecipeRagDependencyException(code + ": HTTP " + response.statusCode());
+    private RecipeRagDependencyException dependencyError(
+            String code,
+            HttpResponse<String> response) {
+
+        return new RecipeRagDependencyException(
+                code
+                        + ": HTTP " + response.statusCode()
+                        + ", body=" + response.body()
+        );
     }
 
     private URI collectionUri(String suffix) {

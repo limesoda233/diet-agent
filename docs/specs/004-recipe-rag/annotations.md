@@ -1,4 +1,6 @@
-# 菜谱 RAG 评测标注说明
+# 菜谱 RAG 评测标注说明（v1 历史基线）
+
+本文件描述最初的 64 条 v1 数据集。v1 已冻结，仅用于复现历史结果；当前默认评测为 v2，规格与冻结规则见 [evaluation-v2.md](evaluation-v2.md)，逐条数据说明见 `src/test/resources/evaluation/recipe/v2/annotations.md`。
 
 ## 固定对象
 

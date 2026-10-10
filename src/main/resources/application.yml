@@ -21,6 +21,16 @@ diet:
   llm:
     main-model: ${DEEPSEEK_MAIN_MODEL:deepseek-chat}
     light-model: ${DEEPSEEK_LIGHT_MODEL:deepseek-chat}
+  jev:
+    enabled: ${JEV_ENABLED:true}
+    intent-enabled: ${JEV_INTENT_ENABLED:true}
+    evaluation-enabled: ${JEV_EVALUATION_ENABLED:true}
+    endpoint: ${JEV_ENDPOINT:https://api.typesafe.ai/v1/systemone}
+    api-key: ${JEV_API_KEY:}
+    model: ${JEV_MODEL:jev-latest}
+    timeout: ${JEV_TIMEOUT:3s}
+    intent-confidence-threshold: ${JEV_INTENT_CONFIDENCE_THRESHOLD:0.70}
+    slot-probability-threshold: ${JEV_SLOT_PROBABILITY_THRESHOLD:0.70}
   session:
     max-history-turns: 10
 logging:

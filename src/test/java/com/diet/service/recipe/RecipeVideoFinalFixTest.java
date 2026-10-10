@@ -49,6 +49,140 @@ class RecipeVideoFinalFixTest {
     private static final CookingVideo VIDEO = new CookingVideo("宫保鸡丁", "教学视频",
             "https://example.invalid/video", VideoPlatform.BILIBILI, "厨房", 100, "controlled");
 
+    @Test
+    void bareRecipeFollowupUsesSingleDisplayedMealForBothBranches() throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation("{\"displayedMeals\":[{\"mealId\":1,\"name\":\"宫保鸡丁\"}]}");
+        fixture.chat("怎么做", Map.of());
+        var query = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(fixture.retriever).retrieve(query.capture(), any());
+        assertThat(query.getValue().text()).isEqualTo("宫保鸡丁怎么做");
+        assertThat(fixture.actualVideoText.get()).contains("宫保鸡丁");
+        verifyNoInteractions(fixture.intent);
+    }
+
+    @Test
+    void ambiguousFollowupAsksWithoutCallingRetrievalOrVideo() throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation("{\"displayedMeals\":[{\"mealId\":1,\"name\":\"宫保鸡丁\"},{\"mealId\":2,\"name\":\"番茄炒蛋\"}]}");
+        var response = fixture.chat("怎么做", Map.of());
+        assertThat(response.responseType()).isEqualTo("CLARIFY");
+        assertThat(response.clarifyQuestion()).contains("宫保鸡丁", "番茄炒蛋");
+        verifyNoInteractions(fixture.retriever);
+        assertThat(fixture.actualVideoText.get()).isNull();
+    }
+
+    @Test
+    void ordinalFollowupResolvesDisplayOrder() throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation("{\"displayedMeals\":[{\"mealId\":1,\"name\":\"宫保鸡丁\"},{\"mealId\":2,\"name\":\"番茄炒蛋\"}]}");
+        fixture.chat("第二道怎么做", Map.of());
+        var query = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(fixture.retriever).retrieve(query.capture(), any());
+        assertThat(query.getValue().text()).isEqualTo("番茄炒蛋怎么做");
+    }
+
+    @Test
+    void noContextAsksForDishRatherThanSearchingBareHowTo() {
+        var fixture = new Fixture("success");
+        var response = fixture.chat("怎么做", Map.of());
+        assertThat(response.responseType()).isEqualTo("CLARIFY");
+        verifyNoInteractions(fixture.retriever);
+    }
+
+    @Test
+    void recommendationThenHowToUsesPersistedDisplayedDish() throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation("{\"displayedMeals\":[{\"mealId\":99,\"name\":\"红烧肉\"}],\"activeDish\":\"红烧肉\"}");
+        fixture.enableStatePersistence();
+        var intent = new IntentResult(com.diet.enums.Intent.MEAL_RECOMMENDATION, SlotBundle.empty(), 1.0);
+        when(fixture.intent.recognize(any(), anyLong(), any(), any(), any())).thenReturn(intent);
+        when(fixture.revise.revise(any(), any(), any())).thenReturn(intent);
+        when(fixture.clarify.decide(any(), any(), any())).thenReturn(ClarifyResult.ready());
+        var meal = new MealItem(1L, SourceMode.PUBLIC, null, "宫保鸡丁", SlotBundle.empty(), 1.0);
+        when(fixture.search.search(any())).thenReturn(List.of(meal));
+        when(fixture.rank.rank(any())).thenReturn(List.of(meal));
+        when(fixture.guard.check(any(), any(), any(), any())).thenReturn(RiskGuardResult.pass());
+        when(fixture.recommend.recommendAndRespond(any(), any(), any(), any(), any())).thenReturn(
+                new RecommendResponseAgentService.Result(new RecommendResult(List.of(
+                        new RecommendedMealOption(1L, SourceMode.PUBLIC, "宫保鸡丁", "推荐", 1.0, SlotBundle.empty())), false),
+                        new ResponseResult("推荐宫保鸡丁", List.of(MealResponse.from(meal)), "WAIT_USER")));
+        assertThat(fixture.chat("推荐晚餐", Map.of()).displayBlocks()).hasSize(1);
+        fixture.chat("怎么做", Map.of());
+        var query = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(fixture.retriever).retrieve(query.capture(), any());
+        assertThat(query.getValue().text()).isEqualTo("宫保鸡丁怎么做");
+        assertThat(fixture.actualVideoText.get()).contains("宫保鸡丁");
+    }
+
+    @Test
+    void clarificationSelectionAndLaterFollowupKeepSelectedDish() throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation("{\"displayedMeals\":[{\"mealId\":1,\"name\":\"宫保鸡丁\"},{\"mealId\":2,\"name\":\"番茄炒蛋\"}]}");
+        fixture.enableStatePersistence();
+        assertThat(fixture.chat("怎么做", Map.of()).responseType()).isEqualTo("CLARIFY");
+        fixture.chat("番茄炒蛋", Map.of());
+        fixture.chat("需要什么食材", Map.of());
+        var query = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(fixture.retriever, times(2)).retrieve(query.capture(), any());
+        assertThat(query.getAllValues().get(0).text()).isEqualTo("番茄炒蛋怎么做");
+        assertThat(query.getAllValues().get(1).text()).isEqualTo("番茄炒蛋需要什么食材");
+    }
+
+    @Test
+    void outOfRangeReferenceNeverGuessesDish() throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation("{\"displayedMeals\":[{\"mealId\":1,\"name\":\"宫保鸡丁\"}]}");
+        assertThat(fixture.chat("第二道怎么做", Map.of()).responseType()).isEqualTo("CLARIFY");
+        verifyNoInteractions(fixture.retriever);
+    }
+
+    @Test
+    void explicitIngredientQuestionReplacesOldSelection() throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation("{\"displayedMeals\":[{\"mealId\":1,\"name\":\"宫保鸡丁\"}]}");
+        fixture.enableStatePersistence();
+        fixture.chat("番茄炒蛋需要什么食材", Map.of());
+        fixture.chat("怎么做", Map.of());
+        var query = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(fixture.retriever, times(2)).retrieve(query.capture(), any());
+        assertThat(query.getAllValues().get(1).text()).isEqualTo("番茄炒蛋怎么做");
+    }
+
+    @Test
+    void structuredReferenceIsResolvedEvenWhenMessageAlreadyContainsDish() throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation("{\"displayedMeals\":[{\"mealId\":1,\"name\":\"宫保鸡丁\"},{\"mealId\":2,\"name\":\"番茄炒蛋\"}]}");
+        fixture.chat("番茄炒蛋怎么做", Map.of("recipeQuery", Map.of("query", "第二道")));
+        var query = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(fixture.retriever).retrieve(query.capture(), any());
+        assertThat(query.getValue().text()).isEqualTo("番茄炒蛋怎么做");
+    }
+
+    @Test
+    void dishNameReplyAfterNoContextClarificationStartsRecipeFlow() {
+        var fixture = new Fixture("success");
+        fixture.enableStatePersistence();
+        var other = new IntentResult(com.diet.enums.Intent.OTHER, SlotBundle.empty(), 1.0);
+        when(fixture.intent.recognize(any(), anyLong(), any(), any(), any())).thenReturn(other);
+        when(fixture.revise.revise(any(), any(), any())).thenReturn(other);
+        fixture.chat("怎么做", Map.of());
+        fixture.chat("宫保鸡丁", Map.of());
+        var query = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(fixture.retriever).retrieve(query.capture(), any());
+        assertThat(query.getValue().text()).isEqualTo("宫保鸡丁怎么做");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"做法", "咋做"})
+    void repeatedBareQuestionContinuesClarificationInsteadOfBecomingDishName(String question) {
+        var fixture = new Fixture("success");
+        fixture.enableStatePersistence();
+        fixture.chat("怎么做", Map.of());
+        assertThat(fixture.chat(question, Map.of()).responseType()).isEqualTo("CLARIFY");
+        verifyNoInteractions(fixture.retriever);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"success", "disabled", "empty", "failed", "timeout"})
     void actualQueryServiceRetrievalFailureUsesRuntimeFailureMatrix(String videoState) throws Exception {
@@ -222,6 +356,13 @@ class RecipeVideoFinalFixTest {
         final MealKnowledgeRepository knowledge = mock(MealKnowledgeRepository.class);
         final ReActAgent agent = mock(ReActAgent.class);
         final IntentAgentService intent = mock(IntentAgentService.class);
+        final SessionStateService states = mock(SessionStateService.class);
+        final MealSearchService search = mock(MealSearchService.class);
+        final MealRankService rank = mock(MealRankService.class);
+        final ClarifyAgentService clarify = mock(ClarifyAgentService.class);
+        final IntentReviseService revise = mock(IntentReviseService.class);
+        final RecommendResponseAgentService recommend = mock(RecommendResponseAgentService.class);
+        final RiskGuardService guard = mock(RiskGuardService.class);
         final List<RequestTraceRow> rows = new ArrayList<>();
         final AtomicReference<String> actualVideoText = new AtomicReference<>();
         final AtomicReference<Thread> agentThread = new AtomicReference<>();
@@ -260,13 +401,12 @@ class RecipeVideoFinalFixTest {
                     default -> Mono.just(List.of(VIDEO));
                 };
             }, properties);
-            var states = mock(SessionStateService.class);
             when(states.loadOrCreate("s", 7L, SourceMode.PUBLIC))
                     .thenReturn(SessionState.fresh("s", 7L, SourceMode.PUBLIC));
             orchestrator = new DietOrchestratorService(mock(SessionService.class), states, intent,
-                    mock(IntentReviseService.class), new SlotMergeService(), mock(ClarifyAgentService.class),
-                    mock(MealSearchService.class), mock(MealRankService.class), mock(MealPlanService.class),
-                    mock(RecommendResponseAgentService.class), mock(MealService.class), mock(RiskGuardService.class),
+                    revise, new SlotMergeService(), clarify,
+                    search, rank, mock(MealPlanService.class),
+                    recommend, mock(MealService.class), guard,
                     trace, new ConstraintParser(new IngredientCatalog()));
             orchestrator.setRecipeQueryService(recipes);
             orchestrator.setCookingVideoSearchService(videos);
@@ -275,6 +415,30 @@ class RecipeVideoFinalFixTest {
 
         ChatResponse chat(String message, Map<String, Object> context) {
             return orchestrator.dietChat(7L, new ChatRequest("s", message, SourceMode.PUBLIC, context));
+        }
+
+        void restoreConversation(String context) throws Exception {
+            var mapper = mock(com.diet.mapper.SessionMapper.class);
+            var row = new SessionRow();
+            row.setId("s"); row.setUserId(7L); row.setPhase("RECOMMEND");
+            row.setLastRecommendations("[99,1,2]");
+            row.setSlots("{\"_meta\":{\"sourceMode\":\"PUBLIC\",\"recipeConversation\":" + context + "}}");
+            when(mapper.findById("s", 7L)).thenReturn(row);
+            var restored = new SessionStateService(mapper, new ObjectMapper())
+                    .loadOrCreate("s", 7L, SourceMode.PUBLIC);
+            when(states.loadOrCreate("s", 7L, SourceMode.PUBLIC)).thenReturn(restored);
+        }
+
+        void enableStatePersistence() {
+            var mapper = mock(com.diet.mapper.SessionMapper.class);
+            var persisted = new AtomicReference<SessionRow>();
+            var current = new SessionStateService(mapper, new ObjectMapper());
+            var initial = states.loadOrCreate("s", 7L, SourceMode.PUBLIC);
+            when(mapper.update(any())).thenAnswer(call -> { persisted.set(call.getArgument(0)); return 1; });
+            when(mapper.findById("s", 7L)).thenAnswer(call -> persisted.get());
+            doAnswer(call -> { current.save(call.getArgument(0)); return null; }).when(states).save(any());
+            when(states.loadOrCreate("s", 7L, SourceMode.PUBLIC)).thenAnswer(call ->
+                    persisted.get() == null ? initial : current.loadOrCreate("s", 7L, SourceMode.PUBLIC));
         }
 
         JsonNode persistedTrace() throws Exception {

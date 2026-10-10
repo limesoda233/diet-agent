@@ -18,6 +18,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * HowToCook 公共语料导入与父子分块。只扫描 dishes 下的有效 Markdown，不导入目录页或隐藏文件。
+ * 父 ID 由来源 commit、相对路径和正文 hash 生成；子 ID 再加章节类型与块序号。
+ * 换行和路径分隔符规范化，使 Windows/Linux 下同一输入获得相同 ID 与 manifest。
+ * sourceCommit 是调用方提供的来源标识，准备语料时仍须核对 checkout 的实际版本。
+ */
 public class RecipeCorpusImporter {
 
     static final int MAX_CHUNK_CHARS = 1200;
@@ -91,6 +97,7 @@ public class RecipeCorpusImporter {
     }
 
     private List<RecipeChunk> createChunks(RecipeDocument document) {
+        // 按章节切，而不是任意平均切全文；每块携带菜名和章节前缀，便于别名/做法查询。
         Map<RecipeChunk.ChunkType, String> sectionText = new LinkedHashMap<>();
         sectionText.put(RecipeChunk.ChunkType.INTRODUCTION, document.introduction());
         sectionText.put(RecipeChunk.ChunkType.INGREDIENTS,
@@ -117,6 +124,8 @@ public class RecipeCorpusImporter {
     }
 
     private List<String> splitWithOverlap(String prefix, String body) {
+        // 总长包括前缀；优先在正文后半段的换行/标点切断，120 字符重叠保留跨边界上下文。
+        // start + 1 保证每轮前进，防止短边界导致死循环。
         int bodyLimit = MAX_CHUNK_CHARS - prefix.length();
         if (bodyLimit <= CHUNK_OVERLAP_CHARS) {
             throw new IllegalStateException("Recipe chunk prefix is too long");

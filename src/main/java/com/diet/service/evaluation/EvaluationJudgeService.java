@@ -2,6 +2,7 @@ package com.diet.service.evaluation;
 
 import com.diet.agent.builder.EvaluationJudgeAgentBuilder;
 import com.diet.model.EvaluationJudgeResult;
+import com.diet.service.jev.JevEvaluationJudge;
 import com.diet.service.trace.AgentTraceService;
 import com.diet.util.LlmJsonService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,6 +24,7 @@ public class EvaluationJudgeService {
     private final AgentTraceService agentTraceService;
     private final LlmJsonService llmJsonService;
     private final ObjectMapper objectMapper;
+    private final JevEvaluationJudge jevEvaluationJudge;
     private final String modelName;
 
     public EvaluationJudgeService(
@@ -30,16 +32,41 @@ public class EvaluationJudgeService {
             AgentTraceService agentTraceService,
             LlmJsonService llmJsonService,
             ObjectMapper objectMapper,
+            JevEvaluationJudge jevEvaluationJudge,
             @Value("${diet.llm.light-model:deepseek-chat}") String modelName
     ) {
         this.agentBuilder = agentBuilder;
         this.agentTraceService = agentTraceService;
         this.llmJsonService = llmJsonService;
         this.objectMapper = objectMapper;
+        this.jevEvaluationJudge = jevEvaluationJudge;
         this.modelName = modelName;
     }
 
     public EvaluationJudgeResult judge(String traceId, String sessionId, Map<String, Object> judgeInput) {
+        if (jevEvaluationJudge.available()) {
+            long startedAt = System.nanoTime();
+            try {
+                EvaluationJudgeResult result = jevEvaluationJudge.judge(judgeInput);
+                agentTraceService.recordEvent(
+                        "JEV_EVALUATION_JUDGE",
+                        "EVALUATION",
+                        judgeInput,
+                        result,
+                        elapsedMs(startedAt)
+                );
+                return result;
+            } catch (RuntimeException error) {
+                log.warn("Jev evaluation judge failed; falling back to the existing judge: {}", error.getMessage());
+                agentTraceService.recordEvent(
+                        "JEV_EVALUATION_FALLBACK",
+                        "EVALUATION",
+                        judgeInput,
+                        Map.of("reason", safeError(error)),
+                        elapsedMs(startedAt)
+                );
+            }
+        }
         try {
             ReActAgent agent = agentBuilder.build();
             agent.getMemory().clear();
@@ -60,6 +87,15 @@ public class EvaluationJudgeService {
             log.warn("Evaluation Judge failed: traceId={}", traceId, error);
             return null;
         }
+    }
+
+    private long elapsedMs(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
+    }
+
+    private String safeError(RuntimeException error) {
+        String message = error.getMessage();
+        return message == null || message.isBlank() ? error.getClass().getSimpleName() : message;
     }
 
     private String buildUserPrompt(String traceId, Map<String, Object> judgeInput) throws Exception {

@@ -94,7 +94,9 @@ mvn "-Dtest=BilibiliMcpLiveTest" "-Ddiet.video-mcp.live=true" test
 | 无 RAG 证据、视频成功 | 对语料中无可信证据的菜名发问，保持视频 MCP 可用 | 只说明暂无可信文字菜谱并展示视频卡片；不得把视频元数据当作食谱事实 |
 | 两分支均不可用 | 使菜谱检索不可用且停止 MCP 后询问 | 返回暂不可用说明，不暴露内部异常或编造内容 |
 
-视频分支的 3 秒总预算包含 MCP 初始化等待和搜索，不会在冷启动时额外叠加 30 秒。30 秒仅是 MCP 内部初始化的限制；首次下载或进程启动可能使本轮视频分支超时降级，RAG 结果仍会保留。手工验收时以响应和 Trace 中记录的分支状态为准。
+视频分支的 3 秒总预算包含该请求的初始化等待和搜索，不会在冷启动时额外叠加 30 秒。应用就绪后只在启用真实 `bilibili-mcp` provider 时后台预热，握手及工具发现独立限时 30 秒；请求超时只取消自身等待，不终止共享初始化。初始化完成后复用 client，实际工具搜索另受 3 秒限制。SDK 内部请求预算覆盖握手，但不会扩大业务搜索预算。首次下载或进程启动可能使预热期间的请求超时降级，后续请求可复用已就绪的 client。RAG 结果仍会保留。
+
+启动日志出现 `Bilibili MCP ready; search tool verified` 后再进行首次手工视频验收。预热失败不阻断应用启动，失败候选会清理，后续请求可重新初始化；这不包含工具搜索的自动重试。
 
 ## 故障定位
 
@@ -103,5 +105,6 @@ mvn "-Dtest=BilibiliMcpLiveTest" "-Ddiet.video-mcp.live=true" test
 - `bilibili_mcp_search_failed`：上游 Bilibili 搜索失败或限流；当前请求返回不可用，不生成假链接。
 - `bilibili_mcp_unrecognized_response`：第三方包输出格式发生变化，需要先更新解析测试再升级。
 - 第一次调用可能较慢：通常涉及 npx 下载和进程启动；视频分支超时后仍会保留 RAG 结果。
+- `onErrorDropped` 同时出现 `InterruptedException` 且指向旧 `initializedClient` 的 `Mono.block()`：旧实现把 3 秒请求取消传入阻塞初始化。2026-10-09 修复使用 async client、共享初始化和后台预热；重新编译并重启应用后确认上述 ready 日志。不要通过全局忽略 Reactor 错误来掩盖问题。
 
 该 MCP 包使用非官方公开搜索接口。当前实现仅用于本地练习和面试演示；若产品化，应完成平台授权与服务条款评审。

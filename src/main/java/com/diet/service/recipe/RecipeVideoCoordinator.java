@@ -11,6 +11,12 @@ import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
+/**
+ * 外层并行：文字菜谱与视频链接互相独立，共享的是预先解析好的查询，而非另一支结果。
+ * 每支先转换成 BranchOutcome，再 zip，保证一支失败不会吞掉另一支的成功结果。
+ * 返回结果后由 Orchestrator 决定显示文字、视频或不可用提示。
+ * 注意 zip 会等待两支终态，当前不是“先文字、后追加视频”的流式接口。
+ */
 public final class RecipeVideoCoordinator {
     private final CookingVideoSearchService videos;
 
@@ -33,6 +39,8 @@ public final class RecipeVideoCoordinator {
 
     private Mono<Result> execute(Supplier<RecipeAnswer> recipeCall,
                                  Supplier<CookingVideoSearchService.VideoSearchRequest> videoRequest) {
+        // RecipeQueryService 内含 block，同步工作必须调度到 boundedElastic。
+        // 计时从订阅开始，包含线程调度等待；客户端内部诊断计时的范围可能不同。
         Mono<BranchOutcome<RecipeAnswer>> recipe = Mono.defer(() -> {
             long started = System.nanoTime();
             return Mono.fromCallable(() -> Objects.requireNonNull(recipeCall.get()))
@@ -56,6 +64,7 @@ public final class RecipeVideoCoordinator {
                             elapsedMs(started))));
         });
 
+        // 实际耗时接近较慢一支，而不是两支相加；视频内部仍有独立业务超时。
         return Mono.zip(recipe, video, Result::new);
     }
 

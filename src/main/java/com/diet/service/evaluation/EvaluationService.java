@@ -243,6 +243,10 @@ public class EvaluationService {
         List<Long> excludedIds = List.of();
         // 最终对用户展示的文本，用于安全合规和 Judge 输入。
         String finalText = "";
+        // 本轮原始用户消息，用于 Judge 判断回答是否回应了真实需求。
+        String userMessage = "";
+        // 进入推荐生成前的候选证据，限制为 Judge 需要核对的字段。
+        List<Map<String, Object>> rankedCandidates = List.of();
         // 最终槽位，优先取 SLOTS_MERGED，其次取 INTENT_REVISED.slots。
         Map<String, List<String>> slots = Map.of();
 
@@ -267,9 +271,13 @@ public class EvaluationService {
                     hasToken = true;
                 }
                 // outputPayload 在 trace 中是字符串 JSON，这里解析成 JsonNode 方便按字段读取。
+                JsonNode input = payload(event.path("inputPayload").asText(null));
                 JsonNode output = payload(event.path("outputPayload").asText(null));
+                // REQUEST_RECEIVED 的 inputPayload 保存本轮 ChatRequest。
+                if ("REQUEST_RECEIVED".equals(eventType)) {
+                    userMessage = input.path("message").asText(userMessage);
                 // INTENT_REVISED 是 Orchestrator 修正后的最终意图，比 raw intent 更适合评估。
-                if ("INTENT_REVISED".equals(eventType)) {
+                } else if ("INTENT_REVISED".equals(eventType)) {
                     // 读取修正后的 intent，如果字段缺失则保留已有值。
                     intent = output.path("intent").asText(intent);
                     // 有些 trace 会在 INTENT_REVISED 里带 slots，作为槽位备选来源。
@@ -295,6 +303,8 @@ public class EvaluationService {
                 } else if ("MEAL_RANKED".equals(eventType)) {
                     // 收集 ranked[].id，后续检查最终响应是否编造候选外餐食。
                     rankedIds.addAll(ids(output.path("ranked"), "id"));
+                    // 同时保存名称、槽位、得分和知识证据，供 Judge 核对推荐理由。
+                    rankedCandidates = rankedCandidateEvidence(output.path("ranked"));
                 // RESPONSE_AGENT_RESULT 是 ResponseAgent 生成自然语言和卡片后的中间结果。
                 } else if ("RESPONSE_AGENT_RESULT".equals(eventType)) {
                     // 提取最终文本，后续安全合规和 Judge 会使用。
@@ -340,6 +350,10 @@ public class EvaluationService {
                 hallucinationFree,
                 // 多轮一致性分，非调整链路为 null。
                 multiTurnConsistency,
+                // 本轮原始用户请求。
+                userMessage,
+                // 推荐生成所依据的候选证据。
+                rankedCandidates,
                 // 最终回复文本。
                 finalText,
                 // 最终推荐卡片数量。
@@ -658,6 +672,8 @@ public class EvaluationService {
     private Map<String, Object> buildJudgeInput(TraceSnapshot snapshot) {
         // Judge 输入只放评估必要摘要，避免把完整 trace_json 塞给模型。
         Map<String, Object> input = new LinkedHashMap<>();
+        // 提供原始用户消息，避免 Judge 只基于上游预测结果自洽打分。
+        input.put("userMessage", snapshot.userMessage());
         // 提供规则解析出的最终意图，帮助 Judge 理解回答场景。
         input.put("predictedIntent", snapshot.intent());
         // 提供规则解析出的槽位，帮助 Judge 判断解释是否贴合需求。
@@ -666,6 +682,8 @@ public class EvaluationService {
         input.put("predictedClarifyAction", snapshot.clarifyAction());
         // 提供最终回复文本，Judge 主要基于它评解释质量和自然度。
         input.put("finalReply", snapshot.finalText());
+        // 提供实际进入生成阶段的候选证据，便于核对解释是否有事实支持。
+        input.put("rankedCandidates", snapshot.rankedCandidates());
         // 提供推荐卡片数量，帮助 Judge 区分推荐回答和纯文本回答。
         input.put("recommendationCount", snapshot.recommendationCount());
         // 提供规则安全结果，Judge Prompt 明确不重复评安全，但可作为背景。
@@ -679,6 +697,33 @@ public class EvaluationService {
     private boolean hasAnyLabel(RequestTraceRow row) {
         // 任意一个人工标注字段存在，就认为这条 trace 已经部分标注。
         return hasText(row.getExpectedIntent()) || hasText(row.getExpectedSlots()) || hasText(row.getExpectedClarifyAction());
+    }
+
+    private List<Map<String, Object>> rankedCandidateEvidence(JsonNode ranked) {
+        if (!ranked.isArray()) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (JsonNode candidate : ranked) {
+            Map<String, Object> evidence = new LinkedHashMap<>();
+            if (candidate.path("id").isIntegralNumber()) {
+                evidence.put("id", candidate.path("id").asLong());
+            }
+            if (candidate.path("name").isTextual()) {
+                evidence.put("name", candidate.path("name").asText());
+            }
+            if (candidate.path("matchScore").isNumber()) {
+                evidence.put("matchScore", candidate.path("matchScore").asDouble());
+            }
+            if (candidate.path("slots").isObject()) {
+                evidence.put("slots", objectMapper.convertValue(candidate.path("slots"), Map.class));
+            }
+            if (candidate.path("knowledge").isObject()) {
+                evidence.put("knowledge", objectMapper.convertValue(candidate.path("knowledge"), Map.class));
+            }
+            result.add(Map.copyOf(evidence));
+        }
+        return List.copyOf(result);
     }
 
     private boolean hasText(String text) {
@@ -704,6 +749,10 @@ public class EvaluationService {
             boolean hallucinationFree,
             // 多轮调整一致性分。
             Double multiTurnConsistency,
+            // 原始用户请求。
+            String userMessage,
+            // 重排候选及其可核对证据。
+            List<Map<String, Object>> rankedCandidates,
             // 最终回复文本。
             String finalText,
             // 最终推荐卡片数量。

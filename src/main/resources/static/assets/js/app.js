@@ -17,6 +17,7 @@
         "CLARIFY_NEEDED",
         "MEAL_ADJUST",
         "MEAL_PLAN",
+        "RECIPE_QUERY",
         "HEALTH_RISK",
         "OTHER"
     ];

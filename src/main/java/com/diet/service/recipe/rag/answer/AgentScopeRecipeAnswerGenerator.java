@@ -19,6 +19,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * 使用本轮检索证据生成菜谱回答。先组装证据，模型返回 JSON，再核对引用是否合法。
+ * 没证据直接拒答；模型异常或输出解析失败时，用首条父菜谱原文构造确定性回答。
+ * 合法引用不等于每个事实都被语义验证，Faithfulness 仍需离线 Judge 与人工抽查。
+ * 回退同样依赖检索排序：首条证据不相关时，不能声称模板回退自动解决相关性问题。
+ */
 public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
     private static final String REFUSAL = "当前菜谱库中没有足够证据回答这个问题。你可以换一道菜名，或补充想用的食材。";
     private final RecipeEvidenceAssembler assembler;
@@ -74,6 +80,7 @@ public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
                                List<RecipeEvidenceContext> evidenceContexts) {
         try {
             JsonNode root = json.readTree(stripFence(raw));
+            // 模型明确拒答时尊重它，不用确定性模板强行补出一个答案。
             if (root.path("refused").asBoolean(false)) return RecipeAnswer.refused(REFUSAL, diagnostics, evidenceContexts);
             String text = root.path("text").asText("").trim();
             if (text.isBlank() || !root.path("citationIds").isArray()) return null;
@@ -81,6 +88,7 @@ public class AgentScopeRecipeAnswerGenerator implements RecipeAnswerGenerator {
             available.forEach(citation -> byId.put(citation.id(), citation));
             Set<String> ids = new LinkedHashSet<>();
             root.path("citationIds").forEach(node -> ids.add(node.asText()));
+            // 引用必须属于本轮证据，且在正文中实际出现；引用其它轮次的 S 编号无效。
             if (ids.isEmpty() || !byId.keySet().containsAll(ids)) return null;
             if (ids.stream().anyMatch(id -> !text.contains("[" + id + "]"))) return null;
             List<RecipeCitation> used = ids.stream().map(byId::get).toList();

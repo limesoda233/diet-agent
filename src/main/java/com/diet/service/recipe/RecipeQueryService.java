@@ -20,6 +20,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * 菜谱问答业务入口。餐食推荐是另一数据域，不能经此服务写入或查询 meal 向量。
+ * <p>准备阶段解析请求与个人 mealId，执行用户归属校验。已有个人做法优先返回；
+ * 公共路径执行可选改写、混合检索、可选重排与证据回答。模型改写只影响检索文本，
+ * 回答仍使用准备阶段的完整问题，避免丢失用户的事实要求或否定条件。</p>
+ * 此服务提供同步 answer，因此外层并行编排将其放在 boundedElastic 上执行。
+ */
 public class RecipeQueryService {
     private static final String NO_EVIDENCE = "当前菜谱库中没有足够证据回答这个问题。你可以换一道菜名，或补充想用的食材。";
     private final RecipeQueryRouter router;
@@ -98,9 +105,11 @@ public class RecipeQueryService {
                 "没有找到这道个人餐食，无法确定要查询的菜谱。", Map.of("route", "meal_id_not_found"));
 
         try {
+            // 改写器自带回退；identity 是默认配置，不产生额外模型请求。
             RecipeQuery rewritten = queryRewriter.rewrite(query).block();
             if (rewritten == null) rewritten = query;
             RecipeRetrievalResult retrieval = retriever.retrieve(rewritten, configuredMode()).block();
+            // 没有本轮证据时不调用 Answer Agent，即使模型“知道这道菜”也不补写。
             if (retrieval == null || retrieval.recipes().isEmpty()) {
                 return RecipeAnswer.refused(NO_EVIDENCE, retrievalDiagnostics(retrieval, "no_evidence"));
             }
@@ -108,7 +117,8 @@ public class RecipeQueryService {
                     reranker.rerank(rewritten, retrieval.recipes()).block();
             if (reranked == null) reranked = retrieval.recipes();
             RecipeRetrievalResult finalResult = new RecipeRetrievalResult(reranked, retrieval.diagnostics());
-            return answerGenerator.generate(sessionId, rewritten, finalResult);
+            // 关键分工：检索看 rewritten，回答看 query。原始问题可能包含“原文未写就拒答”。
+            return answerGenerator.generate(sessionId, query, finalResult);
         } catch (RuntimeException error) {
             return RecipeAnswer.refused("菜谱检索暂时不可用，请稍后再试。",
                     Map.of("route", "retrieval_failed", "error", error.getClass().getSimpleName()));

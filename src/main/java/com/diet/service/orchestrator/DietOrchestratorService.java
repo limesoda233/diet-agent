@@ -36,6 +36,8 @@ import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
 import com.diet.service.recipe.RecipeQueryService;
+import com.diet.service.recipe.RecipeConversationContext;
+import com.diet.service.recipe.RecipeConversationResolver;
 import com.diet.service.recipe.RecipeVideoCoordinator;
 import com.diet.service.recipe.RecipeVideoCoordinator.BranchOutcome;
 import com.diet.service.recipe.RecipeVideoCoordinator.BranchStatus;
@@ -52,10 +54,14 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 饮食推荐多 Agent 编排服务（Orchestrator）。
  * <p>
- * 一轮 {@link #dietChat} 的主链路：加载会话 → Trace → 加锁 → 记录消息 → 意图识别 → 路由 → 推荐/澄清/固定回复 → 落库。
+ * 一轮 {@link #dietChat} 的主链路：加载会话 → Trace → 同会话锁 → 保存消息 → 路由 → 响应落库。
+ * <p>路由并不总调用模型：明确纯视频或菜谱规则可直接进入业务分支；未命中再用意图模型。
+ * 菜谱请求先解析多轮指代，确认对象后共享查询启动 RAG 与视频。餐食推荐仍只用 MySQL。
+ * Orchestrator 是会话状态写入者，子服务返回结果，不自行覆盖会话的展示顺序或选中菜品。</p>
  */
 @Service
 public class DietOrchestratorService {
+    private final RecipeConversationResolver recipeConversationResolver = new RecipeConversationResolver();
 
     /**
      * 闲聊时的固定引导文案，不额外调用 LLM。
@@ -232,7 +238,7 @@ public class DietOrchestratorService {
     }
 
     /**
-     * 在会话锁内执行完整状态机：记消息 → 前置校验 → 意图识别 → 路由分发。
+     * 在会话锁内执行本轮状态机：保存消息 → 显式/规则路由 → 必要时模型识别 → 业务分发。
      */
     private ChatResponse handleTurn(Long userId, ChatRequest request, String traceId, SessionState state) {
         // 从会话状态中取出 sessionId，后续落库和 Agent 调用都依赖它
@@ -269,7 +275,8 @@ public class DietOrchestratorService {
             return completeVideoSearch(sessionId, traceId, state, text, videos);
         }
 
-        if (recipeQueryService != null && recipeQueryService.matches(request.message(), request.context())) {
+        if (recipeQueryService != null && (recipeQueryService.matches(request.message(), request.context())
+                || recipeConversationResolver.isSelectionReply(request.message(), state.recipeConversation()))) {
             agentTraceService.recordEvent("ROUTE_SELECTED", "ROUTE", request.message(),
                     Map.of("route", Intent.RECIPE_QUERY, "source", "recipe_rule"));
             return handleRecipeQuery(sessionId, userId, request, traceId, state, false);
@@ -344,6 +351,37 @@ public class DietOrchestratorService {
                     ResponseResult.textOnly("菜谱检索功能当前未启用。"));
         }
         Map<String, Object> context = request.context();
+        boolean explicitTarget = context != null && context.get("recipeQuery") instanceof Map<?, ?> target
+                && target.get("mealId") != null;
+        String referenceText = context != null && context.get("recipeQuery") instanceof Map<?, ?> target
+                && target.get("query") instanceof String value && !value.isBlank() ? value : request.message();
+        // 个人 mealId 是明确的业务对象，后续必须校验归属；其它文本先解析“第二道/怎么做”。
+        // 澄清在两个并行分支启动前完成，避免拿一个没有菜名的问题去搜。
+        if (!explicitTarget) {
+            var resolution = recipeConversationResolver.resolve(referenceText, state.recipeConversation());
+            agentTraceService.recordEvent("RECIPE_REFERENCE_RESOLVED", "RECIPE",
+                    Map.of("originalQuery", request.message()), resolution);
+            if (!resolution.clarification().isBlank()) {
+                return completeAsk(sessionId, traceId,
+                        state.withRecipeConversation(state.recipeConversation().pending()),
+                        ClarifyResult.ask(resolution.clarification(), List.of("recipeDish")));
+            }
+            state = state.withRecipeConversation(state.recipeConversation().selected(resolution.selectedDish()));
+            if (!resolution.query().equals(referenceText)) {
+                Map<String, Object> resolvedContext = new LinkedHashMap<>();
+                if (context != null) resolvedContext.putAll(context);
+                Map<String, Object> query = new LinkedHashMap<>();
+                if (context != null && context.get("recipeQuery") instanceof Map<?, ?> supplied) {
+                    supplied.forEach((key, value) -> query.put(String.valueOf(key), value));
+                }
+                query.put("query", resolution.query());
+                resolvedContext.put("recipeQuery", query);
+                context = resolvedContext;
+            }
+        } else {
+            // Avoid carrying an old dish into followups of an explicit new target.
+            state = state.withRecipeConversation(state.recipeConversation().selected(""));
+        }
         if (forceRoute && !recipeQueryService.matches(request.message(), context)) {
             Map<String, Object> forcedContext = new LinkedHashMap<>();
             if (context != null) forcedContext.putAll(context);
@@ -388,6 +426,10 @@ public class DietOrchestratorService {
                             "errorType", sanitizedErrorType(unavailable.getClass().getSimpleName())));
             return completeRecipeResponse(sessionId, traceId, state,
                     "菜谱和视频查询暂时不可用，请稍后再试。", List.of());
+        }
+        if (state.recipeConversation().activeDish().isBlank()) {
+            var selected = recipeConversationResolver.resolve(prepared.query().text(), RecipeConversationContext.empty());
+            state = state.withRecipeConversation(state.recipeConversation().selected(selected.selectedDish()));
         }
         agentTraceService.recordEvent("RECIPE_QUERY_NORMALIZED", "RECIPE", null,
                 Map.of("originalText", message, "recipeQuery", prepared.query().text(),
@@ -584,7 +626,9 @@ public class DietOrchestratorService {
         List<Long> recommendationIds = plan.recommend().recommendations().stream()
                 .map(option -> option.itemId())
                 .toList();
-        SessionState savedState = state.appendLastRecommendations(recommendationIds);
+        SessionState savedState = state.appendLastRecommendations(recommendationIds)
+                .withRecipeConversation(RecipeConversationContext.displayed(
+                        planBlocks.stream().flatMap(block -> block.meals().stream()).toList()));
         sessionStateService.save(savedState);
         sessionService.appendMessage(sessionId, "assistant", response.speechText(), Intent.MEAL_PLAN.name(), traceId);
 
@@ -682,7 +726,8 @@ public class DietOrchestratorService {
         // 从推荐结果中提取本轮推荐的 mealId 列表，追加到 lastRecommendations 供下轮调整累积排除
         List<Long> lastIds = recommend.recommendations().stream().map(option -> option.itemId()).toList();
         // 基于当前 state 累积更新 lastRecommendations 字段
-        SessionState savedState = state.appendLastRecommendations(lastIds);
+        SessionState savedState = state.appendLastRecommendations(lastIds)
+                .withRecipeConversation(RecipeConversationContext.displayed(response.displayBlocks()));
 
         // 将更新后的会话状态 UPDATE 到 diet_sessions 表
         sessionStateService.save(savedState);

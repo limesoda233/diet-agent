@@ -9,6 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * 公共菜谱双索引构建：解析固定语料 → 生成全部向量 → 暂存 Lucene/Qdrant → 激活版本。
+ * 版本由语料 hash、解析器版本、embedding 模型与维度决定，防止查询混用不同语料或模型。
+ * 这是顺序激活加失败补偿，不是跨 Lucene/Qdrant 的分布式事务；旧版本恢复为尽力操作。
+ * 只能用于公共 HowToCook，个人 meal_knowledge 不经此入口写入向量库。
+ */
 public class RecipeIndexCoordinator {
     private final RecipeCorpusImporter importer;
     private final RecipeSparseIndex sparseIndex;
@@ -39,6 +45,7 @@ public class RecipeIndexCoordinator {
         boolean sparseStaged = false;
         boolean vectorStaged = false;
         try {
+            // 先完整计算并核对向量维度，再写暂存索引；embedding 失败不切换活动版本。
             List<double[]> vectors = new ArrayList<>(corpus.chunks().size());
             for (var chunk : corpus.chunks()) {
                 double[] vector = embeddingModel.embed(chunk.text()).block();
@@ -47,6 +54,7 @@ public class RecipeIndexCoordinator {
                 }
                 vectors.add(vector);
             }
+            // 写入可能部分成功后抛错，因此调用前标记，以便失败时清理未激活版本。
             sparseStaged = true;
             sparseIndex.stageVersion(version, corpus.documents(), corpus.chunks());
             vectorStaged = true;
@@ -57,6 +65,7 @@ public class RecipeIndexCoordinator {
                     corpus.documents().size(), corpus.chunks().size(), embeddingModel.modelName(),
                     embeddingModel.dimensions());
         } catch (RuntimeException error) {
+            // 尽力恢复旧活动版本并删除本次暂存数据，原始失败作为 cause 保留。
             restore(previousSparse, previousVector);
             if (sparseStaged) discardSparse(version);
             if (vectorStaged) discardVector(version);

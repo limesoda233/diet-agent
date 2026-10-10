@@ -50,7 +50,7 @@ public class RecipeRagProperties {
     }
 
     public static class Qdrant {
-        private String baseUrl = "http://localhost:6333";
+        private String baseUrl = "http://localhost:16333";
         private String collection = "diet_recipe_chunks_bge_m3_1024";
         private String apiKey = "";
         private Duration timeout = Duration.ofSeconds(3);

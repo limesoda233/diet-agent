@@ -1,5 +1,24 @@
 # 005 验收记录
 
+## 2026-10-09 冷启动超时修复
+
+用户报告 `InterruptedException` 指向 `initializedClient` 中的 `Mono.block()`，同时出现 Reactor `onErrorDropped`。用延迟初始化的受控 MCP client，外层视频搜索超时稳定复现相同堆栈：取消请求会中断并关闭初始化，下一次请求不能复用就绪的 client。
+
+本次改用 AgentScope async wrapper、共享异步初始化与应用就绪预热。单个请求超时不会取消公共初始化；握手和工具发现仍独立限时，失败候选清理，后续请求可重试初始化，应用关闭不会继续使用 client。SDK 的普通 request timeout 同样影响握手，因此 SDK 内部预算覆盖初始化，实际工具搜索再单独限制为 3 秒。
+
+验证结果：
+
+- 冷启动取消回归先失败并产生用户同款堆栈；修复后通过。覆盖并发初始化复用、失败重试、初始化超时清理、关闭中止和独立搜索超时。
+- `mvn "-Dtest=AgentScopeBilibiliMcpClientTest,BilibiliMcpWarmupTest,BilibiliMcpLiveTest" "-Ddiet.video-mcp.live=true" test`：13 项，0 failures/errors/skips，其中两项真实 B 站 MCP 搜索通过；新增 live 测试在预热完成后使用生产默认的 3 秒搜索预算。
+- 独立审查补充了“应用关闭时工厂晚返回”的资源释放竞争，回归先失败、修复后通过；晚返回 client 恰好关闭一次，不执行初始化或工具搜索。
+- `mvn "-Dtest=AgentScopeBilibiliMcpClientTest,BilibiliMcpWarmupTest" test`：12 项通过。
+- `mvn test`：202 项，0 failures/errors，9 项 opt-in/条件跳过。真实 MCP 已由上面的显式命令单独验证。
+- 完成关闭竞争修复后再次运行 `mvn "-Dtest=BilibiliMcpLiveTest" "-Ddiet.video-mcp.live=true" test`：两项真实搜索均通过，包括预热后 3 秒生产搜索预算；没有复现旧中断堆栈。
+
+这次 live 验证覆盖真实 client/provider/service 搜索，没有启动完整聊天 HTTP 应用。更新代码后需重新编译并重启 IDEA 中的应用，保留 `video-mcp` profile；等待 `Bilibili MCP ready; search tool verified` 日志后测试。预热未完成时的单次请求仍可能超时降级，不能将预热理解为永不超时。
+
+以下为 2026-10-02 的历史验收。
+
 日期：2026-10-02。
 
 ## 验收结论

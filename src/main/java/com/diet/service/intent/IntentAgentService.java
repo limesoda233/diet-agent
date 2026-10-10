@@ -7,12 +7,15 @@ import com.diet.model.IntentResult;
 import com.diet.model.SlotBundle;
 import com.diet.service.slot.SlotOptionService;
 import com.diet.service.trace.AgentTraceService;
+import com.diet.service.jev.JevIntentRecognitionService;
 import com.diet.util.LlmJsonService;
 import com.diet.util.SlotJsonPicker;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +26,7 @@ import java.util.Map;
  */
 @Service
 public class IntentAgentService {
+    private static final Logger log = LoggerFactory.getLogger(IntentAgentService.class);
 
     /** 按 sessionId 提供 IntentAgent 实例的工厂。 */
     private final AgentFactory agentFactory;
@@ -36,6 +40,9 @@ public class IntentAgentService {
     /** 链路追踪服务，callAgent 内部会记录 AGENT_CALL 事件。 */
     private final AgentTraceService agentTraceService;
 
+    /** Jev 结构化决策服务；未配置或低置信度时回退到原 IntentAgent。 */
+    private final JevIntentRecognitionService jevIntentRecognitionService;
+
     /** IntentAgent 使用的轻量模型名，来自配置 diet.llm.light-model。 */
     private final String modelName;
 
@@ -45,12 +52,14 @@ public class IntentAgentService {
             LlmJsonService llmJsonService,
             SlotOptionService slotOptionService,
             AgentTraceService agentTraceService,
+            JevIntentRecognitionService jevIntentRecognitionService,
             @Value("${diet.llm.light-model:deepseek-chat}") String modelName
     ) {
         this.agentFactory = agentFactory;
         this.llmJsonService = llmJsonService;
         this.slotOptionService = slotOptionService;
         this.agentTraceService = agentTraceService;
+        this.jevIntentRecognitionService = jevIntentRecognitionService;
         this.modelName = modelName;
     }
 
@@ -59,10 +68,47 @@ public class IntentAgentService {
      * 由 Orchestrator#handleTurn 调用，返回 IntentResult 供路由和槽位合并。
      */
     public IntentResult recognize(String sessionId, Long userId, String userInput, SlotBundle knownSlots, List<ConversationTurn> recentHistory) {
+        Map<String, List<String>> slotOptions;
         try {
             // 加载全部槽位字段的合法候选值 Map（mealTime/mood/scene 等 → 标签列表） ：把槽位字典传入prompt
-            Map<String, List<String>> slotOptions = slotOptionService.findAllOptions();
-            
+            slotOptions = slotOptionService.findAllOptions();
+        } catch (Exception error) {
+            return fallback(userInput);
+        }
+
+        if (jevIntentRecognitionService.available()) {
+            long startedAt = System.nanoTime();
+            try {
+                IntentResult jevResult = jevIntentRecognitionService.recognize(userInput, knownSlots, recentHistory, slotOptions);
+                agentTraceService.recordEvent(
+                        "JEV_INTENT_DECISION",
+                        "INTENT",
+                        Map.of("message", userInput == null ? "" : userInput),
+                        jevResult,
+                        elapsedMs(startedAt)
+                );
+                if (jevIntentRecognitionService.isAccepted(jevResult)) {
+                    return jevResult;
+                }
+                agentTraceService.recordEvent(
+                        "JEV_INTENT_FALLBACK",
+                        "INTENT",
+                        jevResult,
+                        Map.of("reason", "low_confidence")
+                );
+            } catch (RuntimeException error) {
+                log.warn("Jev intent recognition failed; falling back to the existing IntentAgent: {}", error.getMessage());
+                agentTraceService.recordEvent(
+                        "JEV_INTENT_FALLBACK",
+                        "INTENT",
+                        Map.of("message", userInput == null ? "" : userInput),
+                        Map.of("reason", safeError(error)),
+                        elapsedMs(startedAt)
+                );
+            }
+        }
+
+        try {
             // 从 AgentFactory 获取当前 session 绑定的 IntentAgent ReActAgent 实例
             ReActAgent agent = agentFactory.get(sessionId).intent();
             // 清空 Agent 内存，避免上一轮对话污染本轮意图识别
@@ -76,6 +122,15 @@ public class IntentAgentService {
             // LLM 超时/JSON 解析失败时不抛异常，走关键词 fallback 保证 Orchestrator 可继续
             return fallback(userInput);
         }
+    }
+
+    private long elapsedMs(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
+    }
+
+    private String safeError(RuntimeException error) {
+        String message = error.getMessage();
+        return message == null || message.isBlank() ? error.getClass().getSimpleName() : message;
     }
 
     /** 构造传给 IntentAgent 的用户 prompt，包含上下文和输出格式约束。 */
@@ -159,6 +214,9 @@ public class IntentAgentService {
         }
         if (containsAny(userInput, "三餐", "早中晚", "一周")) {
             return Intent.MEAL_PLAN;     // 多餐规划关键词
+        }
+        if (containsAny(userInput, "怎么做", "咋做", "如何做", "怎么弄", "咋弄", "做法", "菜谱", "食谱", "烹饪步骤", "制作步骤")) {
+            return Intent.RECIPE_QUERY;  // 具体菜品做法查询
         }
         if (containsAny(userInput, "你是谁", "你是 AI", "你好")) {
             return Intent.OTHER;      // 与饮食无关等关键词

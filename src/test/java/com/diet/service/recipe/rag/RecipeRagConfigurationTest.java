@@ -2,10 +2,21 @@ package com.diet.service.recipe.rag;
 
 import com.diet.service.recipe.rag.index.RecipeEmbeddingModel;
 import com.diet.service.recipe.rag.index.RecipeVectorIndex;
+import com.diet.service.recipe.rag.model.RecipeQuery;
 import com.diet.service.recipe.rag.retrieval.RecipeQueryRewriter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.model.ChatResponse;
+import io.agentscope.core.model.GenerateOptions;
+import io.agentscope.core.model.Model;
+import io.agentscope.core.model.ToolSchema;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import reactor.core.publisher.Flux;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,5 +47,39 @@ class RecipeRagConfigurationTest {
                     assertThat(context).hasSingleBean(RecipeVectorIndex.class);
                     assertThat(context).hasSingleBean(RecipeQueryRewriter.class);
                 });
+    }
+
+    @Test
+    void queryRewriteFlagSwitchesFromIdentityToLightModel() {
+        RecordingModel model = new RecordingModel();
+
+        contextRunner.withBean("DietLightChatModel", Model.class, () -> model)
+                .withPropertyValues(
+                        "diet.recipe-rag.enabled=true",
+                        "diet.recipe-rag.query-rewrite.enabled=true")
+                .run(context -> {
+                    RecipeQuery original = new RecipeQuery(
+                            "西红市炒鸡蛋咋做", List.of(), List.of(), List.of(), null);
+                    RecipeQuery actual = context.getBean(RecipeQueryRewriter.class).rewrite(original).block();
+
+                    assertThat(actual.text()).isEqualTo("西红柿炒鸡蛋 做法");
+                    assertThat(model.calls).hasValue(1);
+                });
+    }
+
+    private static final class RecordingModel implements Model {
+        private final AtomicInteger calls = new AtomicInteger();
+
+        @Override
+        public Flux<ChatResponse> stream(List<Msg> messages, List<ToolSchema> tools, GenerateOptions options) {
+            calls.incrementAndGet();
+            return Flux.just(ChatResponse.builder().content(List.of(
+                    TextBlock.builder().text("{\"query\":\"西红柿炒鸡蛋 做法\"}").build())).build());
+        }
+
+        @Override
+        public String getModelName() {
+            return "test-light-model";
+        }
     }
 }

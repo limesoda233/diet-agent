@@ -1,5 +1,6 @@
 package com.diet.evaluation.recipe;
-
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import com.diet.service.recipe.rag.RecipeRagProperties;
 import com.diet.service.recipe.rag.corpus.HowToCookMarkdownParser;
 import com.diet.service.recipe.rag.corpus.RecipeCorpusImporter;
@@ -34,6 +35,13 @@ class RecipeRetrievalEvaluationTest {
     void writesSevenExperimentReportWhenLiveDependenciesAreEnabled() {
         assumeTrue(Boolean.getBoolean("diet.recipe-rag.live"),
                 "Set -Ddiet.recipe-rag.live=true with HowToCook, Ollama and Qdrant available");
+        try {
+            Files.deleteIfExists(
+                    Path.of("target/evaluation/recipe/cases.txt")
+            );
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         Path corpusRoot = Path.of(requiredProperty("diet.recipe-rag.corpus-path"));
         RecipeRagProperties properties = properties();
         var importer = new RecipeCorpusImporter(new HowToCookMarkdownParser());
@@ -54,8 +62,10 @@ class RecipeRetrievalEvaluationTest {
         var retriever = new HybridRecipeRetriever(sparse, embedding, vector,
                 new RecipeParentResolver(corpus.documents()), Duration.ofSeconds(10), 20, 20, 10, 60);
         RecipeEvaluationDataset dataset = RecipeEvaluationDataset.load();
-        List<RecipeEvaluationDataset.Example> lockedTest = dataset.examples().stream()
-                .filter(example -> "test".equals(example.split())).toList();
+        List<RecipeEvaluationDataset.Example> lockedTest =
+                dataset.examples().stream()
+                        .filter(example -> "test".equals(example.split()))
+                        .toList();
         RecipeEvaluationRunner runner = new RecipeEvaluationRunner();
         List<RecipeEvaluationReport.ExperimentResult> experiments = new ArrayList<>();
         for (RecipeExperiment experiment : RecipeExperiment.values()) {
@@ -63,10 +73,57 @@ class RecipeRetrievalEvaluationTest {
                 RecipeQuery query = new RecipeQuery(example.query(), example.requiredIngredients(),
                         example.excludedIngredients(), example.requiredTools(), example.maxMinutes());
                 var result = retriever.retrieve(query, configured.mode()).block();
-                if (result == null) throw new IllegalStateException("recipe retrieval returned no signal");
-                return new RecipeEvaluationRunner.QueryResult(example,
-                        result.recipes().stream().map(recipe -> recipe.recipe().recipeId()).toList(),
-                        result.diagnostics().totalDurationMs(), !result.diagnostics().degradationReasons().isEmpty());
+
+                if (result == null) {
+                    throw new IllegalStateException("recipe retrieval returned no signal");
+                }
+
+// 取出实际检索出来的菜谱 ID
+                List<String> actualRecipeIds = result.recipes()
+                        .stream()
+                        .map(recipe -> recipe.recipe().recipeId())
+                        .toList();
+
+// ===== 临时调试：把每个 Case 的结果写入 UTF-8 文件 =====
+                StringBuilder debug = new StringBuilder();
+
+                debug.append("\n========================================\n");
+                debug.append("实验：").append(experiment).append("\n");
+                debug.append("Case ID：").append(example.queryId()).append("\n");
+                debug.append("类型：").append(example.slice()).append("\n");
+                debug.append("问题：").append(example.query()).append("\n");
+                debug.append("正确答案：").append(example.relevantRecipeIds()).append("\n");
+                debug.append("实际 Top10：\n");
+
+                for (int i = 0; i < Math.min(10, actualRecipeIds.size()); i++) {
+                    debug.append(i + 1)
+                            .append(". ")
+                            .append(actualRecipeIds.get(i))
+                            .append("\n");
+                }
+
+                try {
+                    Path debugFile = Path.of("target/evaluation/recipe/cases.txt");
+
+                    Files.createDirectories(debugFile.getParent());
+
+                    Files.writeString(
+                            debugFile,
+                            debug.toString(),
+                            StandardCharsets.UTF_8,
+                            java.nio.file.StandardOpenOption.CREATE,
+                            java.nio.file.StandardOpenOption.APPEND
+                    );
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+
+                return new RecipeEvaluationRunner.QueryResult(
+                        example,
+                        actualRecipeIds,
+                        result.diagnostics().totalDurationMs(),
+                        !result.diagnostics().degradationReasons().isEmpty()
+                );
             }));
         }
         Map<String, Object> answerMetrics = new LinkedHashMap<>();
@@ -91,7 +148,7 @@ class RecipeRetrievalEvaluationTest {
         properties.getEmbedding().setBaseUrl(System.getProperty("diet.recipe-rag.embedding.base-url", "http://localhost:11434"));
         properties.getEmbedding().setModelName(System.getProperty("diet.recipe-rag.embedding.model-name", "bge-m3:567m"));
         properties.getEmbedding().setDimensions(Integer.getInteger("diet.recipe-rag.embedding.dimensions", 1024));
-        properties.getQdrant().setBaseUrl(System.getProperty("diet.recipe-rag.qdrant.base-url", "http://localhost:6333"));
+        properties.getQdrant().setBaseUrl(System.getProperty("diet.recipe-rag.qdrant.base-url", "http://localhost:16333"));
         properties.getQdrant().setCollection(System.getProperty("diet.recipe-rag.qdrant.collection",
                 "diet_recipe_chunks_bge_m3_1024_eval"));
         return properties;

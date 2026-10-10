@@ -8,12 +8,17 @@ import com.diet.service.recipe.rag.index.RecipeSparseIndex;
 import com.diet.service.recipe.rag.index.RecipeVectorIndex;
 import com.diet.service.recipe.rag.retrieval.IdentityRecipeQueryRewriter;
 import com.diet.service.recipe.rag.retrieval.IdentityRecipeReranker;
+import com.diet.service.recipe.rag.retrieval.AgentScopeRecipeQueryRewriter;
 import com.diet.service.recipe.rag.retrieval.RecipeQueryRewriter;
 import com.diet.service.recipe.rag.retrieval.RecipeReranker;
+import com.diet.service.trace.AgentTraceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.embedding.EmbeddingModel;
 import io.agentscope.core.embedding.ollama.OllamaTextEmbedding;
 import io.agentscope.core.model.ExecutionConfig;
+import io.agentscope.core.model.Model;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -63,7 +68,23 @@ public class RecipeRagConfiguration {
     }
 
     @Bean
-    RecipeQueryRewriter recipeQueryRewriter(RecipeRagProperties properties) {
+    RecipeQueryRewriter recipeQueryRewriter(
+            RecipeRagProperties properties,
+            ObjectMapper objectMapper,
+            @Qualifier("DietLightChatModel") ObjectProvider<Model> lightModelProvider,
+            ObjectProvider<AgentTraceService> traceServiceProvider) {
+        if (properties.getQueryRewrite().isEnabled()) {
+            Model lightModel = lightModelProvider.getIfAvailable();
+            if (lightModel == null) {
+                throw new IllegalStateException(
+                        "diet.recipe-rag.query-rewrite.enabled=true requires DietLightChatModel");
+            }
+            return new AgentScopeRecipeQueryRewriter(
+                    lightModel,
+                    objectMapper,
+                    properties.getQueryRewrite().getTimeout(),
+                    traceServiceProvider.getIfAvailable());
+        }
         return RecipeQueryRewriter.withFallback(
                 new IdentityRecipeQueryRewriter(), properties.getQueryRewrite().getTimeout());
     }

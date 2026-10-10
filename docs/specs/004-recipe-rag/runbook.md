@@ -1,6 +1,8 @@
 # 菜谱 RAG 运行手册
 
-本手册对应阶段 004。当前边界是：餐食推荐只查 MySQL；公共菜谱问答才使用 Lucene、embedding 和 Qdrant；个人餐食做法保存在 MySQL `meal_knowledge`；视频搜索只有 disabled/fake provider 契约。
+> 本文保留阶段 004 的基础操作。真实视频 MCP 以阶段 005 为准，并行编排/Ragas 以阶段 006 为准，模型查询改写以阶段 007 为准；完整练习顺序见 [学习手册](../../guides/recipe-rag-mcp-evaluation.md)。
+
+本手册对应公共菜谱 RAG。餐食推荐只查 MySQL；公共菜谱问答才使用 Lucene、embedding 和 Qdrant；个人餐食做法保存在 MySQL `meal_knowledge`；真实视频搜索见阶段 005。
 
 ## 固定版本
 
@@ -20,16 +22,16 @@ PowerShell：
 
 ```powershell
 $env:GIT_LFS_SKIP_SMUDGE = "1"
-git clone --depth 1 --branch 1.6.0 -c core.hooksPath=NUL https://github.com/Anduin2017/HowToCook.git E:/data/HowToCook
-git -C E:/data/HowToCook rev-parse HEAD
+git clone --depth 1 --branch 1.6.0 -c core.hooksPath=NUL https://github.com/Anduin2017/HowToCook.git E:/Mycode/HowToCook
+git -C E:/Mycode/HowToCook rev-parse HEAD
 ```
 
 Bash：
 
 ```bash
 GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --branch 1.6.0 -c core.hooksPath=/dev/null \
-  https://github.com/Anduin2017/HowToCook.git /data/HowToCook
-git -C /data/HowToCook rev-parse HEAD
+  https://github.com/Anduin2017/HowToCook.git /Mycode/HowToCook
+git -C /Mycode/HowToCook rev-parse HEAD
 ```
 
 输出必须是 `a0b14bd388ee996943173679c3a7c9db7da04a6c`。索引只读取 `dishes/**/*.md`，不需要图片 LFS 对象。
@@ -45,7 +47,7 @@ docker compose -f compose.retrieval-dev.yml up -d qdrant
 
 ```powershell
 Invoke-RestMethod http://localhost:11434/api/tags
-Invoke-RestMethod http://localhost:6333/collections
+Invoke-RestMethod http://localhost:16333/collections
 ```
 
 collection 默认名为 `diet_recipe_chunks_bge_m3_1024`。已有 collection 的向量维度不是 1024 时，构建会明确失败；不要复用不同 embedding 模型的 collection。
@@ -53,10 +55,10 @@ collection 默认名为 `diet_recipe_chunks_bge_m3_1024`。已有 collection 的
 ## 3. 构建双索引
 
 ```powershell
-mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe-rag --diet.recipe-rag.enabled=true --recipe-rag-index=E:/data/HowToCook"
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe-rag --diet.recipe-rag.enabled=true --recipe-rag-index=E:/Mycode/HowToCook"
 ```
 
-命令依次完成：固定语料解析、稳定父子 ID、全部 embedding、Lucene 暂存版本、Qdrant 暂存版本、双索引激活。任一构建失败时保留上一活动版本，并清理本次未激活版本。成功后应用上下文自动关闭。
+命令依次完成：固定语料解析、稳定父子 ID、全部 embedding、Lucene 暂存版本、Qdrant 暂存版本、双索引激活。任一构建失败时保留上一活动版本，并清理本次未激活版本。看到 `Recipe index activated` 后本轮构建已完成；当前 Spring 上下文仍会继续运行，可按 `Ctrl+C` 结束后再正式启动应用。
 
 索引版本由语料哈希、解析器版本、embedding 模型和维度共同决定。Qdrant point ID 同时包含索引版本与 chunk ID，失败的新版本不会覆盖旧版本 payload。
 
@@ -65,7 +67,7 @@ mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe
 先按主 README 配置 MySQL 和主聊天模型，再运行：
 
 ```powershell
-mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe-rag --diet.recipe-rag.enabled=true --diet.recipe-rag.corpus-path=E:/data/HowToCook"
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe-rag --diet.recipe-rag.enabled=true --diet.recipe-rag.corpus-path=E:/Mycode/HowToCook"
 ```
 
 关键配置见 `src/main/resources/application-recipe-rag.yml`：
@@ -75,10 +77,18 @@ mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe
 | `diet.recipe-rag.enabled` | `false` | 公共菜谱 RAG 总开关 |
 | `diet.recipe-rag.retrieval.mode` | `parallel_hybrid` | `sparse_only`、`dense_only`、`serial_hybrid` 或 `parallel_hybrid` |
 | `diet.recipe-rag.retrieval.branch-timeout` | `2s` | BM25/dense 独立超时 |
-| `diet.recipe-rag.query-rewrite.enabled` | `false` | 查询改写扩展点；默认 identity |
+| `diet.recipe-rag.query-rewrite.enabled` | `false` | `false` 为 identity；`true` 使用 `DietLightChatModel` 做单轮改写，失败回退原查询 |
 | `diet.recipe-rag.rerank.enabled` | `false` | 重排扩展点；默认 identity |
 
 普通推荐在 RAG 关闭、Ollama/Qdrant/Lucene 不可用时仍只使用 MySQL。
+
+启用真实查询改写的学习命令：
+
+```powershell
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe-rag --diet.recipe-rag.enabled=true --diet.recipe-rag.corpus-path=E:/Mycode/HowToCook --diet.recipe-rag.query-rewrite.enabled=true --diet.recipe-rag.query-rewrite.timeout=10s"
+```
+
+改写只影响检索文本，结构化食材/工具/时间约束保持原值，回答生成仍收到用户原问题。生产默认超时为 2 秒；10 秒仅用于首次本地观察。
 
 ## 5. 请求示例
 
@@ -109,7 +119,7 @@ mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe
 }
 ```
 
-`recipeQuery` 只允许 `mealId`、`query`、`requiredIngredients`、`excludedIngredients`。存在个人 `meal_knowledge` 时优先回答；没有时用餐食名称查公共 RAG。未知字段被拒绝。
+`recipeQuery` 只允许 `mealId`、`query`、`requiredIngredients`、`excludedIngredients`、`requiredTools`、`maxMinutes`。存在个人 `meal_knowledge` 时优先回答；没有时用餐食名称查公共 RAG。未知字段被拒绝。
 
 ## 6. 视频搜索契约
 
@@ -125,7 +135,7 @@ mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe
 {"videoSearch":{"query":"宫保鸡丁","platform":"BILIBILI","limit":3}}
 ```
 
-工具契约名为 `search_cooking_videos`，平台只允许 `BILIBILI`、`DOUYIN`、`ANY`，limit 为 1～10。fake URL 使用 `example.invalid`。当前没有访问真实平台，也没有平台凭据或抓取逻辑。
+业务契约名为 `search_cooking_videos`，平台参数允许 `BILIBILI`、`DOUYIN`、`ANY`，limit 为 1～10。fake URL 使用 `example.invalid`。启用 `video-mcp` profile 后，真实 provider 调用 Bilibili MCP 的 `search_videos`；当前抖音明确返回未配置，具体启动与验证见阶段 005 运行手册。
 
 ## 7. 评测
 
@@ -135,20 +145,37 @@ mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe
 mvn "-Dtest=RecipeRetrievalMetricsTest,RecipeAnswerMetricsTest,RecipeEvaluationDatasetTest,RecipeParallelLatencyTest" test
 ```
 
+菜谱评测默认加载 v2：90 条查询、显式检索/回答期望、多 Gold、near-OOD，并按 Gold 菜谱实体隔离 dev/test。复现历史 v1 时增加：
+
+```powershell
+"-Ddiet.recipe-evaluation.version=v1"
+```
+
 验证 qrels 与固定语料 ID：
 
 ```powershell
-mvn "-Dtest=RecipeEvaluationDatasetTest" "-Ddiet.recipe-rag.corpus-path=E:/data/HowToCook" test
+mvn "-Dtest=RecipeEvaluationDatasetTest" "-Ddiet.recipe-rag.corpus-path=E:/Mycode/HowToCook" test
 ```
 
 真实 Ollama/Qdrant 七组实验：
 
 ```powershell
 mvn "-Dtest=RecipeRetrievalEvaluationTest" "-Ddiet.recipe-rag.live=true" `
-  "-Ddiet.recipe-rag.corpus-path=E:/data/HowToCook" test
+  "-Ddiet.recipe-rag.corpus-path=E:/Mycode/HowToCook" test
 ```
 
-报告写入 `target/evaluation/recipe/report.json`。报告分别列出 Recall@1/5/10、MRR@10、nDCG@10、Parent Recall、重复率、空结果率、p50/p95、降级次数和切片指标。回答引用覆盖、证据支持率和拒答准确率独立计算，不合并成不透明总分。查询改写与重排没有配置模型 provider 时是 identity 基线，报告不得把它们描述成模型增益。
+报告写入 `target/evaluation/recipe/report.json`。报告记录数据集版本、fingerprint、有效语料文档数、正向查询数、唯一 Gold、多 Gold 数以及单条 test 的最大百分点影响；实验结果分别列出 Recall@1/5/10、MRR@10、nDCG@10、Parent Recall、重复率、空结果率、near-OOD 误召回率、p50/p95、降级次数和切片指标。`REFUSE_OUT_OF_CORPUS` 与 `REFUSE_UNSUPPORTED` 分开解释，后者仍参与检索指标。历史七组报告的 rewrite/rerank 标签仍按 identity 口径解释，不能改写成模型增益。
+
+真实 query rewrite 只在 dev split 做显式对照：
+
+```powershell
+mvn "-Dtest=RecipeQueryRewriteEvaluationTest" `
+  "-Ddiet.recipe-rewrite.live=true" `
+  "-Ddiet.recipe-rag.corpus-path=E:/Mycode/HowToCook" `
+  "-Ddiet.recipe-rewrite-evaluation.limit=12" test
+```
+
+报告写入 `target/evaluation/recipe/rewrite-dev-report.json`，包含每条原查询、实际查询、两套 Top10、Gold 和改写耗时，以及两组聚合指标。该入口不读取锁定 test 做调参，也不修改 qrels。
 
 ### Ragas 回答质量基线（显式启用）
 

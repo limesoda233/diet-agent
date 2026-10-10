@@ -12,6 +12,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * 将命中的子块恢复成完整父菜谱，避免只把某一步或某个食材片段交给回答模型。
+ * 按融合顺序过滤，保留命中的子块作为诊断证据，再取 finalTopK 道父菜谱。
+ * 目前食材与工具匹配依赖文本包含，尚非完整实体归一化；maxMinutes 未在此实现严格过滤。
+ */
 public class RecipeParentResolver {
     private final Map<String, RecipeDocument> documents;
 

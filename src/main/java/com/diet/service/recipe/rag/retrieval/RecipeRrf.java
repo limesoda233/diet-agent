@@ -10,6 +10,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Reciprocal Rank Fusion：只使用名次，避免直接相加 BM25 与 cosine 的不同量纲分数。
+ * 同一菜谱可命中多个子块，每个分支只保留它排名最高的一个，避免长文档靠块数刷分。
+ * 分数为两支 1/(常数 + 名次) 的和；未命中某支时该支贡献为 0。
+ * RRF 分数是排序依据，不是“相关概率”，不能直接当作置信度阈值。
+ */
 public final class RecipeRrf {
     private RecipeRrf() {
     }
@@ -28,8 +34,24 @@ public final class RecipeRrf {
         for (String parentId : parentIds) {
             RecipeHit sparseHit = sparseParents.get(parentId);
             RecipeHit denseHit = denseParents.get(parentId);
-            double score = reciprocal(sparseHit, rankConstant) + reciprocal(denseHit, rankConstant);
+
+            double sparseScore = reciprocal(sparseHit, rankConstant);
+            double denseScore = reciprocal(denseHit, rankConstant);
+            double score = sparseScore + denseScore;
+
             RecipeHit representative = chooseRepresentative(sparseHit, denseHit);
+
+            System.out.printf(
+                    "title=%s parent=%s sparseRank=%s denseRank=%s sparseRrf=%.5f denseRrf=%.5f total=%.5f%n",
+                    representative.title(),
+                    parentId,
+                    sparseHit == null ? "-" : sparseHit.rank(),
+                    denseHit == null ? "-" : denseHit.rank(),
+                    sparseScore,
+                    denseScore,
+                    score
+            );
+
             scored.add(new ScoredHit(representative, score));
         }
         scored.sort(Comparator.comparingDouble(ScoredHit::score).reversed()
@@ -44,8 +66,12 @@ public final class RecipeRrf {
                     hit.text(), value.score(), index + 1, "RRF"));
         }
         return List.copyOf(result);
+
+
+
     }
 
+    /** 按原始 rank 去重；相同排名用稳定 chunk ID 打破平局，保证可复现。 */
     private static Map<String, RecipeHit> bestPerParent(List<RecipeHit> hits) {
         Map<String, RecipeHit> result = new LinkedHashMap<>();
         hits.stream().sorted(Comparator.comparingInt(RecipeHit::rank).thenComparing(RecipeHit::chunkId))

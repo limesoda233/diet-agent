@@ -8,10 +8,10 @@ diet:
       base-url: http://localhost:11434
       model-name: bge-m3:567m
       dimensions: 1024
-      timeout: 3s
+      timeout: 30s
       max-attempts: 1
     qdrant:
-      base-url: http://localhost:6333
+      base-url: http://localhost:16333
       collection: diet_recipe_chunks_bge_m3_1024
       api-key: ${QDRANT_API_KEY:}
       timeout: 3s

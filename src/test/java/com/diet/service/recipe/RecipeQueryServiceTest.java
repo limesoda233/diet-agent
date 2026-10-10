@@ -114,6 +114,32 @@ class RecipeQueryServiceTest {
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("temperature");
     }
 
+    @Test
+    void usesRewrittenQueryForRetrievalButOriginalQuestionForAnswerGeneration() {
+        RecipeQueryRewriter rewriter = original -> Mono.just(new RecipeQuery(
+                "酸辣土豆丝 做法", original.requiredIngredients(), original.excludedIngredients(),
+                original.requiredTools(), original.maxMinutes()));
+        RecipeReranker reranker = (query, recipes) -> Mono.just(recipes);
+        service = new RecipeQueryService(new RecipeQueryRouter(), knowledge, meals, rewriter,
+                retriever, reranker, generator, new RecipeRagProperties());
+        var document = new RecipeDocument("r1", "酸辣土豆丝", List.of(), List.of("土豆"),
+                List.of("炒制"), "", Map.of(), "path.md", "commit", "hash");
+        var retrieval = new RecipeRetrievalResult(List.of(new RetrievedRecipe(document, 1, List.of())), null);
+        when(retriever.retrieve(any(), any())).thenReturn(Mono.just(retrieval));
+        when(generator.generate(eq("s"), any(), any())).thenReturn(
+                new RecipeAnswer("答案", List.of(), false, Map.of()));
+
+        service.answer("s", 7L, "马铃薯丝怎么炒得酸辣", Map.of(
+                "recipeQuery", Map.of("query", "马铃薯丝怎么炒得酸辣")));
+
+        var retrievalQuery = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(retriever).retrieve(retrievalQuery.capture(), any());
+        assertThat(retrievalQuery.getValue().text()).isEqualTo("酸辣土豆丝 做法");
+        var answerQuery = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(generator).generate(eq("s"), answerQuery.capture(), any());
+        assertThat(answerQuery.getValue().text()).isEqualTo("马铃薯丝怎么炒得酸辣");
+    }
+
     private RecipeRetrievalResult emptyRetrieval() {
         return new RecipeRetrievalResult(List.of(), null);
     }

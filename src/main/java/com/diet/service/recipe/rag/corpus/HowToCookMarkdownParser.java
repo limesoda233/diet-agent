@@ -10,6 +10,12 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * 针对固定 HowToCook Markdown 约定的解析器，并非通用文档解析平台。
+ * 一级标题给出菜名，二级章节提供食材与步骤；步骤的嵌套列表合并回上一条，保留操作解释。
+ * 缺少标题、食材或步骤时返回 empty，由导入器跳过，不能把目录页当作有效菜谱。
+ * 清理链接和行内标记只是便于检索，不推断原文未提供的营养、工具或时长事实。
+ */
 public class HowToCookMarkdownParser {
 
     private static final Pattern HEADING = Pattern.compile("^##\\s+(.+?)\\s*$");

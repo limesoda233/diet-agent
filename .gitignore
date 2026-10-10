@@ -8,6 +8,28 @@ src/main/resources/application-*.local.yml
 ### Local tooling ###
 /.agents/
 /.idea/
+/.superpowers/
+
+### Rebuildable local corpus/index and experiments ###
+/data/
+/tmp/
+/logs/
+*.log
+
+### Python / Ragas caches (keep pyproject.toml and uv.lock) ###
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+*.py[cod]
+*.egg-info/
+
+### OS / editor residue ###
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
 
 target/
 !.mvn/wrapper/maven-wrapper.jar
