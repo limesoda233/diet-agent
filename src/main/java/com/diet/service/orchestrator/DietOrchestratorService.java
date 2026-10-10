@@ -402,7 +402,7 @@ public class DietOrchestratorService {
             try {
                 var answer = recipeQueryService.answer(sessionId, userId, message, finalContext);
                 agentTraceService.recordEvent("RECIPE_ANSWER_READY", "RECIPE_RAG", null,
-                        Map.of("refused", answer.refused(), "citationCount", answer.citations().size()));
+                        recipeAnswerTrace(answer));
                 ChatResponse response = completeRecipeResponse(sessionId, traceId, state, answer.text(), List.of());
                 agentTraceService.recordEvent("RESPONSE_READY", "RESPONSE", null, response);
                 return response;
@@ -456,8 +456,9 @@ public class DietOrchestratorService {
             case TIMEOUT -> "VIDEO_MCP_TIMEOUT";
             default -> "VIDEO_MCP_FAILED";
         };
-        agentTraceService.recordEvent(recipeEvent, "RECIPE_RAG", null,
-                branchTrace(recipe, "citationCount", citations));
+        Map<String, Object> recipeTrace = new LinkedHashMap<>(branchTrace(recipe, "citationCount", citations));
+        if (recipe.value() != null) recipeTrace.putAll(recipeAnswerTrace(recipe.value()));
+        agentTraceService.recordEvent(recipeEvent, "RECIPE_RAG", null, recipeTrace);
         agentTraceService.recordEvent(videoEvent, "VIDEO_MCP", null,
                 branchTrace(video, "videoCount", videos.size()));
 
@@ -482,6 +483,16 @@ public class DietOrchestratorService {
                         "responseType", response.responseType()));
         agentTraceService.recordEvent("RESPONSE_READY", "RESPONSE", null, response);
         return response;
+    }
+
+    private Map<String, Object> recipeAnswerTrace(com.diet.service.recipe.rag.model.RecipeAnswer answer) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("refused", answer.refused());
+        payload.put("citationCount", answer.citations().size());
+        for (String key : List.of("answerPurpose", "generation")) {
+            if (answer.diagnostics().get(key) instanceof String value) payload.put(key, value);
+        }
+        return payload;
     }
 
     private Map<String, Object> branchTrace(BranchOutcome<?> outcome, String countKey, int count) {

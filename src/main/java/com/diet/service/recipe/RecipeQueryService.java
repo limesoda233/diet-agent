@@ -7,6 +7,7 @@ import com.diet.service.meal.knowledge.MealKnowledgeRepository;
 import com.diet.service.recipe.rag.RecipeRagProperties;
 import com.diet.service.recipe.rag.answer.RecipeAnswerGenerator;
 import com.diet.service.recipe.rag.model.RecipeAnswer;
+import com.diet.service.recipe.rag.model.RecipeAnswerPurpose;
 import com.diet.service.recipe.rag.model.RecipeCitation;
 import com.diet.service.recipe.rag.model.RecipeQuery;
 import com.diet.service.recipe.rag.model.RecipeRetrievalResult;
@@ -111,7 +112,10 @@ public class RecipeQueryService {
             RecipeRetrievalResult retrieval = retriever.retrieve(rewritten, configuredMode()).block();
             // 没有本轮证据时不调用 Answer Agent，即使模型“知道这道菜”也不补写。
             if (retrieval == null || retrieval.recipes().isEmpty()) {
-                return RecipeAnswer.refused(NO_EVIDENCE, retrievalDiagnostics(retrieval, "no_evidence"));
+                Map<String, Object> diagnostics = retrievalDiagnostics(retrieval, "no_evidence");
+                diagnostics.put("answerPurpose", RecipeAnswerPurpose.fromText(query.text()).name());
+                diagnostics.put("generation", "not_called");
+                return RecipeAnswer.refused(NO_EVIDENCE, diagnostics);
             }
             List<com.diet.service.recipe.rag.model.RetrievedRecipe> reranked =
                     reranker.rerank(rewritten, retrieval.recipes()).block();
