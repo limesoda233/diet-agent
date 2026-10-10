@@ -99,6 +99,77 @@ class MealDraftServiceTest {
         assertThatThrownBy(() -> service("{}").generate("改一改",previous)).isInstanceOf(DietException.class);
     }
 
+    @Test void historicalEvidenceCannotRestoreClearedMealTime() {
+        var previous = service(COMPLETE).generate("宫保鸡丁，中午吃，微辣，鸡肉和花生");
+        var cleared = service("{\"mealTime\":[]}").generate("清空餐次",previous);
+        assertThat(cleared.data().mealTime()).isEmpty();
+        var updated = service("""
+                {"taste":[{"value":"清淡","evidence":"清淡"}],
+                 "mealTime":[{"value":"午餐","evidence":"中午吃"}]}
+                """).generate("改成清淡",cleared);
+        assertThat(updated.data().mealTime()).isEmpty();
+        assertThat(updated.evidence()).doesNotContainKey("mealTime");
+        assertThat(updated.status()).isEqualTo(MealDraftStatus.NEEDS_INPUT);
+        assertThat(updated.warnings()).anyMatch(w -> w.contains("mealTime"));
+    }
+
+    @Test void historicalEvidenceCannotOverwriteModifiedMealTime() {
+        var previous = service(COMPLETE).generate("宫保鸡丁，中午吃，微辣，鸡肉和花生");
+        var modified = service("{\"mealTime\":[{\"value\":\"晚餐\",\"evidence\":\"晚餐\"}]}")
+                .generate("改成晚餐",previous);
+        var updated = service("""
+                {"taste":[{"value":"清淡","evidence":"清淡"}],
+                 "mealTime":[{"value":"午餐","evidence":"中午吃"}]}
+                """).generate("改成清淡",modified);
+        assertThat(updated.data().mealTime()).containsExactly("晚餐");
+        assertThat(updated.evidence().get("mealTime")).containsExactly("晚餐");
+        assertThat(updated.warnings()).anyMatch(w -> w.contains("mealTime"));
+    }
+
+    @ParameterizedTest @ValueSource(strings = {
+            "{\"mealTime\":[{\"value\":\"宵夜\",\"evidence\":\"宵夜\"}]}",
+            "{\"mealTime\":[{\"value\":\"晚餐\",\"evidence\":\"晚上\"}]}",
+            "{\"name\":{\"value\":\"炒面\",\"evidence\":\"炒面\"}}"})
+    void rejectedNonemptyUpdatesPreserveExistingValuesAndEvidence(String response) {
+        var previous = service(COMPLETE).generate("宫保鸡丁，中午吃，微辣，鸡肉和花生");
+        var updated = service(response).generate("改成清淡",previous);
+        assertThat(updated.data().name()).isEqualTo("宫保鸡丁");
+        assertThat(updated.data().mealTime()).containsExactly("午餐");
+        assertThat(updated.evidence().get("name")).containsExactly("宫保鸡丁");
+        assertThat(updated.evidence().get("mealTime")).containsExactly("中午吃");
+        assertThat(updated.status()).isEqualTo(MealDraftStatus.READY);
+        assertThat(updated.warnings()).isNotEmpty();
+    }
+
+    @Test void emptyScalarUpdatesDoNotClearNameOrPreparation() {
+        var previous = service("""
+                {"name":{"value":"鸡丁","evidence":"鸡丁"},
+                 "mealTime":[{"value":"午餐","evidence":"中午"}],
+                 "preparation":{"value":"先腌后炒","evidence":"先腌后炒"}}
+                """).generate("鸡丁，中午，先腌后炒");
+        var updated = service("{\"name\":{\"value\":\"\",\"evidence\":\"\"},\"preparation\":{\"value\":\"\",\"evidence\":\"\"}}")
+                .generate("调整一下",previous);
+        assertThat(updated.data().name()).isEqualTo("鸡丁");
+        assertThat(updated.data().knowledge().preparation()).isEqualTo("先腌后炒");
+        assertThat(updated.evidence().get("preparation")).containsExactly("先腌后炒");
+        assertThat(updated.warnings()).hasSize(2);
+    }
+
+    @Test void rejectedKnowledgeUpdatesPreserveExistingUserKnowledge() {
+        var previous = service("""
+                {"name":{"value":"鸡丁","evidence":"鸡丁"},
+                 "ingredients":[{"value":"鸡肉","evidence":"鸡肉"}],
+                 "preparation":{"value":"先腌后炒","evidence":"先腌后炒"}}
+                """).generate("鸡丁，鸡肉，先腌后炒");
+        var updated = service("""
+                {"ingredients":[{"value":"牛肉","evidence":"牛肉"}],
+                 "preparation":{"value":"煮熟","evidence":"煮熟"}}
+                """).generate("调整一下",previous);
+        assertThat(updated.data().knowledge().ingredients()).containsExactly("鸡肉");
+        assertThat(updated.data().knowledge().preparation()).isEqualTo("先腌后炒");
+        assertThat(updated.warnings()).hasSize(2);
+    }
+
     @ParameterizedTest @ValueSource(strings = {"not json", "{}", "[]", "null", "{\"name\":1}",
             "{\"ownerUserId\":2}", "{\"sourceType\":\"PUBLIC\"}", "{\"mealId\":1}",
             "{\"multipleMeals\":true}", "{\"multipleMeals\":\"false\"}",

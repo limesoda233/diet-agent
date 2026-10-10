@@ -16,6 +16,46 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class MealDraftControllerTest {
+    @Test void modelDietExceptionCannotLeakPrivateTextThroughFailureResponseOrTrace() throws Exception {
+        ObjectMapper json = new ObjectMapper(); var mapper = mock(AgentTraceMapper.class);
+        var trace = new AgentTraceService(mapper,json);
+        String privateDetails = "私人做法和健康信息 private-key-456";
+        var service = new MealDraftService((s,u) -> Mono.error(new com.diet.exception.DietException(privateDetails)),
+                MealDraftServiceTest.options(),json,new MealIntakeProperties(),trace);
+        var mvc = MockMvcBuilders.standaloneSetup(new MealDraftController(service,trace)).build();
+        var response = mvc.perform(post("/api/v1/diet/meals/personal/draft").contentType("application/json")
+                .content(json.writeValueAsString(java.util.Map.of("text",privateDetails))))
+                .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(response).doesNotContain(privateDetails,"private-key-456");
+        var row = ArgumentCaptor.forClass(RequestTraceRow.class); verify(mapper).insert(row.capture());
+        assertThat(row.getValue().getTraceJson()).doesNotContain(privateDetails,"private-key-456");
+    }
+
+    @Test void successAndFailureTracesContainMetadataWithoutPrivateInput() throws Exception {
+        ObjectMapper json = new ObjectMapper();
+        var mapper = mock(AgentTraceMapper.class);
+        var trace = new AgentTraceService(mapper,json);
+        String privateText = "宫保鸡丁，中午吃，微辣，鸡肉和花生；私人做法先腌十分钟；我有糖尿病；误贴密钥private-key-123";
+        var service = new MealDraftService((s,u) -> u.contains("失败")
+                ? Mono.error(new IllegalStateException(privateText)) : Mono.just(MealDraftServiceTest.COMPLETE),
+                MealDraftServiceTest.options(),json,new MealIntakeProperties(),trace);
+        var mvc = MockMvcBuilders.standaloneSetup(new MealDraftController(service,trace)).build();
+        mvc.perform(post("/api/v1/diet/meals/personal/draft").contentType("application/json")
+                .content(json.writeValueAsString(java.util.Map.of("text",privateText))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.originalText").value(privateText));
+        mvc.perform(post("/api/v1/diet/meals/personal/draft").contentType("application/json")
+                .content(json.writeValueAsString(java.util.Map.of("text",privateText+"失败"))))
+                .andExpect(status().isBadRequest());
+        var rows = ArgumentCaptor.forClass(RequestTraceRow.class); verify(mapper,times(2)).insert(rows.capture());
+        assertThat(rows.getAllValues()).allSatisfy(row -> assertThat(row.getTraceJson())
+                .contains("inputChars").doesNotContain("宫保鸡丁","先腌十分钟","糖尿病","private-key-123"));
+        var events = json.readTree(rows.getAllValues().get(0).getTraceJson()).path("events");
+        var input = json.readTree(events.get(1).path("inputPayload").asText());
+        assertThat(input.path("inputChars").intValue()).isEqualTo(privateText.length());
+        assertThat(input.has("text")).isFalse();
+        assertThat(rows.getAllValues().get(1).getStatus()).isEqualTo("FAILED");
+    }
+
     @Test void routeReturnsDraftAndWritesOnlySyntheticTrace() throws Exception {
         ObjectMapper json = new ObjectMapper();
         AgentTraceMapper mapper = mock(AgentTraceMapper.class);
