@@ -95,6 +95,19 @@ class MealDraftServiceTest {
         }
     }
 
+    @ParameterizedTest @ValueSource(strings = {"、", "，", ",", "。", ".", "；", ";"})
+    void ingredientSupplementAndMealTimeEditSeparatedByPunctuationRemainIndependent(String separator) {
+        var previous = service("{\"ingredients\":[{\"value\":\"番茄\",\"evidence\":\"番茄\"}]}")
+                .generate("原来食材有番茄");
+        String response = "{\"ingredients\":[{\"value\":\"鸡蛋\",\"evidence\":\"鸡蛋\"}],\"mealTime\":[{\"value\":\"晚餐\",\"evidence\":\"晚餐\"}]}";
+        for (String turn : List.of("餐次改成晚餐"+separator+"食材补充鸡蛋", "食材补充鸡蛋"+separator+"餐次改成晚餐")) {
+            var updated = service(response).generate(turn,previous);
+            assertThat(updated.data().knowledge().ingredients()).containsExactly("番茄","鸡蛋");
+            assertThat(updated.evidence().get("ingredients")).containsExactly("番茄","鸡蛋");
+            assertThat(updated.data().mealTime()).containsExactly("晚餐");
+        }
+    }
+
     @Test void doesNotLaunderPreviousDraftWithoutEvidence() {
         var previous = new MealDraft("d", "中午", new MealDraftData("伪造菜名", List.of("午餐"),
                 List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),null), List.of(),List.of(),
