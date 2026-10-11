@@ -11,11 +11,16 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /** Stateless extraction and validation. This service has no meal or session write dependency. */
 public class MealDraftService {
     private static final Set<String> FIELDS = Set.of("name","mealTime","mood","scene","healthGoal",
             "cuisine","taste","convenience","ingredients","preparation","multipleMeals");
+    private static final Pattern SHORT_MEAL_TIME_EDIT = Pattern.compile(
+            "(?:(?:去掉|删除|清空|改成|改为|换成)(?:早餐|午餐|晚餐|早上|上午|中午|晚上))"
+            + "|(?:(?:把|将)?(?:早餐|午餐|晚餐|早上|上午|中午|晚上)"
+            + "(?:去掉|删除|清空|改成|改为|换成)(?:早餐|午餐|晚餐|早上|上午|中午|晚上)?)");
     private static final String PROMPT = """
             你只整理用户明确提供的单道个人餐食，不回答菜谱、不猜菜名、菜系、营养或未提到的标签。
             只输出一个JSON对象，不要Markdown或解释。仅允许以下稀疏字段：
@@ -133,7 +138,8 @@ public class MealDraftService {
         boolean ingredientField = false;
         for (String clause : text.split("[\\r\\n、，,。.；;！!？?]+|(?=(?:食材|原料|配料|餐次|菜名|名字|口味|做法|描述|心情|场景|菜系|健康目标|便捷度)(?:修改|改成|改为|补充|添加|加上|清空|去掉|删除))")) {
             if (clause.matches(".*(?:食材|原料|配料).*")) ingredientField = true;
-            else if (clause.matches(".*(?:餐次|菜名|名字|口味|做法|描述|心情|场景|菜系|健康目标|便捷度).*")) ingredientField = false;
+            else if (clause.matches(".*(?:餐次|菜名|名字|口味|做法|描述|心情|场景|菜系|健康目标|便捷度).*")
+                    || SHORT_MEAL_TIME_EDIT.matcher(clause.trim()).matches()) ingredientField = false;
             if (!ingredientField) continue;
             if (clause.matches(".*(?:改成|改为|替换|换成|清空|去掉|删除).*")) return false;
             if (clause.matches(".*(?:补充|添加|加上|再加).*")) additive = true;
