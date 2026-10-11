@@ -108,6 +108,24 @@ class MealDraftServiceTest {
         }
     }
 
+    @Test void ingredientRemovalContinuationReplacesPriorIngredientList() {
+        var previous = service("{\"ingredients\":[{\"value\":\"番茄\",\"evidence\":\"番茄\"}]}")
+                .generate("原来食材有番茄");
+        var updated = service("{\"ingredients\":[{\"value\":\"鸡蛋\",\"evidence\":\"鸡蛋\"}]}")
+                .generate("食材补充鸡蛋、去掉番茄",previous);
+        assertThat(updated.data().knowledge().ingredients()).containsExactly("鸡蛋");
+        assertThat(updated.evidence().get("ingredients")).containsExactly("鸡蛋");
+    }
+
+    @Test void removalContinuationAfterMealTimeEditDoesNotReplaceIngredients() {
+        var previous = service("{\"ingredients\":[{\"value\":\"番茄\",\"evidence\":\"番茄\"}],\"mealTime\":[{\"value\":\"午餐\",\"evidence\":\"午餐\"}]}")
+                .generate("原来食材有番茄，午餐吃");
+        var updated = service("{\"ingredients\":[{\"value\":\"鸡蛋\",\"evidence\":\"鸡蛋\"}],\"mealTime\":[{\"value\":\"晚餐\",\"evidence\":\"晚餐\"}]}")
+                .generate("食材补充鸡蛋、餐次改成晚餐、去掉午餐",previous);
+        assertThat(updated.data().knowledge().ingredients()).containsExactly("番茄","鸡蛋");
+        assertThat(updated.data().mealTime()).containsExactly("晚餐");
+    }
+
     @Test void doesNotLaunderPreviousDraftWithoutEvidence() {
         var previous = new MealDraft("d", "中午", new MealDraftData("伪造菜名", List.of("午餐"),
                 List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),null), List.of(),List.of(),

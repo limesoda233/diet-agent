@@ -130,8 +130,11 @@ public class MealDraftService {
 
     private boolean additiveIngredients(String text) {
         boolean additive = false;
-        for (String clause : text.split("[\\r\\n、，,。.；;！!？?]+|(?=(?:餐次|菜名|名字|口味|做法|描述|心情|场景|菜系|健康目标|便捷度)(?:修改|改成|改为|补充|添加|加上|清空|去掉|删除))")) {
-            if (!clause.matches(".*(?:食材|原料|配料).*")) continue;
+        boolean ingredientField = false;
+        for (String clause : text.split("[\\r\\n、，,。.；;！!？?]+|(?=(?:食材|原料|配料|餐次|菜名|名字|口味|做法|描述|心情|场景|菜系|健康目标|便捷度)(?:修改|改成|改为|补充|添加|加上|清空|去掉|删除))")) {
+            if (clause.matches(".*(?:食材|原料|配料).*")) ingredientField = true;
+            else if (clause.matches(".*(?:餐次|菜名|名字|口味|做法|描述|心情|场景|菜系|健康目标|便捷度).*")) ingredientField = false;
+            if (!ingredientField) continue;
             if (clause.matches(".*(?:改成|改为|替换|换成|清空|去掉|删除).*")) return false;
             if (clause.matches(".*(?:补充|添加|加上|再加).*")) additive = true;
         }
