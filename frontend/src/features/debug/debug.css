@@ -1,0 +1,9 @@
+.debug-report { margin-top: 18px; }
+.debug-report h2 { margin: 28px 0 12px; }
+.trace-timeline { list-style: none; padding: 0; margin: 14px 0 22px; }
+.trace-event { overflow-wrap: anywhere; }
+.trace-event details { margin: 8px 0; }
+.trace-event .json-box { margin: 8px 0 0; }
+.debug-split > * { min-width: 0; }
+.debug-split .page-heading { margin-bottom: 12px; }
+.debug-split .table-scroll { margin-top: 18px; }
