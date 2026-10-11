@@ -129,10 +129,13 @@ public class MealDraftService {
     }
 
     private boolean additiveIngredients(String text) {
-        if (text.matches("(?s).*(?:食材|原料|配料).*(?:改成|改为|替换|换成|清空|去掉|删除).*")
-                || text.matches("(?s).*(?:改成|改为|替换|换成|清空|去掉|删除).*(?:食材|原料|配料).*")) return false;
-        return text.matches("(?s).*(?:食材|原料|配料).*(?:补充|添加|加上|再加).*")
-                || text.matches("(?s).*(?:补充|添加|加上|再加).*(?:食材|原料|配料).*");
+        boolean additive = false;
+        for (String clause : text.split("[\\r\\n，。；;！!]+|(?=(?:餐次|菜名|名字|口味|做法|描述|心情|场景|菜系|健康目标|便捷度)(?:修改|改成|改为|补充|添加|加上|清空|去掉|删除))")) {
+            if (!clause.matches(".*(?:食材|原料|配料).*")) continue;
+            if (clause.matches(".*(?:改成|改为|替换|换成|清空|去掉|删除).*")) return false;
+            if (clause.matches(".*(?:补充|添加|加上|再加).*")) additive = true;
+        }
+        return additive;
     }
 
     private JsonNode strictJson(String response) {
