@@ -129,6 +129,77 @@ class RecipeVideoFinalFixTest {
         assertThat(query.getAllValues().get(1).text()).isEqualTo("番茄炒蛋需要什么食材");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"3", "三", " 3 ", "3。"})
+    void numberSelectionAfterClarificationUsesFullDishNameForBothBranches(String reply) throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation("{\"displayedMeals\":[{\"mealId\":38,\"name\":\"番茄豆腐煲\"},"
+                + "{\"mealId\":40,\"name\":\"香菇青菜面\"},{\"mealId\":28,\"name\":\"低油版宫保鸡丁\"}]}");
+        fixture.enableStatePersistence();
+        // 模拟旧链路的模型兜底；修复后的序号选择不应依赖模型猜测意图。
+        var fallback = new IntentResult(com.diet.enums.Intent.RECIPE_QUERY, SlotBundle.empty(), 0.85);
+        when(fixture.intent.recognize(any(), anyLong(), any(), any(), any())).thenReturn(fallback);
+        when(fixture.revise.revise(any(), any(), any())).thenReturn(fallback);
+
+        assertThat(fixture.chat("怎么做", Map.of()).responseType()).isEqualTo("CLARIFY");
+        verifyNoInteractions(fixture.retriever);
+        assertThat(fixture.actualVideoText.get()).isNull();
+
+        var response = fixture.chat(reply, Map.of());
+
+        var query = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(fixture.retriever).retrieve(query.capture(), any());
+        assertThat(query.getValue().text()).isEqualTo("低油版宫保鸡丁怎么做");
+        assertThat(fixture.actualVideoText.get()).isEqualTo("低油版宫保鸡丁");
+        assertThat(response.responseType()).isEqualTo("ANSWER");
+        assertThat(response.speechText()).contains("[S1]");
+        assertThat(response.videoBlocks()).hasSize(1);
+        assertThat(fixture.states.loadOrCreate("s", 7L, SourceMode.PUBLIC)
+                .recipeConversation().activeDish()).isEqualTo("低油版宫保鸡丁");
+        verifyNoInteractions(fixture.intent);
+
+        var trace = new ObjectMapper().readTree(fixture.rows.get(1).getTraceJson());
+        assertThat(event(trace, "RECIPE_QUERY_NORMALIZED").path("outputPayload").asText())
+                .contains("低油版宫保鸡丁怎么做", "低油版宫保鸡丁");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "4", "999999999999999999999999"})
+    void numberSelectionOutOfRangeAsksAgainWithoutSearching(String reply) throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation("{\"displayedMeals\":[{\"mealId\":38,\"name\":\"番茄豆腐煲\"},"
+                + "{\"mealId\":40,\"name\":\"香菇青菜面\"},{\"mealId\":28,\"name\":\"低油版宫保鸡丁\"}],"
+                + "\"pendingSelection\":true}");
+        var fallback = new IntentResult(com.diet.enums.Intent.RECIPE_QUERY, SlotBundle.empty(), 0.85);
+        when(fixture.intent.recognize(any(), anyLong(), any(), any(), any())).thenReturn(fallback);
+        when(fixture.revise.revise(any(), any(), any())).thenReturn(fallback);
+
+        var response = fixture.chat(reply, Map.of());
+
+        assertThat(response.responseType()).isEqualTo("CLARIFY");
+        assertThat(response.clarifyQuestion()).contains("低油版宫保鸡丁");
+        verifyNoInteractions(fixture.retriever, fixture.intent);
+        assertThat(fixture.actualVideoText.get()).isNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void numberWithoutPendingDisplayedChoicesUsesNormalIntentRoute(boolean hasDisplayedMeals) throws Exception {
+        var fixture = new Fixture("success");
+        fixture.restoreConversation(hasDisplayedMeals
+                ? "{\"displayedMeals\":[{\"mealId\":28,\"name\":\"低油版宫保鸡丁\"}],\"pendingSelection\":false}"
+                : "{\"displayedMeals\":[],\"pendingSelection\":true}");
+        var other = new IntentResult(com.diet.enums.Intent.OTHER, SlotBundle.empty(), 1.0);
+        when(fixture.intent.recognize(any(), anyLong(), any(), any(), any())).thenReturn(other);
+        when(fixture.revise.revise(any(), any(), any())).thenReturn(other);
+
+        fixture.chat("3", Map.of());
+
+        verify(fixture.intent).recognize(any(), anyLong(), eq("3"), any(), any());
+        verifyNoInteractions(fixture.retriever);
+        assertThat(fixture.actualVideoText.get()).isNull();
+    }
+
     @Test
     void outOfRangeReferenceNeverGuessesDish() throws Exception {
         var fixture = new Fixture("success");
@@ -213,6 +284,83 @@ class RecipeVideoFinalFixTest {
         assertThat(response.responseType()).isEqualTo("ANSWER");
         assertThat(response.videoBlocks()).hasSize(videosEnabled ? 1 : 0);
         verifyNoInteractions(fixture.intent);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"冰箱里有鸡腿肉丁、花生米、辣椒、大葱，能做什么菜", "有鸡肉和花生，可以做哪些菜", "这些食材能做什么菜", "这些食材能做啥"})
+    void ingredientSuggestionQuestionBypassesIntentAndKeepsOriginalQuestion(String question) {
+        var fixture = new Fixture("disabled");
+        var other = new IntentResult(com.diet.enums.Intent.OTHER, SlotBundle.empty(), 1.0);
+        when(fixture.intent.recognize(any(), anyLong(), any(), any(), any())).thenReturn(other);
+        when(fixture.revise.revise(any(), any(), any())).thenReturn(other);
+
+        var response = fixture.chat(question, Map.of());
+
+        assertThat(response.responseType()).isEqualTo("ANSWER");
+        assertThat(response.speechText()).startsWith("根据本轮检索，可以优先考虑宫保鸡丁 [S1]")
+                .contains("鸡肉", "[S1]");
+        var captured = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
+        verify(fixture.retriever).retrieve(captured.capture(), any());
+        assertThat(captured.getValue().text()).isEqualTo(question);
+        assertThat(captured.getValue().requiredIngredients()).isEmpty();
+        verify(fixture.agent, times(1)).call(any(Msg.class));
+        verifyNoInteractions(fixture.intent);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"你能做什么", "Python可以做什么", "你能做啥", "这台电脑能做什么工作", "宫保鸡丁可以做什么口味", "推荐午餐",
+            "买食材有什么推荐的超市", "食材采购推荐什么供应商"})
+    void genericAbilityQuestionDoesNotBecomeIngredientRecipeSuggestion(String question) {
+        var fixture = new Fixture("disabled");
+        var other = new IntentResult(com.diet.enums.Intent.OTHER, SlotBundle.empty(), 1.0);
+        when(fixture.intent.recognize(any(), anyLong(), any(), any(), any())).thenReturn(other);
+        when(fixture.revise.revise(any(), any(), any())).thenReturn(other);
+
+        var response = fixture.chat(question, Map.of());
+
+        assertThat(response.speechText()).doesNotContain("[S1]", "优先考虑");
+        verify(fixture.intent).recognize(any(), anyLong(), eq(question), any(), any());
+        verifyNoInteractions(fixture.retriever);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void ingredientAnswerTerminalGenerationIsPersistedInActualOrchestratorTrace(boolean validModelAnswer) throws Exception {
+        var fixture = new Fixture("disabled");
+        if (!validModelAnswer) {
+            when(fixture.agent.call(any(Msg.class))).thenReturn(Mono.just(Msg.builder().role(MsgRole.ASSISTANT)
+                    .textContent("invalid json").build()));
+        }
+
+        var response = fixture.chat("这些食材能做什么菜", Map.of());
+
+        assertThat(response.speechText()).contains("宫保鸡丁", "[S1]");
+        var payload = new ObjectMapper().readTree(event(fixture.persistedTrace(), "RECIPE_ANSWER_GENERATED")
+                .path("outputPayload").asText());
+        assertThat(payload.path("answerPurpose").asText()).isEqualTo("INGREDIENT_SUGGESTION");
+        assertThat(payload.path("generation").asText()).isEqualTo(validModelAnswer ? "agent" : "deterministic_fallback");
+        assertThat(payload.path("refused").asBoolean()).isFalse();
+        assertThat(payload.path("citationCount").asInt()).isEqualTo(1);
+        verify(fixture.agent, times(1)).call(any(Msg.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void emptyRetrievalPersistsNotCalledGenerationWithoutAnswerModel(boolean parallelCoordinator) throws Exception {
+        var fixture = new Fixture("disabled");
+        when(fixture.retriever.retrieve(any(), any())).thenReturn(Mono.just(new RecipeRetrievalResult(List.of(), null)));
+        if (!parallelCoordinator) fixture.orchestrator.setRecipeVideoCoordinator(null);
+
+        var response = fixture.chat("这些食材能做啥", Map.of());
+
+        assertThat(response.speechText()).doesNotContain("优先考虑", "[S1]");
+        var payload = new ObjectMapper().readTree(event(fixture.persistedTrace(),
+                parallelCoordinator ? "RECIPE_RAG_REFUSED" : "RECIPE_ANSWER_READY").path("outputPayload").asText());
+        assertThat(payload.path("answerPurpose").asText()).isEqualTo("INGREDIENT_SUGGESTION");
+        assertThat(payload.path("generation").asText()).isEqualTo("not_called");
+        assertThat(payload.path("refused").asBoolean()).isTrue();
+        assertThat(payload.path("citationCount").asInt()).isZero();
+        verifyNoInteractions(fixture.agent);
     }
 
     @Test

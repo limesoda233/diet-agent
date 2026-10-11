@@ -1,5 +1,6 @@
 package com.diet.service.recipe;
 
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -10,11 +11,12 @@ import java.util.regex.Pattern;
  */
 public final class RecipeConversationResolver {
     private static final Pattern ORDINAL = Pattern.compile("^第([一二三四五六七八九十0-9]+)(?:道|个)(?:菜)?");
+    private static final Pattern SELECTION_NUMBER = Pattern.compile("^([一二三四五六七八九十0-9]+)[。.!！?？\\s]*$");
     private static final Pattern BARE = Pattern.compile(
             "^(?:请问|请)?(?:这道菜|这个菜|这道|这个|它)?(?:的)?(?:怎么做|咋做|如何做|怎么弄|咋弄|怎么炒|怎么蒸|怎么炖|需要什么食材|要哪些食材|做法|菜谱|食谱)(?:[？?！!。\\s]*|[，,].*)$");
 
     public boolean isSelectionReply(String text, RecipeConversationContext context) {
-        return context.pendingSelection() && (ORDINAL.matcher(text.trim()).find()
+        return context.pendingSelection() && (ordinalReference(text.trim(), context) != null
                 || context.displayedMeals().stream().anyMatch(dish -> dish.name().equals(text.trim()))
                 || context.displayedMeals().isEmpty() && isDishNameReply(text));
     }
@@ -22,8 +24,8 @@ public final class RecipeConversationResolver {
     public Resolution resolve(String message, RecipeConversationContext context) {
         String text = message.trim();
         // 显式序号优先于 activeDish，不能让“第二道”继续查询旧选中的第一道。
-        var ordinal = ORDINAL.matcher(text);
-        if (ordinal.find()) {
+        var ordinal = ordinalReference(text, context);
+        if (ordinal != null) {
             int index = ordinal(ordinal.group(1));
             if (index < 1 || index > context.displayedMeals().size()) return ask(context);
             String name = context.displayedMeals().get(index - 1).name();
@@ -56,6 +58,16 @@ public final class RecipeConversationResolver {
         return selected(text, name, "explicit_question");
     }
 
+    private Matcher ordinalReference(String text, RecipeConversationContext context) {
+        var ordinal = ORDINAL.matcher(text);
+        if (ordinal.find()) return ordinal;
+        // 单独的“3/三”只有在等待选择且展示过候选时才有确定含义。
+        // 路由与解析共用此判断，避免模型兜底把序号原文传给 RAG/MCP；普通数字仍走原意图链路。
+        var number = SELECTION_NUMBER.matcher(text);
+        return context.pendingSelection() && !context.displayedMeals().isEmpty() && number.matches()
+                ? number : null;
+    }
+
     private boolean isDishNameReply(String text) {
         // 只在等待菜名且没有展示候选时接受受限短文本。再次说“做法”仍需澄清，
         // “推荐/取消/你好”等新请求交回正常路由，避免全部当成菜名。
@@ -71,7 +83,7 @@ public final class RecipeConversationResolver {
                 .collect(java.util.stream.Collectors.joining("；"));
         return new Resolution("", "", "ambiguous", choices.isBlank()
                 ? "你想看哪道菜的做法？请告诉我菜名。"
-                : "你想看哪道菜的做法？" + choices + "。可以回复菜名或第几道。");
+                : "你想看哪道菜的做法？" + choices + "。可以回复数字、菜名或第几道。");
     }
     private Resolution selected(String query, String name, String source) {
         return new Resolution(query, name, source, "");
