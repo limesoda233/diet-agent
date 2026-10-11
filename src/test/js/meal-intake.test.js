@@ -93,6 +93,17 @@ test('chat READY card saves the owning session and draft, refreshes list and bec
     assert.equal(f.calls.filter((c) => c.route === '/meals/personal' && c.method === 'GET').length, 2);
 });
 
+test('text confirmation of a READY draft refreshes the personal list and home count', async () => {
+    const f = fixture({ 'POST /chat': (c) => ({ sessionId: 'session-1', speechText: '已保存',
+        mealDraft: c.body.message === '确认保存' ? draft({ status: 'SAVED', savedMealId: 24 }) : draft() }) });
+    await f.flush(); await f.route('/diet/chat');
+    await f.submit(f.form('chatForm', { message: '帮我录入番茄面，午餐' }));
+    const before = f.calls.filter((c) => c.route === '/meals/personal' && c.method === 'GET').length;
+    await f.submit(f.form('chatForm', { message: '确认保存' }));
+    assert.equal(f.calls.filter((c) => c.route === '/meals/personal' && c.method === 'GET').length, before + 1);
+    assert.match(f.elements.app.innerHTML, /已保存[\s\S]*24/);
+});
+
 test('chat missing draft cannot save, cancel sends explicit CANCEL and retires all buttons', async () => {
     const f = fixture({ 'POST /chat': (c) => ({ sessionId: 'session-1',
         mealDraft: c.body.context.mealDraftAction ? draft({ status: 'CANCELLED' }) : draft({ status: 'NEEDS_INPUT', data: { name: '面', mealTime: [] }, missingFields: ['mealTime'], warnings: ['请补餐次'] }) }) });

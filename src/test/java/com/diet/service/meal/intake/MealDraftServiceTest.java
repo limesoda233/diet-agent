@@ -74,6 +74,15 @@ class MealDraftServiceTest {
         assertThat(updated.originalText()).isEqualTo("宫保鸡丁，中午吃，微辣，鸡肉和花生\n改成晚上，口味清空");
     }
 
+    @Test void multilineIngredientSupplementRetainsPriorIngredientsAndEvidence() {
+        var previous = service("{\"ingredients\":[{\"value\":\"番茄\",\"evidence\":\"番茄\"}]} ")
+                .generate("原来食材有番茄");
+        var updated = service("{\"ingredients\":[{\"value\":\"鸡蛋\",\"evidence\":\"鸡蛋\"},{\"value\":\"葱\",\"evidence\":\"葱\"}]}")
+                .generate("食材补充鸡蛋\n也加葱",previous);
+        assertThat(updated.data().knowledge().ingredients()).containsExactly("番茄","鸡蛋","葱");
+        assertThat(updated.evidence().get("ingredients")).containsExactly("番茄","鸡蛋","葱");
+    }
+
     @Test void doesNotLaunderPreviousDraftWithoutEvidence() {
         var previous = new MealDraft("d", "中午", new MealDraftData("伪造菜名", List.of("午餐"),
                 List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),null), List.of(),List.of(),

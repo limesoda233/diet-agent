@@ -64,6 +64,17 @@ class MealIntakeWorkflowTest {
         state = workflow.handle(1L,request("帮我录入一道餐食，中午吃"),state).orElseThrow().state();
         assertThat(state.mealDraft().missingFields()).contains("name");
         assertThat(workflow.handle(1L,request("天气"),state)).isEmpty();
+        assertThat(workflow.handle(1L,request("这些食材能做什么菜"),state)).isEmpty();
+        outputs.add("{\"name\":{\"value\":\"宫保鸡丁\",\"evidence\":\"宫保鸡丁\"}}");
+        state = workflow.handle(1L,request("宫保鸡丁"),state).orElseThrow().state();
+        assertThat(state.mealDraft().data().name()).isEqualTo("宫保鸡丁");
+    }
+    @Test void bareNegativeIntakeDoesNotStartDraftButLaterAffirmativeClauseDoes() {
+        assertThat(workflow.handle(1L,request("不录入番茄面"),state)).isEmpty();
+        assertThat(workflow.handle(1L,request("不加入个人餐食库"),state)).isEmpty();
+        outputs.add("{\"name\":{\"value\":\"宫保鸡丁\",\"evidence\":\"宫保鸡丁\"}}");
+        assertThat(workflow.handle(1L,request("不录入番茄面，帮我录入宫保鸡丁"),state)
+                .orElseThrow().state().mealDraft().data().name()).isEqualTo("宫保鸡丁");
     }
     @Test void fieldFirstSupplementUpdatesActiveDraft() {
         outputs.add("{\"name\":{\"value\":\"番茄面\",\"evidence\":\"番茄面\"},\"mealTime\":[{\"value\":\"午餐\",\"evidence\":\"中午\"}]}");

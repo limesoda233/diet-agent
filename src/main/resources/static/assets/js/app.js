@@ -382,6 +382,7 @@
                 revision: state.chat.revision,
                 userId
             });
+            if (response.mealDraft?.status === "SAVED") await ensurePersonalMeals(true);
         } catch (error) {
             if (!current()) return;
             showToast(error.message || "聊天请求失败", "error");

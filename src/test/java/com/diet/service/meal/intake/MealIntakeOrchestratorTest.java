@@ -8,6 +8,7 @@ import com.diet.service.meal.*;
 import com.diet.service.meal.constraint.*;
 import com.diet.service.orchestrator.DietOrchestratorService;
 import com.diet.service.recipe.RecipeQueryService;
+import com.diet.service.recipe.rag.model.RecipeAnswer;
 import com.diet.service.recommend.RecommendResponseAgentService;
 import com.diet.service.risk.RiskGuardService;
 import com.diet.service.session.*;
@@ -30,6 +31,23 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class MealIntakeOrchestratorTest {
+    @Test void ingredientQuestionDuringMissingNameDraftReachesRecipeRoute() {
+        var fixture = new Fixture();
+        var pending = new MealDraft("d", "帮我录入一道餐食，中午吃",
+                new MealDraftData("", List.of("午餐"), null,null,null,null,null,null,null),
+                List.of("name"), List.of(), Map.of(), MealDraftStatus.NEEDS_INPUT,null);
+        var active = fixture.initial.withMealDraft(pending);
+        when(fixture.states.loadOrCreate("s",7L,SourceMode.PERSONAL)).thenReturn(active);
+        fixture.orchestrator.setMealIntakeWorkflow(new MealIntakeWorkflow(mock(MealDraftService.class),
+                mock(MealDraftSaveService.class),null));
+        when(fixture.recipes.matches(anyString(),any())).thenReturn(true);
+        when(fixture.recipes.answer(anyString(),eq(7L),anyString(),any()))
+                .thenReturn(RecipeAnswer.refused("菜谱证据不足",Map.of()));
+        var result = fixture.orchestrator.dietChat(7L,
+                new ChatRequest("s","这些食材能做什么菜",SourceMode.PERSONAL,Map.of()));
+        assertThat(result.responseType()).isNotEqualTo("MEAL_DRAFT");
+        verify(fixture.recipes).matches(eq("这些食材能做什么菜"),any());
+    }
     @Test void intakePrecedesRecipeAndPersonalEmptyRoutesAndReturnsDraft() {
         var fixture = new Fixture();
         var draft = new MealDraft("d", "帮我录入番茄面", new MealDraftData("番茄面", List.of(), null,null,null,null,null,null,null),
