@@ -46,6 +46,11 @@ function DraftCard({ draft, actionable, onAction }: {
   return <section className="chat-draft" role="region" aria-label="餐食录入草稿">
     <strong>{status}</strong>
     {tags.length > 0 && <div className="chat-chips">{tags.map((tag, index) => <span key={`${tag}-${index}`}>{tag}</span>)}</div>}
+    <dl className="chat-draft-review">
+      <div><dt>原话</dt><dd>{draft.originalText || '未提供'}</dd></div>
+      <div><dt>描述</dt><dd>{draft.data?.knowledge?.description || '未提供'}</dd></div>
+      <div><dt>做法</dt><dd>{draft.data?.knowledge?.preparation || '未提供'}</dd></div>
+    </dl>
     {missing.length > 0 && <p>请在聊天框补充{missing.join('、')}，再确认保存。</p>}
     {(draft.warnings ?? []).map((warning, index) => <p className="chat-warning" key={index}>{warning}</p>)}
     {(draft.status === 'READY' || draft.status === 'NEEDS_INPUT') && <div className="chat-card-actions">

@@ -110,6 +110,36 @@ describe('chat interaction', () => {
     expect(within(draftCard).getByRole('button', { name: '确认保存' })).toBeDisabled()
   })
 
+  it('lets the user inspect original words and the complete saved knowledge before confirming', async () => {
+    const draft = { draftId: 'd-preview', originalText: '周末做的番茄炒蛋，先炒蛋再下番茄',
+      data: { name: '番茄炒蛋', mealTime: ['午餐'], knowledge: {
+        ingredients: ['番茄', '鸡蛋'], description: '酸甜家常菜 <img src=x onerror=alert(1)>',
+        preparation: '先炒蛋，再加入番茄焖两分钟。', sourceType: 'USER_PROVIDED', sourceReference: '',
+      } }, missingFields: [], warnings: [], evidence: {}, status: 'READY', savedMealId: null }
+    app.api.chat.mockResolvedValueOnce(answer({ responseType: 'MEAL_DRAFT', mealDraft: draft }))
+    render(<ChatPage />)
+    await userEvent.type(screen.getByRole('textbox', { name: '消息' }), '记下这道菜')
+    await userEvent.click(screen.getByRole('button', { name: '发送' }))
+    const card = await screen.findByRole('region', { name: '餐食录入草稿' })
+    expect(within(card).getByText('周末做的番茄炒蛋，先炒蛋再下番茄')).toBeInTheDocument()
+    expect(within(card).getByText('酸甜家常菜 <img src=x onerror=alert(1)>')).toBeInTheDocument()
+    expect(within(card).getByText('先炒蛋，再加入番茄焖两分钟。')).toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: '确认保存' })).toBeEnabled()
+    expect(within(card).queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it('explicitly shows missing knowledge fields in the draft review', async () => {
+    const draft = { draftId: 'd-empty', originalText: '午餐米饭', data: { name: '米饭', mealTime: ['午餐'] },
+      missingFields: [], warnings: [], evidence: {}, status: 'READY', savedMealId: null }
+    app.api.chat.mockResolvedValueOnce(answer({ responseType: 'MEAL_DRAFT', mealDraft: draft }))
+    render(<ChatPage />)
+    await userEvent.type(screen.getByRole('textbox', { name: '消息' }), '记下午餐米饭')
+    await userEvent.click(screen.getByRole('button', { name: '发送' }))
+    const card = await screen.findByRole('region', { name: '餐食录入草稿' })
+    expect(within(card).getByText('描述').parentElement).toHaveTextContent('未提供')
+    expect(within(card).getByText('做法').parentElement).toHaveTextContent('未提供')
+  })
+
   it('records feedback for the displayed meal and session', async () => {
     app.api.chat.mockResolvedValueOnce(answer({ displayBlocks: [{ id: 7, sourceType: 'PERSONAL',
       name: '小米粥', mealTime: ['早餐'], mood: [], scene: [], healthGoal: [], cuisine: [],

@@ -53,6 +53,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
   const [options, setOptions] = useState<SlotOptions>(EMPTY_OPTIONS)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [optionsError, setOptionsError] = useState('')
   const [query, setQuery] = useState('')
   const [tag, setTag] = useState('')
   const [editor, setEditor] = useState<EditorValue>(EMPTY_EDITOR)
@@ -68,10 +69,14 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
   const editorEpoch = useRef(0)
   const operationEpoch = useRef(0)
   const loadEpoch = useRef(0)
+  const optionsEpoch = useRef(0)
   const busy = useRef(false)
+  const mutationBusy = useRef(false)
   const deleteBusy = useRef(false)
 
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; editorEpoch.current++; loadEpoch.current++ } }, [])
+  useEffect(() => { mounted.current = true; return () => {
+    mounted.current = false; editorEpoch.current++; loadEpoch.current++; optionsEpoch.current++
+  } }, [])
 
   const reload = useCallback(async () => {
     const epoch = ++loadEpoch.current
@@ -88,12 +93,17 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
   }, [api, publicOnly])
 
   useEffect(() => { void reload() }, [reload, mealVersion])
-  useEffect(() => {
-    let active = true
-    api.slotOptions().then(result => { if (active) setOptions(result) })
-      .catch(error => { if (active) setLoadError(errorText(error, '标签加载失败，请重试')) })
-    return () => { active = false }
+  const loadOptions = useCallback(async () => {
+    const epoch = ++optionsEpoch.current
+    setOptionsError('')
+    try {
+      const result = await api.slotOptions()
+      if (mounted.current && epoch === optionsEpoch.current) setOptions(result)
+    } catch (error) {
+      if (mounted.current && epoch === optionsEpoch.current) setOptionsError(errorText(error, '标签加载失败，请重试'))
+    }
   }, [api])
+  useEffect(() => { void loadOptions() }, [loadOptions])
 
   function clearEditor() {
     editorEpoch.current++
@@ -105,7 +115,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
     setText('')
     setFormError('')
     setGenerating(false)
-    setSaving(false)
+    if (!mutationBusy.current) setSaving(false)
   }
 
   function editMeal(meal: Meal) {
@@ -125,7 +135,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
   }
 
   async function generate() {
-    if (busy.current || editing) return
+    if (busy.current || mutationBusy.current || editing) return
     const description = text.trim()
     if (!description || description.length > 4000) { setFormError('请描述一道餐食，最多 4000 字'); return }
     const epoch = editorEpoch.current
@@ -145,7 +155,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
   }
 
   async function save() {
-    if (busy.current) return
+    if (busy.current || mutationBusy.current) return
     if (!editor.name.trim()) { setFormError('请填写餐食名称'); return }
     if (editor.mealTime.length === 0) { setFormError('请至少选择一个用餐时间标签'); return }
     const ingredients = ingredientsOf(editor.ingredientsText)
@@ -159,6 +169,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
     const epoch = editorEpoch.current
     const operation = ++operationEpoch.current
     busy.current = true
+    mutationBusy.current = true
     setSaving(true)
     setFormError('')
     try {
@@ -171,20 +182,26 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
     } catch (error) {
       if (mounted.current && epoch === editorEpoch.current) setFormError(errorText(error, '保存失败，请重试'))
     } finally {
-      if (mounted.current && operation === operationEpoch.current) { busy.current = false; setSaving(false) }
+      mutationBusy.current = false
+      if (mounted.current) {
+        if (operation === operationEpoch.current) busy.current = false
+        setSaving(false)
+      }
     }
   }
 
   async function confirmDelete() {
-    if (!deleteTarget || deleteBusy.current) return
+    if (!deleteTarget || deleteBusy.current || mutationBusy.current) return
     const target = deleteTarget
+    const epoch = editorEpoch.current
     deleteBusy.current = true
+    mutationBusy.current = true
     setDeleting(true)
     setLoadError('')
     try {
       await api.deletePersonalMeal(target.id)
       if (!mounted.current) return
-      if (editing?.id === target.id) clearEditor()
+      if (editing?.id === target.id && epoch === editorEpoch.current) clearEditor()
       setDeleteTarget(null)
       refreshMeals()
       await reload()
@@ -192,6 +209,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
       if (mounted.current) setLoadError(errorText(error, '删除失败，请重试'))
     } finally {
       deleteBusy.current = false
+      mutationBusy.current = false
       if (mounted.current) setDeleting(false)
     }
   }
@@ -216,6 +234,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
             {SLOT_KEYS.map(key => <optgroup key={key} label={SLOT_LABELS[key]}>{(options[key] ?? []).map(value =>
               <option key={`${key}:${value}`} value={`${key}:${value}`}>{value}</option>)}</optgroup>)}</select></div></div>
       {loadError && <p className="meal-error" role="alert">{loadError} <button type="button" onClick={() => void reload()}>重试</button></p>}
+      {optionsError && <p className="meal-error" role="alert">{optionsError} <button type="button" onClick={() => void loadOptions()}>重试标签</button></p>}
       {loading ? <p className="meal-empty" role="status">餐食加载中...</p> : visible.length === 0 ?
         <p className="meal-empty">{query || tag ? '没有符合条件的餐食，请调整筛选。' : publicOnly ? '公共餐食暂无数据。' : '暂无餐食，可以先新增一道常吃的菜。'}</p> :
         <div className="meal-list">{visible.map(meal => <article className="meal-card" key={meal.id} aria-label={meal.name}>
@@ -227,12 +246,12 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
       {deleteTarget && !publicOnly && <div className="meal-confirm" role="dialog" aria-modal="true" aria-label="删除餐食确认">
         <p>确定删除“{deleteTarget.name}”？</p><div className="meal-actions">
           <button className="meal-button meal-button-ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>取消</button>
-          <button className="meal-button meal-button-danger" onClick={() => void confirmDelete()} disabled={deleting}>{deleting ? '删除中...' : '确认删除'}</button>
+          <button className="meal-button meal-button-danger" onClick={() => void confirmDelete()} disabled={deleting || saving}>{deleting ? '删除中...' : '确认删除'}</button>
         </div></div>}
     </section>
     {!publicOnly && <MealEditor value={editor} onChange={changeEditor} options={options} draft={draft} text={text}
       onTextChange={changeText} onGenerate={() => void generate()} onSave={() => void save()} onClear={clearEditor}
-      editing={editing !== null} generating={generating} saving={saving} error={formError} />}
+      editing={editing !== null} generating={generating} saving={saving} mutationLocked={deleting} error={formError} />}
   </div>
 }
 

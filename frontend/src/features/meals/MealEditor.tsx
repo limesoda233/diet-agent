@@ -27,12 +27,13 @@ interface Props {
   editing: boolean
   generating: boolean
   saving: boolean
+  mutationLocked: boolean
   error: string
 }
 
 export default function MealEditor({ value, onChange, options, draft, text, onTextChange, onGenerate,
-  onSave, onClear, editing, generating, saving, error }: Props) {
-  const busy = generating || saving
+  onSave, onClear, editing, generating, saving, mutationLocked, error }: Props) {
+  const busy = generating || saving || mutationLocked
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     onSave()
@@ -62,16 +63,21 @@ export default function MealEditor({ value, onChange, options, draft, text, onTe
         <label htmlFor="meal-name">餐食名称</label>
         <input id="meal-name" value={value.name} maxLength={128} onChange={event => onChange({ ...value, name: event.target.value })} />
       </div>
-      <p className="meal-hint">标签可多选：按住 Ctrl 或 Command 点击选项。</p>
-      <div className="meal-slot-grid">{SLOT_KEYS.map(key => <div className="meal-field" key={key}>
-        <label htmlFor={`meal-${key}`}>{SLOT_LABELS[key]}{key === 'mealTime' ? '（必选）' : ''}</label>
-        <select id={`meal-${key}`} multiple size={Math.min(Math.max(options[key]?.length ?? 3, 3), 5)}
-          value={value[key]} onChange={event => onChange({ ...value,
-            [key]: Array.from(event.currentTarget.selectedOptions, option => option.value),
-          })}>
-          {(options[key] ?? []).map(option => <option key={option} value={option}>{option}</option>)}
-        </select>
-      </div>)}</div>
+      <p className="meal-hint">点击标签即可选择，再点一次可取消。</p>
+      <div className="meal-slot-grid">{SLOT_KEYS.map(key => {
+        const choices = Array.from(new Set([...(options[key] ?? []), ...value[key]]))
+        return <div className="meal-field meal-slot-field" key={key} role="group" aria-labelledby={`meal-${key}-label`}>
+          <span className="meal-slot-label" id={`meal-${key}-label`}>{SLOT_LABELS[key]}{key === 'mealTime' ? '（必选）' : ''}</span>
+          {choices.length === 0 ? <p className="meal-no-options">暂无可选标签</p> :
+            <div className="meal-option-list">{choices.map(option => {
+              const selected = value[key].includes(option)
+              return <button key={option} type="button" className={`meal-option${selected ? ' is-selected' : ''}`}
+                aria-pressed={selected} onClick={() => onChange({ ...value,
+                  [key]: selected ? value[key].filter(item => item !== option) : [...value[key], option],
+                })}>{option}</button>
+            })}</div>}
+        </div>
+      })}</div>
       <div className="meal-field"><label htmlFor="meal-ingredients">食材（每行一项，最多 64 项）</label>
         <textarea id="meal-ingredients" value={value.ingredientsText} onChange={event => onChange({ ...value, ingredientsText: event.target.value })} />
       </div>

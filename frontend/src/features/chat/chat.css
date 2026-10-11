@@ -37,6 +37,9 @@
 .chat-card-actions button { border: 1px solid #176b52; border-radius: 7px; padding: 7px 10px; background: #176b52; color: #fff; font-size: 11px; font-weight: 600; }
 .chat-card-actions button.secondary { border-color: #dce7e1; background: #fff; color: #176b52; }
 .chat-draft { margin-top: 10px; }.chat-draft strong { font-size: 13px; }.chat-draft p { font-size: 12px; margin: 9px 0 0; }
+.chat-draft-review { display: grid; gap: 9px; margin: 12px 0 0; padding-top: 12px; border-top: 1px solid #dce7e1; }
+.chat-draft-review div { min-width: 0; }.chat-draft-review dt { color: #70847b; font-size: 10px; font-weight: 700; }
+.chat-draft-review dd { margin: 3px 0 0; color: #17382e; font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .chat-success, .chat-warning { font-size: 11px; margin: 8px 0 0; }.chat-success { color: #176b52; }.chat-warning { color: #a13f34; }
 .chat-video-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,210px),1fr)); gap: 9px; margin-top: 12px; }
 .chat-video-card { display: flex; flex-direction: column; gap: 5px; border: 1px solid #dce7e1; border-radius: 10px; padding: 12px; background: #f8fbf8; color: #17382e; text-decoration: none; font-size: 12px; }
