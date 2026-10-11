@@ -27,4 +27,4 @@
 
 ## 验证
 
-运行 `mvn test` 与 `mvn -DskipTests package`。前端交互使用 `node --test src/test/js/*.test.js`。这些验证使用受控模型与独立测试数据库，真实模型提取质量需在本地配置完成后另行抽查。
+运行 `mvn test` 与 `mvn -DskipTests package`。React 前端交互使用 `npm --prefix frontend test`；首次构建及启动见 [前端运行指南](react-frontend.md)。这些验证使用受控模型与独立测试数据库，真实模型提取质量需在本地配置完成后另行抽查。

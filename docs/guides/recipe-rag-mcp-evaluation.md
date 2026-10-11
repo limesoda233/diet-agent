@@ -109,7 +109,7 @@ mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=recipe
 
 学习环境把改写超时临时放宽到 10 秒，便于第一次观察云模型；确认稳定后再评估生产默认的 2 秒预算。模型异常、超时、空响应或非法 JSON 都会回退原查询。
 
-在 IDEA 中也可以直接启动 `DietApplication`：
+先按 [React 前端运行指南](react-frontend.md) 构建页面，然后在 IDEA 中也可以直接启动 `DietApplication`：
 
 - Active profiles：`recipe-rag`
 - Program arguments：使用上面 `spring-boot.run.arguments` 中 `--` 开头的参数

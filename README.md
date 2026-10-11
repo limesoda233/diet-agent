@@ -58,7 +58,7 @@ flowchart TD
 | 并行与降级 | Reactor |
 | 视频工具 | AgentScope stdio MCP，@wangshunnn/bilibili-mcp-server@0.0.7 |
 | 评测 | JUnit 5、Mockito、Ragas 0.4.3、Python、uv |
-| 前端 | 原生 HTML/CSS/JavaScript，Markdown 与视频卡片 |
+| 前端 | React、TypeScript、Vite，固定聊天输入区、Markdown 与视频卡片 |
 
 运行环境使用 JDK 21；当前 Maven 有效编译目标为 release 17，没有宣称全部源码使用 Java 21 语法。
 
@@ -89,6 +89,15 @@ diet_db.sql 是初始化脚本，已有业务数据时不要重复执行。SOURC
 在本机终端或 IDEA 环境变量配置 DB_PASSWORD、DEEPSEEK_API_KEY。数据库默认地址 localhost:3306/diet_db，用户名默认 root。项目不会自动加载 .env。
 
 ### 2. 启动基础推荐应用
+
+首次先构建 React 前端（需要 Node.js 22+）：
+
+~~~powershell
+npm --prefix frontend ci
+npm --prefix frontend run build
+~~~
+
+再启动 Java。前端开发热更新与打包说明见[React 运行指南](docs/guides/react-frontend.md)。
 
 ~~~powershell
 mvn spring-boot:run
@@ -212,7 +221,8 @@ src/main/java/com/diet/
   service/video/          视频业务与 MCP client
   service/jev/            可选结构化决策接口
   service/trace/          全链路事件
-src/main/resources/       配置、SQL、MyBatis、前端
+frontend/src/             React 页面、组件、类型化 API 与测试
+src/main/resources/       配置、SQL、MyBatis、生成的前端资源
 src/test/                 Java 测试与固定数据集
 evals/recipe-ragas/        Python Judge 与冻结依赖
 scripts/                  评测执行入口

@@ -5,6 +5,7 @@
 | 目的 | 入口 |
 | --- | --- |
 | 启动 RAG、MCP、改写与 Ragas | [学习与运行手册](guides/recipe-rag-mcp-evaluation.md) |
+| React 前端、IDEA 单服务与热更新 | [前端运行指南](guides/react-frontend.md) |
 | 不知道从哪个 Java 文件开始 | [源码阅读路线](guides/code-reading.md) |
 | 一句话整理个人餐食与确认保存 | [个人餐食录入指南](guides/meal-intake.md) |
 | 菜谱 RAG/MCP 面试复盘 | [面试逐字稿](interview/recipe-rag-mcp.md) |

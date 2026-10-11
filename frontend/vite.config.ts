@@ -8,7 +8,9 @@ export default defineConfig({
     proxy: { '/api': 'http://localhost:8080' },
   },
   build: {
-    outDir: 'dist',
+    // This directory contains generated assets only; all maintained sources live in frontend/src.
+    outDir: '../src/main/resources/static',
+    emptyOutDir: true,
   },
   test: {
     environment: 'jsdom',

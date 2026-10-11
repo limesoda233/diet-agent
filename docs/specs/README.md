@@ -23,6 +23,7 @@
 | 008（当前） | 最近展示菜品、选中菜品与多轮菜谱指代 | [规格](008-recipe-conversation/spec.md) |
 | 009（当前） | 按食材找菜的推荐说明、原料核对与证据回答 | [规格](009-ingredient-recipe-suggestions/spec.md) · [验收](009-ingredient-recipe-suggestions/acceptance.md) |
 | 010（当前） | 管理页与聊天共用口语餐食草稿，确认后录入个人 MySQL 库 | [规格](010-conversational-meal-intake/spec.md) · [验收](010-conversational-meal-intake/acceptance.md) |
+| 011（当前） | React 前端重写、固定聊天输入区、键盘发送和页面交互 | [规格](011-react-frontend/spec.md) · [验收](011-react-frontend/acceptance.md) |
 
 第一阶段已完成工程验收，见 [001 验收记录](001-meal-retrieval-evaluation/acceptance.md)。阶段 002 的餐食 RAG 文档与代码已删除，阶段 003 只保留带退役标记的历史文档。阶段 004 定义菜谱 RAG，阶段 005 定义真实视频 MCP，阶段 006 定义并行编排和 Ragas，阶段 007 定义可选查询改写；实现和运行状态以最新对应阶段文档为准。
 
