@@ -287,7 +287,8 @@ class RecipeVideoFinalFixTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"冰箱里有鸡腿肉丁、花生米、辣椒、大葱，能做什么菜", "有鸡肉和花生，可以做哪些菜", "这些食材能做什么菜", "这些食材能做啥"})
+    @ValueSource(strings = {"冰箱里有鸡腿肉丁、花生米、辣椒、大葱，能做什么菜", "有鸡肉和花生，可以做哪些菜", "这些食材能做什么菜", "这些食材能做啥",
+            "冰箱里剩了点鸡腿肉，可以做什么", "冰箱里面还有鸡蛋，能做啥", "冰箱里有鸡蛋和番茄，可以做什么，想清淡一点"})
     void ingredientSuggestionQuestionBypassesIntentAndKeepsOriginalQuestion(String question) {
         var fixture = new Fixture("disabled");
         var other = new IntentResult(com.diet.enums.Intent.OTHER, SlotBundle.empty(), 1.0);
@@ -309,7 +310,7 @@ class RecipeVideoFinalFixTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"你能做什么", "Python可以做什么", "你能做啥", "这台电脑能做什么工作", "宫保鸡丁可以做什么口味", "推荐午餐",
-            "买食材有什么推荐的超市", "食材采购推荐什么供应商"})
+            "买食材有什么推荐的超市", "食材采购推荐什么供应商", "冰箱坏了，可以做什么", "冰箱里有东西，可以做什么工作"})
     void genericAbilityQuestionDoesNotBecomeIngredientRecipeSuggestion(String question) {
         var fixture = new Fixture("disabled");
         var other = new IntentResult(com.diet.enums.Intent.OTHER, SlotBundle.empty(), 1.0);
