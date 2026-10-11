@@ -39,11 +39,18 @@ export function parseExpectedSlots(text: string): TraceLabelRequest['expectedSlo
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('预期槽位必须是 JSON 对象')
   }
+  const slots: NonNullable<TraceLabelRequest['expectedSlots']> = {}
   for (const [key, values] of Object.entries(value)) {
+    // SlotBundle serializes its computed isEmpty() property alongside the slot arrays.
+    if (key === 'empty') {
+      if (typeof values !== 'boolean') throw new Error('empty 必须是布尔值')
+      continue
+    }
     if (!slotKeys.includes(key as SlotKey)) throw new Error(`未知槽位：${key}`)
     if (!Array.isArray(values) || !values.every(item => typeof item === 'string')) {
       throw new Error(`槽位 ${key} 的值必须是字符串数组`)
     }
+    slots[key as SlotKey] = values
   }
-  return value as TraceLabelRequest['expectedSlots']
+  return slots
 }

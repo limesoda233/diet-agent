@@ -97,6 +97,48 @@ test('rejects malformed slot labels and saves a valid object with slot arrays', 
     expectedSlots: { mealTime: ['晚餐'], taste: ['清淡'] }, expectedClarifyAction: 'READY', labelNote: '人工核对' }]))
 })
 
+test.each([true, false])('reopens saved slots with backend empty=%s and saves a changed note', async empty => {
+  const savedSlots = { mealTime: empty ? [] : ['晚餐'], mood: [], scene: [], healthGoal: [],
+    cuisine: [], taste: [], convenience: [], empty }
+  const payloads: unknown[] = []
+  vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+    if (init?.method === 'PUT') { payloads.push(JSON.parse(String(init.body))); return reply(null, 204) }
+    const saved = trace('t1', { expectedIntent: 'MEAL_RECOMMENDATION',
+      expectedSlots: JSON.stringify(savedSlots), expectedClarifyAction: 'READY', labelNote: '原备注' })
+    return reply(String(input).endsWith('/debug/traces/t1') ? saved : [saved])
+  }))
+  mount('/admin/traces?traceId=t1')
+  const slots = await screen.findByLabelText('预期槽位 JSON')
+  expect(JSON.parse((slots as HTMLTextAreaElement).value)).toEqual(savedSlots)
+  fireEvent.change(screen.getByLabelText('备注'), { target: { value: '重新核对' } })
+  fireEvent.click(screen.getByRole('button', { name: '保存标注' }))
+  expect(await screen.findByText('标注已保存')).toBeInTheDocument()
+  expect(payloads).toEqual([{ expectedIntent: 'MEAL_RECOMMENDATION', expectedSlots: {
+    mealTime: empty ? [] : ['晚餐'], mood: [], scene: [], healthGoal: [], cuisine: [], taste: [], convenience: [],
+  }, expectedClarifyAction: 'READY', labelNote: '重新核对' }])
+})
+
+test.each([
+  { empty: 'false' },
+  { empty: null },
+  { empty: [] },
+  { empty: 0 },
+  { empty: true, unknown: [] },
+])('blocks malformed computed fields and unknown slots: %j', async invalidSlots => {
+  const payloads: unknown[] = []
+  vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+    if (init?.method === 'PUT') { payloads.push(JSON.parse(String(init.body))); return reply(null, 204) }
+    return reply(String(input).endsWith('/debug/traces/t1') ? trace('t1') : [trace('t1')])
+  }))
+  mount('/admin/traces?traceId=t1')
+  fireEvent.change(await screen.findByLabelText('预期槽位 JSON'), {
+    target: { value: JSON.stringify(invalidSlots) },
+  })
+  fireEvent.click(screen.getByRole('button', { name: '保存标注' }))
+  expect(await screen.findByRole('alert')).toBeInTheDocument()
+  expect(payloads).toHaveLength(0)
+})
+
 test('a late detail request cannot replace a newer selected trace', async () => {
   let resolveFirst!: (value: Response) => void
   const first = new Promise<Response>(resolve => { resolveFirst = resolve })
