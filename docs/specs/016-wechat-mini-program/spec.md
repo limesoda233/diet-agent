@@ -15,7 +15,8 @@
 - 使用微信 `wx.login` 和服务端 `code2Session` 建立可信的内部用户身份。
 - 使用一次性邀请码控制首次加入，已绑定用户后续可直接登录。
 - 使用可撤销的服务端会话保护全部业务 API。
-- 保留用户 `1` 的现有个人餐食、会话和其他历史数据，并将其绑定为首个管理员账号。
+- 每个微信用户首次加入时获得独立且为空的个人餐食库，不复制任何现有用户或公共餐食。
+- 体验环境只初始化项目提供的公共餐食，公共餐食统一使用 `source_type = PUBLIC` 和空的 `owner_user_id`。
 - 让个人餐食、个人做法、会话、反馈、用户记忆、餐食计划和 Trace 严格按当前用户隔离。
 - 体验环境默认只保存不含正文的 Trace 元数据。
 - 支持用户为下一次请求主动创建十分钟有效的一次性完整诊断授权。
@@ -73,7 +74,7 @@
 3. `WechatCodeExchangeClient` 使用服务端 AppID 与 AppSecret 调用微信 `code2Session`。
 4. 服务端以 `(provider, app_id, provider_subject)` 查询微信身份。`provider_subject` 保存 OpenID。
 5. 已绑定身份对应的账号为 `ACTIVE` 时直接签发新会话。
-6. 未绑定身份必须提交有效邀请码。服务端在同一数据库事务中消费邀请码、创建或绑定用户、创建微信身份并签发会话。
+6. 未绑定身份必须提交有效邀请码。服务端在同一数据库事务中消费邀请码、创建新用户、创建微信身份并签发会话。
 7. 小程序只保存服务端返回的 Bearer 凭证、到期时间和最小用户资料。
 8. 后续请求通过 `Authorization: Bearer <token>` 认证。
 
@@ -89,13 +90,13 @@
 - 过期或吊销的会话返回 HTTP 401。
 - 已登录但角色不满足要求时返回 HTTP 403。
 
-### 5.3 首个管理员与旧数据
+### 5.3 首个管理员与数据边界
 
-数据库迁移创建 `diet_user.id = 1`，角色为 `ADMIN`，初始状态为 `PENDING_BIND`。这与现有餐食、会话、反馈、记忆和规划记录使用的用户 `1` 对齐。
+认证用户 ID 使用独立编号空间，`diet_user` 的自增起点为 `1000000`。现有本地开发数据使用的用户 `1` 不会绑定微信身份，也不会迁移到任何新账号。
 
-服务端从 `DIET_BOOTSTRAP_INVITE_CODE` 读取首个管理员邀请码，只保存其摘要。该邀请码只能绑定 `diet_user.id = 1`，成功后立即变为已使用。之后的朋友邀请码由管理员 API 创建。
+服务端从 `DIET_BOOTSTRAP_INVITE_CODE` 读取首个管理员邀请码，只保存其摘要。第一个成功使用该邀请码的微信身份会创建一个新的 `ADMIN` 用户，个人餐食库为空。邀请码成功后立即变为已使用。之后的朋友邀请码由管理员 API 创建，每个邀请码都创建独立的新用户。
 
-服务端不会在响应或日志中输出 bootstrap 邀请码。环境中未配置 bootstrap 邀请码时，`PENDING_BIND` 管理员无法完成首次绑定，应用仍可启动并在健康信息中报告认证初始化未完成。
+服务端不会在响应或日志中输出 bootstrap 邀请码。环境中未配置 bootstrap 邀请码时，应用仍可启动，但不能创建首个管理员，并在健康信息中报告认证初始化未完成。
 
 ### 5.4 本地开发身份
 
@@ -109,9 +110,9 @@
 
 | 列 | 类型 | 规则 |
 | --- | --- | --- |
-| `id` | BIGINT | 主键 |
+| `id` | BIGINT | 主键，自增起点 `1000000` |
 | `display_name` | VARCHAR(64) | 用户手动填写，可空 |
-| `status` | VARCHAR(24) | `PENDING_BIND`、`ACTIVE`、`DISABLED`、`DELETION_PENDING` |
+| `status` | VARCHAR(24) | `ACTIVE`、`DISABLED`、`DELETION_PENDING` |
 | `role` | VARCHAR(16) | `USER` 或 `ADMIN` |
 | `created_at` | DATETIME | 创建时间 |
 | `updated_at` | DATETIME | 更新时间 |
@@ -152,14 +153,13 @@
 | `code_hash` | BINARY(32) | 邀请码摘要，唯一 |
 | `status` | VARCHAR(16) | `AVAILABLE`、`CLAIMED`、`REVOKED`、`EXPIRED` |
 | `target_role` | VARCHAR(16) | 创建用户时授予的角色 |
-| `target_user_id` | BIGINT | bootstrap 绑定用户 `1` 时使用，普通邀请为空 |
 | `expires_at` | DATETIME | 过期时间 |
 | `claimed_by` | BIGINT | 使用者，可空 |
 | `claimed_at` | DATETIME | 使用时间，可空 |
 | `created_by` | BIGINT | 管理员用户，bootstrap 为空 |
 | `created_at` | DATETIME | 创建时间 |
 
-普通邀请码使用 16 字节安全随机数，只在创建响应中返回一次明文。
+普通邀请码使用 16 字节安全随机数，只在创建响应中返回一次明文。Bootstrap 邀请的 `created_by` 为空且 `target_role` 为 `ADMIN`，其他邀请由管理员创建且 `target_role` 固定为 `USER`。
 
 ### 6.5 `diagnostic_consent`
 
@@ -224,7 +224,17 @@
 
 会话 `loadOrCreate` 在指定 ID 已属于另一用户时不能尝试插入同一主键。服务端先检查会话 ID 是否存在，再区分创建和当前用户加载，但对客户端统一返回资源不存在。
 
-### 8.2 用户数据删除
+### 8.2 个人餐食库边界
+
+- 新用户创建后不插入任何 `PERSONAL` meal。
+- 公共餐食不会复制成用户个人餐食。
+- 用户只能通过个人餐食新增或口语餐食草稿确认流程向自己的库写入数据。
+- `PERSONAL` meal 必须带当前用户的 `owner_user_id`。
+- 公共餐食必须使用空的 `owner_user_id`，任何用户都不能通过个人餐食接口修改或删除。
+- 用户选择个人库但尚未录入餐食时，系统返回个人库为空的明确结果，不自动切换到公共库。
+- 用户选择公共库时，只查询 `PUBLIC` 数据，不混入其他用户的个人餐食。
+
+### 8.3 用户数据删除
 
 用户主动删除账号时，服务在单个事务中按外键顺序处理：
 
@@ -233,7 +243,7 @@
 3. 删除餐食规划版本、反馈和计划。
 4. 删除推荐反馈和请求 Trace。
 5. 删除会话消息和会话。
-6. 删除个人餐食。`meal_knowledge` 随 meal 外键级联删除。
+6. 删除该用户独立维护的个人餐食。`meal_knowledge` 随 meal 外键级联删除，公共餐食不受影响。
 7. 删除微信身份。
 8. 清空昵称并将用户状态更新为 `DELETION_PENDING`，保留不可复用的内部 ID。
 
@@ -338,7 +348,11 @@ AppID 写入 `project.config.json`。API base URL 按开发和体验环境配置
 ## 13. 兼容与迁移
 
 - 数据库迁移只新增认证表和 Trace 列，不改变现有餐食与公共菜谱数据域。
-- 用户 `1` 的现有记录继续使用原 ID，不批量改写业务表。
+- 微信认证用户 ID 从 `1000000` 开始，避免与现有本地开发用户编号发生所有权碰撞。
+- 用户 `1` 及其他现有本地用户记录继续作为开发数据保留，不创建微信身份，也不复制到新用户。
+- 体验数据库使用单独的公共餐食种子脚本，只导入 `PUBLIC` 且 `owner_user_id IS NULL` 的餐食。
+- `add_40_meal_items.sql` 中的个人种子餐食和绑定用户 `1` 的个人做法只用于本地开发，不在体验环境执行。
+- 所有微信新用户的个人餐食库初始为空，注册和登录过程不写入 `meal_item` 或 `meal_knowledge`。
 - Controller 改用认证主体后，service 和 mapper 的 `userId` 参数继续保留。
 - `local-auth` profile 维持现有 React 测试的身份语义。
 - 新小程序只调用稳定的 `/api/v1` 路径。
@@ -348,7 +362,7 @@ AppID 写入 `project.config.json`。API base URL 按开发和体验环境配置
 
 ### AUTH
 
-- AUTH-01 有效微信 code 和 bootstrap 邀请绑定用户 `1` 并签发会话。
+- AUTH-01 有效微信 code 和 bootstrap 邀请创建新的管理员用户并签发会话，用户 ID 位于认证编号空间。
 - AUTH-02 普通邀请只能成功消费一次。
 - AUTH-03 已绑定微信身份后续登录无需邀请码。
 - AUTH-04 无效、过期和吊销会话均返回 401。
@@ -365,7 +379,8 @@ AppID 写入 `project.config.json`。API base URL 按开发和体验环境配置
 - ISO-04 用户 A 无法读取或修改用户 B 的记忆。
 - ISO-05 用户 A 无法访问用户 B 的餐食计划。
 - ISO-06 普通用户不能调用 Trace、评测、邀请和账号管理 API。
-- ISO-07 删除账号后相关业务数据按第 8.2 节清理。
+- ISO-07 删除账号后相关业务数据按第 8.3 节清理。
+- ISO-08 新用户的个人餐食库为空，其他用户及本地用户 `1` 的个人餐食不会出现在查询和推荐中。
 
 ### TRACE
 
@@ -385,6 +400,7 @@ AppID 写入 `project.config.json`。API base URL 按开发和体验环境配置
 - MINI-04 个人餐食增删改与当前用户一致。
 - MINI-05 用户主动授权后，下一次重试携带一次性诊断凭证。
 - MINI-06 删除账号前展示影响范围并要求明确确认。
+- MINI-07 首次登录后的个人餐食页为空，并引导用户自行添加餐食。
 
 ### 工程验证
 
@@ -397,7 +413,7 @@ AppID 写入 `project.config.json`。API base URL 按开发和体验环境配置
 
 ## 15. 实施拆分
 
-1. 认证数据迁移与 mapper。
+1. 认证数据迁移、公共餐食体验种子与 mapper。
 2. 微信 code 交换、邀请码和会话服务。
 3. Spring Security 认证、开发 profile 和统一错误契约。
 4. 现有 Controller 身份迁移和跨用户所有权修复。
