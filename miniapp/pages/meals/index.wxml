@@ -1,0 +1,13 @@
+<view class="meals-page">
+  <view class="meals-hero">
+    <view class="eyebrow">只属于你的口味</view>
+    <view class="section-title">我的餐食库</view>
+    <view class="muted">从空库慢慢攒起喜欢的餐食，小狗推荐时就更懂你。</view>
+    <button bindtap="add">＋ 添加一道餐食</button>
+  </view>
+  <view wx:if="{{empty}}" class="card empty-card"><view class="empty-title">还没有个人餐食</view><view class="muted">先录入一道常吃的，之后就能在“我的餐食”中找它。</view></view>
+  <view wx:for="{{meals}}" wx:key="id" class="card meal-card">
+    <view class="meal-main"><view class="name">{{item.name}}</view><view class="meal-time">{{item.mealTime}}</view></view>
+    <view class="meal-actions"><button class="button-soft" size="mini" data-id="{{item.id}}" bindtap="edit">编辑餐食</button><button class="button-danger" size="mini" data-id="{{item.id}}" bindtap="remove">删除</button></view>
+  </view>
+</view>

@@ -1,0 +1,30 @@
+<view class="chat-screen">
+  <view class="chat-intro">
+    <image class="chat-avatar" src="../../assets/dog.jpg" mode="aspectFill" />
+    <view>
+      <view class="eyebrow">小狗 · 你的饮食搭子</view>
+      <view class="chat-title">今天想吃什么？</view>
+      <view class="muted chat-subtitle">你说，我来琢磨。</view>
+    </view>
+  </view>
+  <view class="source-panel">
+    <view class="source-label">从哪里找餐食</view>
+    <view class="modes">
+      <button class="{{sourceMode === 'PUBLIC' ? 'selected' : ''}}" bindtap="usePublic">公共餐食</button>
+      <button class="{{sourceMode === 'PERSONAL' ? 'selected' : ''}}" bindtap="usePersonal">我的餐食</button>
+    </view>
+  </view>
+  <scroll-view scroll-y class="messages">
+    <view wx:for="{{messages}}" wx:key="index" class="message {{item.role === '我' ? 'from-me' : 'from-assistant'}}">
+      <view class="message-author" wx:if="{{item.role === '小狗'}}"><image src="../../assets/dog.jpg" mode="aspectFill" />小狗</view>
+      <view class="message-author" wx:elif="{{item.role === '系统'}}">系统提示</view>
+      <view class="message-bubble">{{item.text}}</view>
+      <view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="id" class="meal"><view class="meal-name">{{meal.name}}</view><view class="meal-hint">餐食推荐</view></view>
+      <view wx:for="{{item.details}}" wx:for-item="detail" wx:key="index" class="detail">{{detail}}</view>
+    </view>
+  </scroll-view>
+  <view class="composer">
+    <input placeholder="说说你想吃什么，或问一道菜怎么做" value="{{message}}" bindinput="onInput" confirm-type="send" bindconfirm="send" />
+    <button loading="{{sending}}" disabled="{{sending}}" bindtap="send">发送</button>
+  </view>
+</view>

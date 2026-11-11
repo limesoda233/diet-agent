@@ -1,0 +1,15 @@
+<view class="login-screen">
+  <view class="login-hero">
+    <view class="eyebrow">小狗劝吃 · 好好吃饭</view>
+    <image class="login-avatar" src="../../assets/dog.jpg" mode="aspectFill" />
+    <view class="title">嗨，我是小狗。</view>
+    <view class="login-lead"><view>今天吃什么？说给我听听。</view><view>我帮你从自己的餐食库和公共餐食里找灵感。</view></view>
+  </view>
+  <view class="card login-card">
+    <view class="login-card-title">加入小范围体验</view>
+    <view class="muted">首次登录请填写朋友给你的邀请码。</view>
+    <input placeholder="请输入邀请码" value="{{invitationCode}}" bindinput="onCode" />
+    <button loading="{{loading}}" bindtap="submit">微信登录，开始聊聊</button>
+    <view class="danger" wx:if="{{error}}">{{error}}</view>
+  </view>
+</view>

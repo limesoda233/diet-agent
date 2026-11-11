@@ -1,0 +1,30 @@
+<view class="settings-page">
+  <view class="eyebrow">你的个人空间</view>
+  <view class="section-title">设置</view>
+  <view class="card settings-card">
+    <view class="card-title">怎么称呼你</view>
+    <view class="muted">这个名字只显示在你的个人资料中。</view>
+    <input value="{{displayName}}" bindinput="onName" placeholder="输入你喜欢的称呼" />
+    <button bindtap="saveName">保存昵称</button>
+  </view>
+  <view wx:if="{{isAdmin}}" class="card settings-card">
+    <view class="card-title">邀请朋友</view>
+    <view class="muted">每个邀请码只能给一位朋友使用，7 天内有效。新朋友会有独立的餐食库。</view>
+    <button class="button-soft" bindtap="createInvitation">生成邀请码</button>
+    <view wx:if="{{invitationCode}}" class="invitation-result">
+      <view class="invitation-code" selectable="true">{{invitationCode}}</view>
+      <view class="muted">请现在复制并私下发给朋友；离开本页后不再显示。</view>
+      <button bindtap="copyInvitation">复制邀请码</button>
+    </view>
+  </view>
+  <view class="card settings-card">
+    <view class="card-title">诊断授权</view>
+    <view class="muted">仅你主动授权后的下一次请求会保存聊天内容、模型输入输出和错误信息，用于排查问题。授权 10 分钟内有效，只能使用一次；该次完整记录保存 24 小时。</view>
+    <button class="button-soft" bindtap="allowDiagnostic">授权下一次诊断</button>
+  </view>
+  <view class="card settings-card account-actions">
+    <view class="card-title">账号与数据</view>
+    <button class="button-soft" bindtap="logout">退出登录</button>
+    <button class="button-danger" bindtap="deleteAccount">删除我的账号和数据</button>
+  </view>
+</view>

@@ -1,0 +1,15 @@
+.git/
+.agents/
+.codex/
+.idea/
+.env
+.env.*
+docs/
+frontend/
+miniapp/
+data/
+tmp/
+target/
+src/test/
+src/main/resources/static/
+*.log

@@ -1,0 +1,13 @@
+.meals-page { padding: 22rpx 26rpx 45rpx; }
+.meals-hero { padding: 33rpx 32rpx; border: 3rpx solid #F3C785; border-radius: 30rpx; background: #FFE6B9; box-shadow: 0 7rpx 0 #F3C785; }
+.meals-hero .section-title { margin: 8rpx 0 10rpx; }
+.meals-hero .muted { color: #664D43; font-size: 25rpx; }
+.meals-hero button { margin: 24rpx 0 0; }
+.card { margin: 18rpx 0 0; }
+.empty-card { padding: 45rpx 30rpx; text-align: center; }
+.empty-title { margin-bottom: 8rpx; font-size: 32rpx; font-weight: 700; }
+.meal-main { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
+.name { font-weight: 800; font-size: 32rpx; }
+.meal-time { color: #7B695F; font-size: 22rpx; }
+.meal-actions { display: flex; gap: 15rpx; margin-top: 24rpx; }
+.meal-actions button { margin: 0; min-width: 124rpx; padding: 8rpx 16rpx; font-size: 23rpx; }

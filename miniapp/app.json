@@ -1,0 +1,12 @@
+{
+  "pages": ["pages/login/index", "pages/chat/index", "pages/meals/index", "pages/meal-edit/index", "pages/settings/index"],
+  "window": {"navigationBarTitleText": "小狗劝吃", "navigationBarBackgroundColor": "#FFFCF8", "backgroundColor": "#FFF9F1", "navigationBarTextStyle": "black"},
+  "tabBar": {
+    "color": "#775E52", "selectedColor": "#D94B2B", "backgroundColor": "#FFFCF8", "borderStyle": "white",
+    "list": [
+      {"pagePath": "pages/chat/index", "text": "对话"},
+      {"pagePath": "pages/meals/index", "text": "我的餐食"},
+      {"pagePath": "pages/settings/index", "text": "设置"}
+    ]
+  }
+}

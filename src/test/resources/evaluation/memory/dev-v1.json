@@ -1,0 +1,16 @@
+[
+  {"id":"self-like","message":"我一直喜欢辣","expected":[{"type":"TASTE","value":"辣","subject":"SELF","stance":"LIKE","scope":"LONG_TERM","operation":"ADD","evidence":"我一直喜欢辣"}]},
+  {"id":"self-dislike","message":"我一向不喜欢甜","expected":[{"type":"TASTE","value":"甜","subject":"SELF","stance":"DISLIKE","scope":"LONG_TERM","operation":"ADD","evidence":"我一向不喜欢甜"}]},
+  {"id":"temporary","message":"今天我想吃清淡","expected":[{"type":"TASTE","value":"清淡","subject":"SELF","stance":"LIKE","scope":"TEMPORARY","operation":"ADD","evidence":"今天我想吃清淡"}]},
+  {"id":"other","message":"我妈一直喜欢川菜","expected":[{"type":"CUISINE","value":"川菜","subject":"OTHER","stance":"LIKE","scope":"LONG_TERM","operation":"ADD","evidence":"我妈一直喜欢川菜"}]},
+  {"id":"hypothetical","message":"假如我喜欢辣该做什么","expected":[{"type":"TASTE","value":"辣","subject":"UNKNOWN","stance":"NEUTRAL","scope":"UNKNOWN","operation":"ADD","evidence":"假如我喜欢辣"}]},
+  {"id":"allergen","message":"我对花生过敏","expected":[{"type":"ALLERGEN","value":"花生","subject":"SELF","stance":"NEUTRAL","scope":"LONG_TERM","operation":"ADD","evidence":"我对花生过敏"}]},
+  {"id":"denied-allergy","message":"我不对花生过敏","expected":[]},
+  {"id":"unknown-ingredient","message":"我一直不吃刺芹","expected":[{"type":"AVOID_INGREDIENT","value":"刺芹","subject":"SELF","stance":"DISLIKE","scope":"LONG_TERM","operation":"ADD","evidence":"我一直不吃刺芹"}]},
+  {"id":"equipment","message":"我家里有空气炸锅","expected":[{"type":"EQUIPMENT","value":"空气炸锅","subject":"SELF","stance":"NEUTRAL","scope":"LONG_TERM","operation":"ADD","evidence":"我家里有空气炸锅"}]},
+  {"id":"minutes","message":"以后做饭最多20分钟","expected":[{"type":"MAX_MINUTES","value":"20","subject":"SELF","stance":"NEUTRAL","scope":"LONG_TERM","operation":"ADD","evidence":"以后做饭最多20分钟"}]},
+  {"id":"remove","message":"删除我喜欢辣的记忆","expected":[{"type":"TASTE","value":"辣","subject":"SELF","stance":"NEUTRAL","scope":"LONG_TERM","operation":"REMOVE","evidence":"删除我喜欢辣的记忆"}]},
+  {"id":"unrelated","message":"今天北京天气怎样","expected":[]},
+  {"id":"multiple","message":"我对花生过敏，我一直不吃刺芹，今天想吃清淡","expected":[{"type":"ALLERGEN","value":"花生","subject":"SELF","stance":"NEUTRAL","scope":"LONG_TERM","operation":"ADD","evidence":"我对花生过敏"},{"type":"AVOID_INGREDIENT","value":"刺芹","subject":"SELF","stance":"DISLIKE","scope":"LONG_TERM","operation":"ADD","evidence":"我一直不吃刺芹"},{"type":"TASTE","value":"清淡","subject":"SELF","stance":"LIKE","scope":"TEMPORARY","operation":"ADD","evidence":"今天想吃清淡"}]},
+  {"id":"coreference","message":"我妈一直喜欢川菜，尤其喜欢辣。我一直不喜欢甜","expected":[{"type":"CUISINE","value":"川菜","subject":"OTHER","stance":"LIKE","scope":"LONG_TERM","operation":"ADD","evidence":"我妈一直喜欢川菜"},{"type":"TASTE","value":"辣","subject":"OTHER","stance":"LIKE","scope":"LONG_TERM","operation":"ADD","evidence":"尤其喜欢辣"},{"type":"TASTE","value":"甜","subject":"SELF","stance":"DISLIKE","scope":"LONG_TERM","operation":"ADD","evidence":"我一直不喜欢甜"}]}
+]

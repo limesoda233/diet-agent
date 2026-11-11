@@ -1,0 +1,12 @@
+{
+  "appid": "wx15b95618032f7270",
+  "projectname": "小狗劝吃",
+  "miniprogramRoot": "./",
+  "compileType": "miniprogram",
+  "setting": {"useCompilerPlugins": ["typescript"]},
+  "packOptions": {"ignore": [
+    {"type": "folder", "value": "node_modules"},
+    {"type": "file", "value": "package-lock.json"},
+    {"type": "suffix", "value": ".test.ts"}
+  ]}
+}

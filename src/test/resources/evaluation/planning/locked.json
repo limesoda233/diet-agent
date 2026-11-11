@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "split": "locked",
+  "frozenAt": "2026-10-21",
+  "cases": [
+    {"id":"locked-isolation","group":"identity-isolation","message":"今天晚餐","scenario":"FOREIGN_OWNER","status":"PARTIAL","days":1,"minimumSelected":0},
+    {"id":"locked-version","group":"memory-version-change","message":"今天晚餐","scenario":"CHANGED_CONTEXT","status":"NEEDS_INPUT","days":0,"minimumSelected":0},
+    {"id":"locked-failure","group":"all-retrieval-failure","message":"明天午餐","scenario":"FAILED_RETRIEVAL","status":"UNAVAILABLE","days":0,"minimumSelected":0},
+    {"id":"locked-review","group":"review-unavailability","message":"明天晚餐","scenario":"REVIEW_TIMEOUT","status":"DEGRADED","days":1,"minimumSelected":1},
+    {"id":"locked-unsupported","group":"unsupported-metadata","message":"今天晚餐预算20元","scenario":"UNSUPPORTED","status":"NEEDS_INPUT","days":0,"minimumSelected":0}
+  ]
+}

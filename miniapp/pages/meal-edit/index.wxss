@@ -1,0 +1,9 @@
+.edit-page { padding: 32rpx 26rpx 50rpx; }
+.edit-page .section-title { margin: 8rpx 0 10rpx; }
+.edit-lead { font-size: 24rpx; }
+.edit-card { margin: 26rpx 0 0; }
+.field { margin-bottom: 24rpx; }
+.field-label { margin-bottom: 9rpx; font-size: 25rpx; font-weight: 700; }
+.field-label text { margin-left: 8rpx; color: #7B695F; font-size: 21rpx; font-weight: 400; }
+input { box-sizing: border-box; width: 100%; height: 78rpx; padding: 0 18rpx; border: 3rpx solid #E9D8C8; border-radius: 20rpx; background: #fff; font-size: 25rpx; }
+.edit-card button { margin-top: 10rpx; min-height: 88rpx; }

@@ -1,0 +1,16 @@
+<view class="edit-page">
+  <view class="eyebrow">给小狗多一点线索</view>
+  <view class="section-title">记录一道喜欢的餐食</view>
+  <view class="muted edit-lead">名字和餐次先填好，其余标签可以慢慢补充。只会保存在你的个人餐食库里。</view>
+  <view class="card edit-card">
+    <view class="field"><view class="field-label">餐食名称</view><input value="{{name}}" data-field="name" bindinput="onInput" placeholder="例如：番茄鸡蛋面" /></view>
+    <view class="field"><view class="field-label">餐次 <text>用逗号分隔</text></view><input value="{{mealTime}}" data-field="mealTime" bindinput="onInput" placeholder="例如：午餐,晚餐" /></view>
+    <view class="field"><view class="field-label">适合的心情</view><input value="{{mood}}" data-field="mood" bindinput="onInput" placeholder="例如：疲惫,开心" /></view>
+    <view class="field"><view class="field-label">用餐场景</view><input value="{{scene}}" data-field="scene" bindinput="onInput" placeholder="例如：工作日,周末" /></view>
+    <view class="field"><view class="field-label">健康目标</view><input value="{{healthGoal}}" data-field="healthGoal" bindinput="onInput" placeholder="例如：清淡,均衡" /></view>
+    <view class="field"><view class="field-label">菜系</view><input value="{{cuisine}}" data-field="cuisine" bindinput="onInput" placeholder="例如：家常" /></view>
+    <view class="field"><view class="field-label">口味</view><input value="{{taste}}" data-field="taste" bindinput="onInput" placeholder="例如：咸鲜" /></view>
+    <view class="field"><view class="field-label">便利程度</view><input value="{{convenience}}" data-field="convenience" bindinput="onInput" placeholder="例如：快速" /></view>
+    <button loading="{{saving}}" bindtap="save">保存到我的餐食库</button>
+  </view>
+</view>

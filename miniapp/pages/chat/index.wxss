@@ -1,0 +1,24 @@
+.chat-screen { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.chat-intro { display: flex; align-items: center; gap: 20rpx; padding: 24rpx 28rpx 20rpx; background: #FFFCF8; border-bottom: 3rpx solid #E9D8C8; }
+.chat-avatar { flex: none; width: 94rpx; height: 94rpx; background: #FFE6B9; border: 4rpx solid #F3C785; border-radius: 50%; box-shadow: 0 5rpx 0 #E2B67D; }
+.chat-title { margin-top: 2rpx; font-size: 37rpx; font-weight: 800; letter-spacing: -1rpx; }
+.chat-subtitle { font-size: 22rpx; }
+.source-panel { padding: 20rpx 28rpx 17rpx; background: #FFFCF8; border-bottom: 3rpx solid #E9D8C8; }
+.source-label { color: #7B695F; font-size: 21rpx; font-weight: 700; margin-bottom: 12rpx; }
+.modes { display: flex; gap: 12rpx; padding: 7rpx; border: 3rpx solid #F3D4B1; border-radius: 24rpx; background: #FFF1DF; }
+.modes button { flex: 1; margin: 0; padding: 12rpx; line-height: 1.5; color: #664D43; border-radius: 17rpx; background: transparent; box-shadow: none; font-size: 25rpx; }
+.modes button.selected { background: #D94B2B; color: #fff; box-shadow: 0 5rpx 0 #A93420; }
+.messages { flex: 1; min-height: 0; box-sizing: border-box; padding: 28rpx 25rpx; background: #FFF9F1; }
+.message { max-width: 92%; margin-bottom: 28rpx; }
+.message.from-me { max-width: 82%; margin-left: auto; }
+.message-author { display: flex; align-items: center; gap: 9rpx; margin-bottom: 9rpx; color: #6E4032; font-size: 22rpx; font-weight: 700; }
+.message-author image { width: 40rpx; height: 40rpx; border: 3rpx solid #F3C785; border-radius: 50%; background: #FFE6B9; }
+.message-bubble { padding: 22rpx 24rpx; border: 3rpx solid #E9D8C8; border-radius: 9rpx 26rpx 26rpx 26rpx; background: #FFFCF8; box-shadow: 0 5rpx 0 #E9D8C8; line-height: 1.65; font-size: 27rpx; word-break: break-word; }
+.from-me .message-bubble { border-color: #D94B2B; border-radius: 26rpx 9rpx 26rpx 26rpx; background: #D94B2B; box-shadow: 0 5rpx 0 #A93420; color: #fff; }
+.meal, .detail { margin-top: 12rpx; padding: 19rpx 22rpx; border: 3rpx solid #E9D8C8; border-radius: 20rpx; background: #FFFCF8; line-height: 1.6; font-size: 25rpx; }
+.meal-name { font-weight: 700; }
+.meal-hint { margin-top: 4rpx; color: #7B695F; font-size: 21rpx; }
+.detail { color: #715246; overflow-wrap: anywhere; }
+.composer { display: flex; align-items: center; gap: 13rpx; padding: 17rpx 24rpx calc(17rpx + env(safe-area-inset-bottom)); border-top: 3rpx solid #E9D8C8; background: #FFFCF8; }
+.composer input { flex: 1; min-width: 0; height: 78rpx; padding: 0 19rpx; border: 3rpx solid #E9D8C8; border-radius: 20rpx; background: #fff; font-size: 25rpx; }
+.composer button { flex: none; margin: 0; min-width: 100rpx; height: 78rpx; line-height: 78rpx; padding: 0 18rpx; font-size: 25rpx; }

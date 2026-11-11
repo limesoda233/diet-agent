@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "split": "development",
+  "frozenAt": "2026-10-21",
+  "cases": [
+    {"id":"dev-range","group":"range-shanghai-dinner","message":"未来三天只安排晚餐","scenario":"NORMAL","status":"COMPLETE","days":3,"minimumSelected":3},
+    {"id":"dev-hard-repeat","group":"hard-repeat-infeasible","message":"未来三天晚餐不要重复","scenario":"SCARCE_FALLBACK","status":"PARTIAL","days":3,"minimumSelected":1},
+    {"id":"dev-review-omission","group":"unresolved-review-omission","message":"今天晚餐","scenario":"OMISSION_THEN_TIMEOUT","status":"PARTIAL","days":1,"minimumSelected":1}
+  ]
+}

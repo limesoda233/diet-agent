@@ -1,0 +1,13 @@
+page { background: #FFF9F1; color: #39251F; font-size: 28rpx; font-family: 'Microsoft YaHei UI', 'PingFang SC', sans-serif; }
+button { background: #D94B2B; color: #fff; border-radius: 24rpx; font-size: 27rpx; font-weight: 800; box-shadow: 0 7rpx 0 #A93420; }
+button::after { border: 0; }
+button[disabled] { opacity: .55; box-shadow: none; }
+button:active:not([disabled]) { transform: translateY(5rpx); box-shadow: 0 2rpx 0 #A93420; }
+.card { background: #FFFCF8; border: 3rpx solid #E9D8C8; border-radius: 30rpx; padding: 30rpx; margin: 20rpx; box-shadow: 0 7rpx 0 #E9D8C8; }
+.muted { color: #775E52; line-height: 1.6; }
+.danger { color: #a34237; }
+.eyebrow { color: #B15F22; font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
+.section-title { font-size: 40rpx; font-weight: 800; letter-spacing: -1rpx; }
+.button-soft { background: #FFF1DF; color: #A93420; box-shadow: 0 7rpx 0 #F3C785; }
+.button-danger { background: #fff0ed; color: #a34237; box-shadow: 0 7rpx 0 #EFCEC7; }
+input { border-width: 3rpx; }

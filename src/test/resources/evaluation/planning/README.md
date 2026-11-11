@@ -1,0 +1,5 @@
+# Frozen planning engineering fixtures
+
+The development and locked splits have disjoint scenario groups. Expectations were fixed before executing the locked suite. Each case runs three times; repetitions are stability observations, not independent samples. Do not alter locked expectations in response to outputs.
+
+`PlanningControlledEvaluationTest` uses a frozen, in-memory candidate adapter and deterministic role scripts. Runtime MySQL/H2 snapshot behavior is covered separately by adapter/repository tests. No real LLM or remote service is called. Assertions cover scope, final status, source/owner isolation, legal selected IDs, hard uniqueness, fact references, and the five-call bound. These controlled cases are engineering acceptance, not evidence that additional agents improve meal quality. Real model comparisons, human preference scoring, and latency distributions still require an independently recorded experiment with shared MySQL snapshots and model/prompt versions; do not report a quality uplift from this suite.

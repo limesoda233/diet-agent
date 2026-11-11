@@ -1,0 +1,10 @@
+.login-screen { min-height: 100vh; padding: 78rpx 34rpx 50rpx; box-sizing: border-box; background: #FFF9F1; }
+.login-hero { padding: 0 22rpx 38rpx; }
+.login-avatar { display: block; width: 174rpx; height: 174rpx; margin: 42rpx 0 16rpx; border: 7rpx solid #FFFCF8; border-radius: 50%; background: #FFE6B9; box-shadow: 0 9rpx 0 #E2B67D; }
+.title { font-size: 57rpx; font-weight: 800; letter-spacing: -2rpx; margin-bottom: 17rpx; }
+.login-lead { max-width: 580rpx; color: #664D43; line-height: 1.75; font-size: 28rpx; }
+.login-card { margin: 0; padding: 35rpx; }
+.login-card-title { margin-bottom: 8rpx; font-size: 35rpx; font-weight: 800; }
+input { height: 88rpx; box-sizing: border-box; border: 3rpx solid #E9D8C8; border-radius: 20rpx; padding: 0 22rpx; margin: 30rpx 0 18rpx; background: #fff; }
+.login-card button { min-height: 88rpx; }
+.danger { margin-top: 20rpx; font-size: 25rpx; line-height: 1.5; }
