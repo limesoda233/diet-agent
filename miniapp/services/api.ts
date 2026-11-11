@@ -81,5 +81,11 @@ export interface ChatResponse {
   videoBlocks?: { title: string; url: string }[];
   mealPlan?: { status: string; days: { date: string; blocks: { mealTime: string;
     selectedMeal: { name: string } | null; reason: string }[] }[] };
-  clarifyQuestion?: string; responseType: string
+  clarifyQuestion?: string; responseType: string; mealDraft?: MealDraft | null
+}
+
+export interface MealDraft {
+  draftId: string; originalText: string; status: 'READY' | 'NEEDS_INPUT' | 'SAVED' | 'CANCELLED';
+  savedMealId?: number | null; missingFields: string[]; warnings: string[];
+  data: MealInput & { knowledge?: { ingredients?: string[]; description?: string; preparation?: string } }
 }

@@ -6,8 +6,9 @@
 .source-panel { padding: 20rpx 28rpx 17rpx; background: #FFFCF8; border-bottom: 3rpx solid #E9D8C8; }
 .source-label { color: #7B695F; font-size: 21rpx; font-weight: 700; margin-bottom: 12rpx; }
 .modes { display: flex; gap: 12rpx; padding: 7rpx; border: 3rpx solid #F3D4B1; border-radius: 24rpx; background: #FFF1DF; }
-.modes button { flex: 1; margin: 0; padding: 12rpx; line-height: 1.5; color: #664D43; border-radius: 17rpx; background: transparent; box-shadow: none; font-size: 25rpx; }
-.modes button.selected { background: #D94B2B; color: #fff; box-shadow: 0 5rpx 0 #A93420; }
+.modes .mode-button { flex: 1; margin: 0; padding: 12rpx; line-height: 1.5; color: #664D43; border-radius: 17rpx; background: transparent; box-shadow: none; font-size: 25rpx; }
+.modes .mode-button.selected { background: #D94B2B; color: #fff; box-shadow: 0 5rpx 0 #A93420; }
+.source-panel .restart { width: 190rpx; margin: 13rpx 0 0 auto; padding: 0 6rpx; line-height: 1.5; color: #A44926; background: transparent; box-shadow: none; font-size: 22rpx; }
 .messages { flex: 1; min-height: 0; box-sizing: border-box; padding: 28rpx 25rpx; background: #FFF9F1; }
 .message { max-width: 92%; margin-bottom: 28rpx; }
 .message.from-me { max-width: 82%; margin-left: auto; }
@@ -19,6 +20,15 @@
 .meal-name { font-weight: 700; }
 .meal-hint { margin-top: 4rpx; color: #7B695F; font-size: 21rpx; }
 .detail { color: #715246; overflow-wrap: anywhere; }
+.draft-card { margin: 4rpx 0 28rpx; padding: 25rpx; border: 3rpx solid #E6C58F; border-radius: 23rpx; background: #FFF2D9; box-shadow: 0 5rpx 0 #E6C58F; }
+.draft-eyebrow { color: #A44926; font-size: 21rpx; font-weight: 800; }
+.draft-title { margin: 9rpx 0 15rpx; font-size: 30rpx; font-weight: 800; }
+.draft-name { font-size: 28rpx; font-weight: 700; }
+.draft-meta { margin-top: 7rpx; color: #664D43; font-size: 24rpx; line-height: 1.5; word-break: break-word; }
+.draft-note { margin-top: 12rpx; color: #9A4B2C; font-size: 22rpx; line-height: 1.5; }
+.draft-actions { display: flex; gap: 12rpx; margin-top: 22rpx; }
+.draft-actions .draft-save, .draft-actions .draft-cancel { flex: 1; margin: 0; padding: 0 10rpx; font-size: 24rpx; }
+.draft-actions .draft-cancel { border: 2rpx solid #D9B99B; color: #664D43; background: #FFF9F1; box-shadow: 0 4rpx 0 #D9B99B; }
 .composer { display: flex; align-items: center; gap: 13rpx; padding: 17rpx 24rpx calc(17rpx + env(safe-area-inset-bottom)); border-top: 3rpx solid #E9D8C8; background: #FFFCF8; }
-.composer input { flex: 1; min-width: 0; height: 78rpx; padding: 0 19rpx; border: 3rpx solid #E9D8C8; border-radius: 20rpx; background: #fff; font-size: 25rpx; }
-.composer button { flex: none; margin: 0; min-width: 100rpx; height: 78rpx; line-height: 78rpx; padding: 0 18rpx; font-size: 25rpx; }
+.composer .composer-input { flex: 1; min-width: 0; height: 78rpx; padding: 0 19rpx; border: 3rpx solid #E9D8C8; border-radius: 20rpx; background: #fff; font-size: 25rpx; }
+.composer .composer-send { flex: none; margin: 0; min-width: 100rpx; height: 78rpx; line-height: 78rpx; padding: 0 18rpx; font-size: 25rpx; }

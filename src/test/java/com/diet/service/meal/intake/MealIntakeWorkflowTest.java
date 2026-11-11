@@ -42,6 +42,11 @@ class MealIntakeWorkflowTest {
         var result = workflow.handle(1L,request("帮我录入宫保鸡丁"),state).orElseThrow();
         assertThat(result.state().mealDraft().data().name()).isEqualTo("宫保鸡丁");
     }
+    @Test void colloquialAddMealRequestRoutesToDraft() {
+        outputs.add("{\"name\":{\"value\":\"番茄面\",\"evidence\":\"番茄面\"},\"mealTime\":[{\"value\":\"午餐\",\"evidence\":\"午餐\"}]}");
+        var result = workflow.handle(1L,request("帮我添加番茄面，午餐吃"),state).orElseThrow();
+        assertThat(result.state().mealDraft().data().name()).isEqualTo("番茄面");
+    }
     @Test void ordinaryMessagesAndYesPassThrough() {
         for (String text : List.of("中午吃了宫保鸡丁","鸡肉能做什么菜","番茄面怎么做","是","好","如何录入系统日志","帮我录入系统日志","帮我录入鸡肉报告","如何录入番茄面？","不要录入番茄面"))
             assertThat(workflow.handle(1L,request(text),state)).isEmpty();

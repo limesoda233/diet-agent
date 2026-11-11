@@ -10,9 +10,10 @@
   <view class="source-panel">
     <view class="source-label">从哪里找餐食</view>
     <view class="modes">
-      <button class="{{sourceMode === 'PUBLIC' ? 'selected' : ''}}" bindtap="usePublic">公共餐食</button>
-      <button class="{{sourceMode === 'PERSONAL' ? 'selected' : ''}}" bindtap="usePersonal">我的餐食</button>
+      <button class="mode-button {{sourceMode === 'PUBLIC' ? 'selected' : ''}}" disabled="{{sending}}" bindtap="usePublic">公共餐食</button>
+      <button class="mode-button {{sourceMode === 'PERSONAL' ? 'selected' : ''}}" disabled="{{sending}}" bindtap="usePersonal">我的餐食</button>
     </view>
+    <button class="restart" disabled="{{sending}}" bindtap="restart">重新开始对话</button>
   </view>
   <scroll-view scroll-y class="messages">
     <view wx:for="{{messages}}" wx:key="index" class="message {{item.role === '我' ? 'from-me' : 'from-assistant'}}">
@@ -22,9 +23,23 @@
       <view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="id" class="meal"><view class="meal-name">{{meal.name}}</view><view class="meal-hint">餐食推荐</view></view>
       <view wx:for="{{item.details}}" wx:for-item="detail" wx:key="index" class="detail">{{detail}}</view>
     </view>
+    <view wx:if="{{draft}}" class="draft-card">
+      <view class="draft-eyebrow">我的餐食 · 录入草稿</view>
+      <view class="draft-title">{{draft.status === 'SAVED' ? '已存入个人餐食库' : draft.status === 'CANCELLED' ? '已取消录入' : '先核对这道餐食'}}</view>
+      <view class="draft-name">{{draft.data.name || '还需要菜名'}}</view>
+      <view class="draft-meta">餐次：{{draft.data.mealTime.length ? draft.data.mealTime : '待补充'}}</view>
+      <view wx:if="{{draftIngredients.length}}" class="draft-meta">食材：{{draftIngredients}}</view>
+      <view wx:if="{{draftPreparation}}" class="draft-meta">做法：{{draftPreparation}}</view>
+      <view wx:if="{{draftMissing.length}}" class="draft-note">请在聊天框补充{{draftMissing}}，再确认保存。</view>
+      <view wx:for="{{draftWarnings}}" wx:key="index" class="draft-note">{{item}}</view>
+      <view wx:if="{{draft.status === 'READY' || draft.status === 'NEEDS_INPUT'}}" class="draft-actions">
+        <button wx:if="{{draft.status === 'READY'}}" class="draft-save" disabled="{{sending}}" data-action="SAVE" bindtap="handleDraftAction">确认保存</button>
+        <button class="draft-cancel" disabled="{{sending}}" data-action="CANCEL" bindtap="handleDraftAction">取消录入</button>
+      </view>
+    </view>
   </scroll-view>
   <view class="composer">
-    <input placeholder="说说你想吃什么，或问一道菜怎么做" value="{{message}}" bindinput="onInput" confirm-type="send" bindconfirm="send" />
-    <button loading="{{sending}}" disabled="{{sending}}" bindtap="send">发送</button>
+    <input class="composer-input" placeholder="推荐晚餐，或说“录入番茄面，午餐”" value="{{message}}" bindinput="onInput" confirm-type="send" bindconfirm="send" />
+    <button class="composer-send" loading="{{sending}}" disabled="{{sending}}" bindtap="send">发送</button>
   </view>
 </view>

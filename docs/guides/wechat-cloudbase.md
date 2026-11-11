@@ -7,7 +7,7 @@
 1. 用 AppID `wx15b95618032f7270` 登录微信开发者工具，并关联云开发环境 `diet-d1grvabedcea653ab`。环境 ID 不是密钥。确认该环境可使用云托管，并阅读套餐、按量计费与预算告警。
 2. 在独立的 TDSQL-C MySQL 集群中创建库 `diet_experience` 和仅有该库 DML 权限的运行账号 `diet_app`。从集群详情复制**外网地址和端口**；不要把数据库密码发到聊天或写进仓库。
 3. 按顺序向空库执行 `experience_schema.sql`、`007_wechat_access.sql`、`public_slot_seed.sql`、`public_meal_seed.sql`，文件都在 `src/main/resources/db/`。只导入公共数据，不导入 `diet_db.sql` 或本地用户餐食。执行后按[体验库检查](wechat-mini-program.md#1-准备独立体验数据库)核对个人数据为空。
-4. 在云托管创建服务，名称**精确填 `diet-agent`**。从仓库根目录源码部署，使用根目录 `Dockerfile`，服务端口 `8080`。开启云托管的固定公网出口 IP，并在 TDSQL-C 安全组中仅放通该 IP 到数据库的实际外网端口。仅小程序访问时可关闭服务公网入口。
+4. 在云托管创建服务，名称**精确填 `diet-agent`**。从仓库根目录源码部署，使用根目录 `Dockerfile`，服务端口 `8080`。开启云托管的固定公网出口 IP，并在 TDSQL-C 安全组中仅放通该 IP 到数据库的**内网访问端口**（实例详情中的 `3306`）；`DB_URL` 则使用实例详情中的**外网端口**。仅小程序访问时可关闭服务公网入口。
 5. 在云托管服务版本的环境变量中配置下表。不要将变量值写进 Dockerfile、`miniapp/config.ts` 或 Git。
 
 | 变量 | 填写内容 |
