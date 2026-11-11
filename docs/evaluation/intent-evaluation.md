@@ -2,6 +2,8 @@
 
 ## 当前基线
 
+下表是 2026-08-23 的 **72 条、6 类历史版本**。当前数据集已扩展为 **84 条、7 类（含 RECIPE_QUERY）**，不能把历史成绩当成当前版本成绩。新的原 Agent / Jev / Jev 回退对照见 [运行指南](../guides/intent-comparison.md)。
+
 评测时间：2026-08-23（Asia/Shanghai）
 
 历史基线模型：`deepseek-chat`
@@ -43,7 +45,7 @@
 
 ### 1. 标签以最终业务路由为准
 
-标签集合直接来自 `Intent` 枚举，共 6 类。评测同时保存两套金标：
+历史基线标签集合共 6 类；当前 `Intent` 枚举和数据集共 7 类。评测同时保存两套金标：
 
 - `expectedAgentIntent`：LLM 意图识别层应该输出什么。
 - `expectedFinalIntent`：经过 `IntentReviseService` 后，状态机最终应该走哪条路。

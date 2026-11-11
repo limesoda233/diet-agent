@@ -14,6 +14,8 @@ import com.diet.service.recipe.rag.model.RecipeRetrievalResult;
 import com.diet.service.recipe.rag.retrieval.HybridRecipeRetriever;
 import com.diet.service.recipe.rag.retrieval.RecipeQueryRewriter;
 import com.diet.service.recipe.rag.retrieval.RecipeReranker;
+import com.diet.service.recipe.rag.retrieval.RecipeRerankResult;
+import com.diet.service.trace.AgentTraceService;
 import com.diet.service.recipe.rag.retrieval.RecipeRetrievalMode;
 
 import java.util.LinkedHashMap;
@@ -29,6 +31,9 @@ import java.util.Map;
  * 此服务提供同步 answer，因此外层并行编排将其放在 boundedElastic 上执行。
  */
 public class RecipeQueryService {
+    private com.diet.service.memory.MemoryPolicy memoryPolicy;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setMemoryPolicy(com.diet.service.memory.MemoryPolicy policy) {this.memoryPolicy=policy;}
     private static final String NO_EVIDENCE = "当前菜谱库中没有足够证据回答这个问题。你可以换一道菜名，或补充想用的食材。";
     private final RecipeQueryRouter router;
     private final MealKnowledgeRepository knowledgeRepository;
@@ -38,6 +43,7 @@ public class RecipeQueryService {
     private final RecipeReranker reranker;
     private final RecipeAnswerGenerator answerGenerator;
     private final RecipeRagProperties properties;
+    private final AgentTraceService trace;
 
     public RecipeQueryService(RecipeQueryRouter router,
                               MealKnowledgeRepository knowledgeRepository,
@@ -47,6 +53,14 @@ public class RecipeQueryService {
                               RecipeReranker reranker,
                               RecipeAnswerGenerator answerGenerator,
                               RecipeRagProperties properties) {
+        this(router, knowledgeRepository, mealMapper, queryRewriter, retriever, reranker, answerGenerator, properties, null);
+    }
+
+    public RecipeQueryService(RecipeQueryRouter router, MealKnowledgeRepository knowledgeRepository,
+                              MealMapper mealMapper, RecipeQueryRewriter queryRewriter,
+                              HybridRecipeRetriever retriever, RecipeReranker reranker,
+                              RecipeAnswerGenerator answerGenerator, RecipeRagProperties properties,
+                              AgentTraceService trace) {
         this.router = router;
         this.knowledgeRepository = knowledgeRepository;
         this.mealMapper = mealMapper;
@@ -55,6 +69,7 @@ public class RecipeQueryService {
         this.reranker = reranker;
         this.answerGenerator = answerGenerator;
         this.properties = properties;
+        this.trace = trace;
     }
 
     public boolean matches(String message, Map<String, Object> context) {
@@ -74,7 +89,7 @@ public class RecipeQueryService {
                                              boolean resolvePersonalName) {
         RecipeQueryRouter.RoutedRecipeQuery routed = router.route(message, context)
                 .orElseThrow(() -> new IllegalArgumentException("不是菜谱查询"));
-        RecipeQuery query = routed.query();
+        RecipeQuery query = memoryPolicy==null?routed.query():memoryPolicy.recipeQuery(userId,routed.query());
         MealKnowledge personal = null;
         boolean missingMeal = false;
         String source = context != null && context.get("recipeQuery") instanceof Map<?, ?> structured
@@ -117,15 +132,47 @@ public class RecipeQueryService {
                 diagnostics.put("generation", "not_called");
                 return RecipeAnswer.refused(NO_EVIDENCE, diagnostics);
             }
-            List<com.diet.service.recipe.rag.model.RetrievedRecipe> reranked =
-                    reranker.rerank(rewritten, retrieval.recipes()).block();
-            if (reranked == null) reranked = retrieval.recipes();
-            RecipeRetrievalResult finalResult = new RecipeRetrievalResult(reranked, retrieval.diagnostics());
+            // Relevance must see the complete resolved question, not a rewrite that may shorten its intent.
+            // A scoring failure must not use the legacy rerank fallback to admit unfiltered evidence.
+            RecipeRerankResult selection;
+            try {
+                selection = reranker.rerankDetailed(query, retrieval.recipes()).block();
+                if (selection == null) throw new IllegalStateException("rerank_empty_signal");
+            } catch (RuntimeException unavailable) {
+                selection = new RecipeRerankResult(RecipeRerankResult.Status.UNAVAILABLE, List.of(), List.of(),
+                        properties.getRerank().getModel(), properties.getRerank().getMinScore(),
+                        retrieval.recipes().size(), 0, "scorer_error", "", List.of());
+            }
+            recordRelevance(selection);
+            if (selection.status() == RecipeRerankResult.Status.UNAVAILABLE || selection.recipes().isEmpty()) {
+                Map<String, Object> diagnostics = retrievalDiagnostics(retrieval,
+                        selection.status() == RecipeRerankResult.Status.UNAVAILABLE ? "relevance_failed" : "no_relevant_evidence");
+                diagnostics.put("relevance", selection.diagnostics());
+                diagnostics.put("generation", "not_called");
+                diagnostics.put("answerPurpose", RecipeAnswerPurpose.fromText(query.text()).name());
+                if (selection.status() == RecipeRerankResult.Status.UNAVAILABLE) {
+                    diagnostics.put("error", "RecipeRagDependencyException");
+                    return RecipeAnswer.refused("菜谱相关性筛选暂时不可用，请稍后再试。", diagnostics);
+                }
+                return RecipeAnswer.refused(NO_EVIDENCE, diagnostics);
+            }
+            RecipeRetrievalResult finalResult = new RecipeRetrievalResult(selection.recipes(), retrieval.diagnostics());
             // 关键分工：检索看 rewritten，回答看 query。原始问题可能包含“原文未写就拒答”。
-            return answerGenerator.generate(sessionId, query, finalResult);
+            RecipeAnswer answer = answerGenerator.generate(sessionId, query, finalResult);
+            if (selection.status() == RecipeRerankResult.Status.BYPASSED) return answer;
+            Map<String, Object> diagnostics = new LinkedHashMap<>(answer.diagnostics());
+            diagnostics.put("relevance", selection.diagnostics());
+            return new RecipeAnswer(answer.text(), answer.citations(), answer.refused(), diagnostics, answer.evidenceContexts());
         } catch (RuntimeException error) {
             return RecipeAnswer.refused("菜谱检索暂时不可用，请稍后再试。",
                     Map.of("route", "retrieval_failed", "error", error.getClass().getSimpleName()));
+        }
+    }
+
+    private void recordRelevance(RecipeRerankResult result) {
+        if (trace != null && result.status() != RecipeRerankResult.Status.BYPASSED) {
+            trace.recordEvent("RECIPE_RELEVANCE_CHECKED", "RECIPE_RAG", null,
+                    result.diagnostics(), result.durationMs());
         }
     }
 

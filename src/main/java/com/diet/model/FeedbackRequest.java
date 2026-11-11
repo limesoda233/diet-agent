@@ -18,4 +18,16 @@ public class FeedbackRequest {
     private String action;
     private Integer rating;
     private String reason;
+    private String traceId;
+    private String planId;
+    private Integer planVersion;
+    private String taskId;
+
+    public FeedbackRequest(String sessionId,Long itemId,String action,Integer rating,String reason,String traceId) {
+        this(sessionId,itemId,action,rating,reason,traceId,null,null,null);
+    }
+
+    public FeedbackRequest(String sessionId,Long itemId,String action,Integer rating,String reason) {
+        this(sessionId,itemId,action,rating,reason,null);
+    }
 }

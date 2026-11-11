@@ -9,6 +9,9 @@ import java.util.List;
 
 @Mapper
 public interface FeedbackMapper {
+    int ownsSession(@Param("userId") Long userId, @Param("sessionId") String sessionId);
+    int canReferenceItem(@Param("userId") Long userId, @Param("itemId") Long itemId);
+    int ownsTrace(@Param("userId") Long userId, @Param("traceId") String traceId);
     int insert(
             @Param("userId") Long userId,
             @Param("sessionId") String sessionId,

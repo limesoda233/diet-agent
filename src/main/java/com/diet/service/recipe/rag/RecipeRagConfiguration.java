@@ -11,6 +11,7 @@ import com.diet.service.recipe.rag.retrieval.IdentityRecipeReranker;
 import com.diet.service.recipe.rag.retrieval.AgentScopeRecipeQueryRewriter;
 import com.diet.service.recipe.rag.retrieval.RecipeQueryRewriter;
 import com.diet.service.recipe.rag.retrieval.RecipeReranker;
+import com.diet.service.recipe.rag.retrieval.HttpRecipeReranker;
 import com.diet.service.trace.AgentTraceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.embedding.EmbeddingModel;
@@ -90,7 +91,12 @@ public class RecipeRagConfiguration {
     }
 
     @Bean
-    RecipeReranker recipeReranker(RecipeRagProperties properties) {
+    RecipeReranker recipeReranker(RecipeRagProperties properties, ObjectMapper objectMapper) {
+        if (properties.getRerank().isEnabled()) {
+            properties.getRerank().validate();
+            return new HttpRecipeReranker(properties.getRerank(),
+                    HttpClient.newBuilder().connectTimeout(properties.getRerank().getTimeout()).build(), objectMapper);
+        }
         return RecipeReranker.withFallback(new IdentityRecipeReranker(), properties.getRerank().getTimeout());
     }
 }

@@ -55,6 +55,39 @@ export interface MealPlanBlock {
   meals: Meal[]
 }
 
+export interface PlanningCandidate {
+  mealId: number
+  sourceMode: SourceMode
+  ownerUserId: number | null
+  name: string
+  mealTimes: string[]
+  ingredients: string[]
+  ingredientsKnown: boolean
+  tags: Record<string, string[]>
+  facts: Record<string, string>
+  fingerprint: string
+}
+
+export interface PlanningBlock {
+  taskId: string
+  mealTime: string
+  selectedMeal: PlanningCandidate | null
+  reason: string
+  repeated: boolean
+}
+
+export interface MealPlanningResult {
+  planId: string | null
+  version: number
+  status: 'COMPLETE' | 'PARTIAL' | 'DEGRADED' | 'NEEDS_INPUT' | 'UNAVAILABLE'
+  strategy: string
+  reviewed: boolean
+  days: { date: string; blocks: PlanningBlock[] }[]
+  gaps: { taskId: string; code: string }[]
+  unsupportedConstraints: string[]
+  warnings: string[]
+}
+
 export interface VideoResponse {
   title: string
   url: string
@@ -75,7 +108,35 @@ export interface ChatResponse {
   clarifyQuestion: string | null
   missingSlots: string[]
   mealDraft: MealDraft | null
+  mealPlan?: MealPlanningResult | null
+  memoryNotices?: string[]
 }
+
+export type MemoryType = 'ALLERGEN' | 'AVOID_INGREDIENT' | 'TASTE' | 'CUISINE' | 'EQUIPMENT' | 'MAX_MINUTES'
+export type MemoryStance = 'LIKE' | 'DISLIKE' | 'NEUTRAL'
+export interface MemoryItem {
+  id: string
+  userId: number
+  type: MemoryType
+  value: string
+  stance: MemoryStance
+  status: 'PENDING' | 'ACTIVE' | 'DELETED'
+  sourceType: 'EXPLICIT' | 'INFERRED'
+  evidence: string
+  sourceMessageId: number | null
+  lastJobId: number
+  version: number
+  expiresAt: number | null
+  updatedAt: number
+}
+export interface MemorySnapshot {
+  enabled: boolean
+  collectionEnabled: boolean
+  items: MemoryItem[]
+}
+export type MemoryPatch = { version: number } & (
+  { action: 'CONFIRM' | 'DELETE' } | { action: 'UPDATE'; value: string; stance: MemoryStance }
+)
 
 export interface CreateSessionResponse {
   sessionId: string
@@ -83,10 +144,14 @@ export interface CreateSessionResponse {
 
 export interface FeedbackRequest {
   sessionId: string
+  traceId?: string
   itemId: number
   action: string
   rating?: number | null
   reason?: string | null
+  planId?: string
+  planVersion?: number
+  taskId?: string
 }
 
 export type Intent = 'MEAL_RECOMMENDATION' | 'CLARIFY_NEEDED' | 'MEAL_ADJUST' | 'MEAL_PLAN' | 'RECIPE_QUERY' | 'HEALTH_RISK' | 'OTHER'

@@ -1,7 +1,7 @@
 import type {
   ChatRequest, ChatResponse, CreateSessionResponse, EvaluationReport, EvaluationRequest,
   FeedbackRequest, Meal, MealDraft, MealRequest, SlotOptions, Trace, TraceFilters,
-  TraceLabelRequest,
+  TraceLabelRequest, MemoryItem, MemoryPatch, MemorySnapshot,
 } from './types'
 
 const BASE = '/api/v1/diet'
@@ -62,6 +62,9 @@ export function createApi(userId: string) {
     deletePersonalMeal: (mealId: number | string) => request<null>(`/meals/personal/${encodeURIComponent(mealId)}`, 'DELETE'),
     listPublicMeals: () => request<Meal[]>('/meals/public'),
     slotOptions: () => request<SlotOptions>('/slot-options'),
+    listMemories: () => request<MemorySnapshot>('/memories'),
+    updateMemorySettings: (collectionEnabled: boolean) => request<MemorySnapshot>('/memories/settings', 'PUT', { collectionEnabled }),
+    patchMemory: (id: string, payload: MemoryPatch) => request<MemoryItem>(`/memories/${encodeURIComponent(id)}`, 'PATCH', payload),
     saveFeedback: (payload: FeedbackRequest) => request<null>('/feedback', 'POST', payload),
     listTraces: (params: TraceFilters) => request<Trace[]>(`/debug/traces${query({ ...params })}`),
     getTrace: (traceId: string) => request<Trace>(`/debug/traces/${encodeURIComponent(traceId)}`),

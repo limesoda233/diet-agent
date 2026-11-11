@@ -14,7 +14,7 @@ public class RecipeRagProperties {
     private final Qdrant qdrant = new Qdrant();
     private final Retrieval retrieval = new Retrieval();
     private final OptionalStage queryRewrite = new OptionalStage();
-    private final OptionalStage rerank = new OptionalStage();
+    private final Rerank rerank = new Rerank();
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -28,7 +28,7 @@ public class RecipeRagProperties {
     public Qdrant getQdrant() { return qdrant; }
     public Retrieval getRetrieval() { return retrieval; }
     public OptionalStage getQueryRewrite() { return queryRewrite; }
-    public OptionalStage getRerank() { return rerank; }
+    public Rerank getRerank() { return rerank; }
 
     public static class Embedding {
         private String baseUrl = "http://localhost:11434";
@@ -95,5 +95,58 @@ public class RecipeRagProperties {
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public Duration getTimeout() { return timeout; }
         public void setTimeout(Duration timeout) { this.timeout = timeout; }
+    }
+
+    /** Explicit opt-in. A threshold is model-specific and must never be silently guessed. */
+    public static class Rerank extends OptionalStage {
+        private String endpoint = "https://api.siliconflow.cn/v1/rerank";
+        private String apiKey = "";
+        private String model = "BAAI/bge-reranker-v2-m3";
+        private int candidateTopK = 20;
+        private int topN = 3;
+        private int maxDocumentChars = 3000;
+        private boolean filterEnabled = true;
+        private Double minScore;
+
+        public String getEndpoint() { return endpoint; }
+        public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
+        public String getApiKey() { return apiKey; }
+        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+        public String getModel() { return model; }
+        public void setModel(String model) { this.model = model; }
+        public int getCandidateTopK() { return candidateTopK; }
+        public void setCandidateTopK(int candidateTopK) { this.candidateTopK = candidateTopK; }
+        public int getTopN() { return topN; }
+        public void setTopN(int topN) { this.topN = topN; }
+        public int getMaxDocumentChars() { return maxDocumentChars; }
+        public void setMaxDocumentChars(int maxDocumentChars) { this.maxDocumentChars = maxDocumentChars; }
+        public boolean isFilterEnabled() { return filterEnabled; }
+        public void setFilterEnabled(boolean filterEnabled) { this.filterEnabled = filterEnabled; }
+        public Double getMinScore() { return minScore; }
+        public void setMinScore(Double minScore) { this.minScore = minScore; }
+
+        public void validate() {
+            // Never include supplied values in configuration errors: endpoint/key may contain secrets.
+            try {
+                var uri = java.net.URI.create(endpoint);
+                if (!("https".equals(uri.getScheme()) || "http".equals(uri.getScheme()))
+                        || uri.getHost() == null || uri.getUserInfo() != null
+                        || uri.getRawQuery() != null || uri.getFragment() != null) throw new IllegalArgumentException();
+            } catch (RuntimeException invalid) {
+                throw new IllegalArgumentException("rerank endpoint must be an HTTP(S) URL without credentials/query/fragment");
+            }
+            if (apiKey == null || apiKey.isBlank() || apiKey.contains("\n") || apiKey.contains("\r"))
+                throw new IllegalArgumentException("rerank api-key is required");
+            if (model == null || model.isBlank()) throw new IllegalArgumentException("rerank model is required");
+            if (getTimeout() == null || getTimeout().isZero() || getTimeout().isNegative())
+                throw new IllegalArgumentException("rerank timeout must be positive");
+            if (candidateTopK < 1 || candidateTopK > 50 || topN < 1 || topN > candidateTopK
+                    || maxDocumentChars < 512 || maxDocumentChars > 8000)
+                throw new IllegalArgumentException("rerank candidate/top-n/document budgets are invalid");
+            if (minScore != null && !Double.isFinite(minScore))
+                throw new IllegalArgumentException("rerank min-score must be finite");
+            if (filterEnabled && minScore == null)
+                throw new IllegalArgumentException("rerank filtering requires explicit min-score calibrated on dev");
+        }
     }
 }

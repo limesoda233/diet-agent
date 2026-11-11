@@ -90,9 +90,12 @@ public class RecipeQueryConfiguration {
         String activeVersion = sparseIndex.activeVersion();
         if (activeVersion != null) vectorIndex.activateVersion(activeVersion);
         var retrieval = properties.getRetrieval();
+        // Parent candidate budget is independent of final answer size when a real reranker is enabled.
+        int parentCandidates = properties.getRerank().isEnabled()
+                ? properties.getRerank().getCandidateTopK() : retrieval.getFinalTopK();
         return new HybridRecipeRetriever(sparseIndex, embeddingModel, vectorIndex, parentResolver,
                 retrieval.getBranchTimeout(), retrieval.getSparseTopK(), retrieval.getDenseTopK(),
-                retrieval.getFinalTopK(), retrieval.getRrfRankConstant());
+                parentCandidates, retrieval.getRrfRankConstant());
     }
 
     @Bean
@@ -103,8 +106,9 @@ public class RecipeQueryConfiguration {
                                           HybridRecipeRetriever retriever,
                                           RecipeReranker reranker,
                                           RecipeAnswerGenerator answerGenerator,
-                                          RecipeRagProperties properties) {
+                                          RecipeRagProperties properties,
+                                          AgentTraceService trace) {
         return new RecipeQueryService(router, knowledgeRepository, mealMapper, queryRewriter,
-                retriever, reranker, answerGenerator, properties);
+                retriever, reranker, answerGenerator, properties, trace);
     }
 }

@@ -36,6 +36,10 @@ public class IngredientCatalog {
         return canonical;
     }
 
+    public boolean supportsSlot(String field, String value) {
+        return slots.getOrDefault(field, List.of()).contains(value);
+    }
+
     public void validate(MealConstraints constraints) {
         constraints.requiredIngredients().forEach(this::normalize);
         constraints.excludedIngredients().forEach(this::normalize);

@@ -121,7 +121,16 @@
         AND owner_user_id = #{userId}
     </select>
 
-    <select id="search" resultMap="MealItemRowMap">
+    <select id="findForPlanning" resultMap="MealItemRowMap" timeout="3">
+        SELECT <include refid="MealColumns"/> FROM meal_item
+        WHERE id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        <choose>
+            <when test="sourceMode != null and sourceMode.name() == 'PERSONAL'">AND source_type='PERSONAL' AND owner_user_id=#{userId}</when>
+            <otherwise>AND source_type='PUBLIC' AND owner_user_id IS NULL</otherwise>
+        </choose>
+    </select>
+
+    <select id="search" resultMap="MealItemRowMap" timeout="3">
         SELECT <include refid="AliasedMealColumns"/>
         FROM meal_item m
         LEFT JOIN meal_knowledge k ON k.meal_id = m.id

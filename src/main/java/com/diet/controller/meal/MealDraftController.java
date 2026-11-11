@@ -1,12 +1,13 @@
 package com.diet.controller.meal;
 
-import com.diet.constants.DietConstants;
+import com.diet.auth.AuthPrincipal;
 import com.diet.exception.DietException;
 import com.diet.service.meal.intake.MealDraft;
 import com.diet.service.meal.intake.MealDraftService;
 import com.diet.service.trace.AgentTraceService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.UUID;
@@ -18,10 +19,10 @@ public class MealDraftController {
     private final AgentTraceService trace;
     public MealDraftController(MealDraftService service, AgentTraceService trace) { this.service=service; this.trace=trace; }
     @PostMapping
-    public MealDraft generate(@RequestHeader(value = DietConstants.USER_ID,defaultValue="1") Long userId,
+    public MealDraft generate(@AuthenticationPrincipal AuthPrincipal principal,
             @RequestBody JsonNode request) {
         String traceId = UUID.randomUUID().toString();
-        try (var scope = trace.openTrace(traceId,"meal_draft_"+UUID.randomUUID(),userId)) {
+        try (var scope = trace.openTrace(traceId,"meal_draft_"+UUID.randomUUID(),principal.userId())) {
             trace.recordEvent("MEAL_DRAFT_REQUESTED","HTTP",Map.of("entry","MANAGEMENT_PAGE"),null);
             try {
                 if (request == null || !request.isObject() || request.size() != 1

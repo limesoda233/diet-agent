@@ -1,6 +1,6 @@
 # Diet Agent 规格驱动开发
 
-更新日期：2026-10-11。
+更新日期：2026-10-19。
 
 ## 已确认决策
 
@@ -24,6 +24,11 @@
 | 009（当前） | 按食材找菜的推荐说明、原料核对与证据回答 | [规格](009-ingredient-recipe-suggestions/spec.md) · [验收](009-ingredient-recipe-suggestions/acceptance.md) |
 | 010（当前） | 管理页与聊天共用口语餐食草稿，确认后录入个人 MySQL 库 | [规格](010-conversational-meal-intake/spec.md) · [验收](010-conversational-meal-intake/acceptance.md) |
 | 011（当前） | React 前端重写、固定聊天输入区、键盘发送和页面交互 | [规格](011-react-frontend/spec.md) · [验收](011-react-frontend/acceptance.md) |
+| 012（当前） | 原 IntentAgent、Jev 原始决策与真实回退链路的离线对照 | [规格](012-intent-comparison/spec.md) · [运行指南](../guides/intent-comparison.md) · [验收](012-intent-comparison/acceptance.md) |
+| 013（当前） | 可选 Cross-Encoder 重排、显式阈值准入和共享候选对照；默认关闭 | [规格](013-recipe-relevance/spec.md) · [运行指南](../guides/recipe-relevance.md) · [验收](013-recipe-relevance/acceptance.md) |
+| 014（当前） | MySQL 用户长期记忆、消息任务、过敏确认和偏好归纳；默认关闭 | [规格](014-user-memory/spec.md) · [运行指南](../guides/user-memory.md) · [验收](014-user-memory/acceptance.md) |
+| 015（当前） | Planner/Menu/Review 受控协作、跨日餐食规划、确定性校验和有限修订；默认关闭 | [技术方案](015-multi-agent-meal-planning/spec.md) · [运行指南](../guides/meal-planning.md) · [验收](015-multi-agent-meal-planning/acceptance.md) |
+| 016（待平台验收） | 微信小程序认证、邀请制用户隔离、隐私 Trace 与体验客户端 | [规格](016-wechat-mini-program/spec.md) · [云开发部署](../guides/wechat-cloudbase.md) · [本地验收](016-wechat-mini-program/acceptance.md) |
 
 第一阶段已完成工程验收，见 [001 验收记录](001-meal-retrieval-evaluation/acceptance.md)。阶段 002 的餐食 RAG 文档与代码已删除，阶段 003 只保留带退役标记的历史文档。阶段 004 定义菜谱 RAG，阶段 005 定义真实视频 MCP，阶段 006 定义并行编排和 Ragas，阶段 007 定义可选查询改写；实现和运行状态以最新对应阶段文档为准。
 

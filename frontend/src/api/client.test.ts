@@ -4,6 +4,19 @@ import { createApi } from './client'
 afterEach(() => vi.unstubAllGlobals())
 
 describe('createApi', () => {
+  it('uses user-bound memory endpoints and sends only versioned mutation fields', async () => {
+    const fetcher = vi.fn().mockImplementation(async () => new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetcher)
+    const api = createApi('17')
+    await api.listMemories()
+    await api.updateMemorySettings(false)
+    await api.patchMemory('a/b', { version: 3, action: 'UPDATE', value: '清淡', stance: 'LIKE' })
+    expect(fetcher.mock.calls.map(([url, init]) => [url, init.method, init.body, new Headers(init.headers).get('X-User-Id')])).toEqual([
+      ['/api/v1/diet/memories', 'GET', undefined, '17'],
+      ['/api/v1/diet/memories/settings', 'PUT', '{"collectionEnabled":false}', '17'],
+      ['/api/v1/diet/memories/a%2Fb', 'PATCH', '{"version":3,"action":"UPDATE","value":"清淡","stance":"LIKE"}', '17'],
+    ])
+  })
   it('keeps the user identity captured at creation and sends JSON', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response('{"sessionId":"s-1"}', { status: 200 }))
     vi.stubGlobal('fetch', fetcher)

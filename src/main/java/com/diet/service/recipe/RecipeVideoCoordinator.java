@@ -77,7 +77,8 @@ public final class RecipeVideoCoordinator {
                          BranchOutcome<List<CookingVideo>> video) { }
 
     private BranchOutcome<RecipeAnswer> recipeOutcome(RecipeAnswer answer, long durationMs) {
-        if ("retrieval_failed".equals(answer.diagnostics().get("route"))) {
+        if ("retrieval_failed".equals(answer.diagnostics().get("route"))
+                || "relevance_failed".equals(answer.diagnostics().get("route"))) {
             Object error = answer.diagnostics().get("error");
             String errorType = error instanceof String name
                     && name.matches("[A-Za-z][A-Za-z0-9]{0,63}(Exception|Error)") ? name : "UnknownError";

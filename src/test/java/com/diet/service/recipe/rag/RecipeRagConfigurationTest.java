@@ -4,6 +4,8 @@ import com.diet.service.recipe.rag.index.RecipeEmbeddingModel;
 import com.diet.service.recipe.rag.index.RecipeVectorIndex;
 import com.diet.service.recipe.rag.model.RecipeQuery;
 import com.diet.service.recipe.rag.retrieval.RecipeQueryRewriter;
+import com.diet.service.recipe.rag.retrieval.RecipeReranker;
+import com.diet.service.recipe.rag.retrieval.HttpRecipeReranker;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.TextBlock;
@@ -47,6 +49,28 @@ class RecipeRagConfigurationTest {
                     assertThat(context).hasSingleBean(RecipeVectorIndex.class);
                     assertThat(context).hasSingleBean(RecipeQueryRewriter.class);
                 });
+    }
+
+    @Test
+    void enabledRerankRequiresCredentialsAndExplicitFilterThreshold() {
+        contextRunner.withPropertyValues("diet.recipe-rag.enabled=true", "diet.recipe-rag.rerank.enabled=true")
+                .run(context -> assertThat(context).hasFailed());
+        contextRunner.withPropertyValues("diet.recipe-rag.enabled=true", "diet.recipe-rag.rerank.enabled=true",
+                        "diet.recipe-rag.rerank.api-key=fixture-secret")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void enabledRerankBuildsLazyScorerAndRerankOnlyNeedsNoThreshold() {
+        contextRunner.withPropertyValues("diet.recipe-rag.enabled=true", "diet.recipe-rag.rerank.enabled=true",
+                        "diet.recipe-rag.rerank.api-key=fixture-secret", "diet.recipe-rag.rerank.min-score=0.5")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(RecipeReranker.class)).isInstanceOf(HttpRecipeReranker.class);
+                });
+        contextRunner.withPropertyValues("diet.recipe-rag.enabled=true", "diet.recipe-rag.rerank.enabled=true",
+                        "diet.recipe-rag.rerank.api-key=fixture-secret", "diet.recipe-rag.rerank.filter-enabled=false")
+                .run(context -> assertThat(context).hasNotFailed());
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.diet.service.orchestrator;
 import com.diet.service.meal.constraint.MealConstraintContext;
 
 import com.diet.service.meal.constraint.ConstraintParser;
+import com.diet.service.meal.constraint.IngredientCatalog;
 
 import com.diet.exception.DietException;
 import com.diet.service.risk.RiskGuardService;
@@ -63,12 +64,22 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Service
 public class DietOrchestratorService {
+    private com.diet.service.meal.planning.runtime.MealPlanningChatService mealPlanningChatService;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setMealPlanningChatService(com.diet.service.meal.planning.runtime.MealPlanningChatService service) {this.mealPlanningChatService=service;}
+    private com.diet.service.memory.MemoryService memoryService;
+    private com.diet.service.memory.MemoryPolicy memoryPolicy;
+
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setMemoryService(com.diet.service.memory.MemoryService service) { this.memoryService=service; }
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setMemoryPolicy(com.diet.service.memory.MemoryPolicy policy) { this.memoryPolicy=policy; }
     private final RecipeConversationResolver recipeConversationResolver = new RecipeConversationResolver();
 
     /**
      * 闲聊时的固定引导文案，不额外调用 LLM。
      */
-    private static final String CHITCHAT_REPLY = "我主要负责帮你决定吃什么。你可以告诉我餐次、口味，或者想清淡点还是顶饱点。";
+    private static final String CHITCHAT_REPLY = "我是小狗，负责帮你琢磨今天吃什么。告诉我餐次和口味就能开工；让我对着空碗猜，可有点为难呀。";
 
     /**
      * 会话消息落库服务，写入 diet_messages 表。
@@ -267,13 +278,49 @@ public class DietOrchestratorService {
      * 在会话锁内执行本轮状态机：保存消息 → 显式/规则路由 → 必要时模型识别 → 业务分发。
      */
     private ChatResponse handleTurn(Long userId, ChatRequest request, String traceId, SessionState state) {
+        if(memoryService==null) return handlePreparedTurn(userId,request,traceId,state,false);
+        com.diet.service.memory.MemoryTurn turn;
+        try {
+            turn=memoryService.prepare(userId,state.sessionId(),request.message(),traceId);
+        } catch(RuntimeException unavailable) {
+            agentTraceService.recordEvent("MEMORY_UNAVAILABLE","MEMORY",null,Map.of("errorType",unavailable.getClass().getSimpleName()));
+            return completeAsk(state.sessionId(),traceId,state,ClarifyResult.ask("用户记忆暂时不可用，无法确认你的饮食限制，请稍后重试。",List.of("memory")));
+        }
+        agentTraceService.recordEvent("MEMORY_PREPARED","MEMORY",null,
+                Map.of("candidateCount",turn.facts().size(),"memoryCount",turn.items().size(),"needsClarification",turn.requiresClarification()));
+        ChatResponse response;
+        if(turn.hasAllergy()) {
+            response=completeTextOnly(state.sessionId(),traceId,state,Intent.CLARIFY_NEEDED,
+                    ResponseResult.textOnly(com.diet.service.memory.MemoryPolicy.ALLERGY_LIMIT));
+        } else if(turn.requiresClarification()) {
+            response=completeAsk(state.sessionId(),traceId,state,ClarifyResult.ask("我未能可靠识别你提到的禁忌，请明确需要排除的食材或过敏原。",List.of("dietaryRestrictions")));
+        } else {
+            // Temporary ingredient restrictions must also reach rule-routed recipe queries.
+            var effectiveRequest=withMemoryRecipeContext(request,turn);
+            response=handlePreparedTurn(userId,effectiveRequest,traceId,state,true);
+        }
+        var notices=new java.util.ArrayList<>(turn.notices());
+        if(turn.items().stream().anyMatch(i->"ACTIVE".equals(i.status()) && Set.of("EQUIPMENT","MAX_MINUTES").contains(i.type())))
+            notices.add("已记录烹饪条件；当前数据尚不能完整核验厨具和耗时，结果不保证满足这些条件。");
+        response.memoryNotices(List.copyOf(notices));
+        try {memoryService.recordResponse(userId,state.sessionId(),traceId,response);}
+        catch(RuntimeException failed) {agentTraceService.recordEvent("MEMORY_EXPOSURE_FAILED","MEMORY",null,Map.of("errorType",failed.getClass().getSimpleName()));}
+        return response;
+    }
+
+    private ChatRequest withMemoryRecipeContext(ChatRequest request,com.diet.service.memory.MemoryTurn turn) {
+        return com.diet.service.memory.MemoryRequestContext.prepare(request,turn,
+                recipeQueryService!=null && recipeQueryService.matches(request.message(),request.context()));
+    }
+
+    private ChatResponse handlePreparedTurn(Long userId, ChatRequest request, String traceId, SessionState state, boolean messageRecorded) {
         // 从会话状态中取出 sessionId，后续落库和 Agent 调用都依赖它
         String sessionId = state.sessionId();
         // 从会话状态中取出数据源模式（PERSONAL / PUBLIC）
         SourceMode sourceMode = state.sourceMode();
 
         // 将用户消息 INSERT 到 diet_messages 表，role=user，intent=null，关联 traceId
-        sessionService.appendMessage(sessionId, "user", request.message(), null, traceId);
+        if(!messageRecorded) sessionService.appendMessage(sessionId, "user", request.message(), null, traceId);
 
         // Trace 事件：USER_MESSAGE_RECORDED | 阶段 SESSION | 输入=用户原文 | 输出=sessionId+sourceMode
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", request.message(), Map.of("sessionId", sessionId, "sourceMode", sourceMode));
@@ -288,7 +335,13 @@ public class DietOrchestratorService {
             }
         }
 
+        if(mealPlanningChatService!=null && mealPlanningChatService.matches(request))
+            return handleMultiAgentPlan(userId,request,traceId,state);
+
         if (cookingVideoSearchService != null && cookingVideoSearchService.isVideoOnly(request.message(), request.context())) {
+            if(memoryService!=null && !com.diet.service.memory.MemoryRequestContext.exclusions(request.context()).isEmpty())
+                return completeTextOnly(sessionId,traceId,state,Intent.RECIPE_QUERY,
+                        ResponseResult.textOnly("视频缺少可核验的配料信息，无法确认满足你的忌口，因此暂不返回视频。你可以查询带食材证据的文字菜谱。"));
             CookingVideoSearchService.VideoSearchRequest videoRequest;
             try {
                 videoRequest = cookingVideoSearchService.route(request.message(), request.context());
@@ -338,6 +391,9 @@ public class DietOrchestratorService {
         // Trace 事件：INTENT_REVISED | 阶段 INTENT | 输入=矫正前 rawIntent | 输出=矫正后 intent
         agentTraceService.recordEvent("INTENT_REVISED", "INTENT", rawIntent, intent);
 
+        if(mealPlanningChatService!=null && intent.intent()==Intent.MEAL_PLAN)
+            return handleMultiAgentPlan(userId,request,traceId,state);
+
         if (intent.intent() != Intent.HEALTH_RISK
                 && intent.intent() != Intent.OTHER
                 && intent.intent() != Intent.RECIPE_QUERY) {
@@ -356,14 +412,16 @@ public class DietOrchestratorService {
 
         // 按最终意图枚举分发到对应分支处理器
         try {
+        List<String> currentExclusions=memoryService==null?List.of():
+                com.diet.service.memory.MemoryRequestContext.exclusions(request.context());
         return switch (intent.intent()) {
             // 推荐或需澄清：走推荐主链路（澄清由 ClarifyAgent 内部决定）
             case MEAL_RECOMMENDATION, CLARIFY_NEEDED ->
-                    handleRecommendation(sessionId, userId, request.message(), traceId, state, intent);
+                    handleRecommendation(sessionId, userId, request.message(), traceId, state, intent,currentExclusions);
             // 调整上轮推荐：排除已推荐 ID，重跑推荐流水线
-            case MEAL_ADJUST -> handleAdjust(sessionId, userId, request.message(), traceId, state, intent);
+            case MEAL_ADJUST -> handleAdjust(sessionId, userId, request.message(), traceId, state, intent,currentExclusions);
             // 多餐规划：标记 PLAN 阶段后走推荐流水线
-            case MEAL_PLAN -> handlePlan(sessionId, userId, request.message(), traceId, state, intent);
+            case MEAL_PLAN -> mealPlanningChatService==null?handlePlan(sessionId, userId, request.message(), traceId, state, intent,currentExclusions):handleMultiAgentPlan(userId,request,traceId,state);
             // 菜谱查询：意图模型兜底识别后强制构造 recipeQuery，进入公共菜谱 RAG。
             case RECIPE_QUERY -> handleRecipeQuery(sessionId, userId, request, traceId, state, true);
             // 健康风险：返回 NutritionGuard 保守提示，不走推荐
@@ -373,6 +431,28 @@ public class DietOrchestratorService {
         };
         } catch (IllegalArgumentException invalid) {
             return completeAsk(sessionId, traceId, state, ClarifyResult.ask(invalid.getMessage(), List.of("retrievalConstraints")));
+        }
+    }
+
+    private ChatResponse handleMultiAgentPlan(Long userId,ChatRequest request,String traceId,SessionState state) {
+        if(intentReviseService.containsHealthRiskKeyword(request.message()))
+            return handleHealthRisk(state.sessionId(),traceId,state);
+        try {
+            String constraintText=request.message().replaceAll("(?:尽量)?(?:不要|不能|不许|避免|不)?重复","")
+                    .replaceAll("(?:只要|只能)(早餐|午餐|晚餐)","$1");
+            var context=constraintParser.resolveContext(constraintText,state.mealConstraintContext(),request.context(),false);
+            var working=state.withPhase(SessionPhase.PLAN).withIntent(Intent.MEAL_PLAN).withMealConstraintContext(context);
+            List<String> exclusions=memoryService==null?List.of():com.diet.service.memory.MemoryRequestContext.exclusions(request.context());
+            var frozenInput=working.withMealConstraintContext(new MealConstraintContext(context.queryText(),withCurrentExclusions(context.constraints(),exclusions),context.source(),context.pendingConstraintText()));
+            var response=mealPlanningChatService.plan(userId,request,frozenInput,traceId);
+            var ids=response.displayBlocks().stream().map(com.diet.model.MealResponse::id).toList();
+            var saved=working.appendLastRecommendations(ids).withRecipeConversation(RecipeConversationContext.displayed(response.displayBlocks()));
+            sessionStateService.save(saved);
+            sessionService.appendMessage(state.sessionId(),"assistant",response.speechText(),Intent.MEAL_PLAN.name(),traceId);
+            agentTraceService.recordEvent("RESPONSE_READY","PLAN",null,response);
+            return response;
+        } catch(IllegalArgumentException invalid) {
+            return completeAsk(state.sessionId(),traceId,state,ClarifyResult.ask(invalid.getMessage(),List.of("mealPlan")));
         }
     }
 
@@ -424,7 +504,8 @@ public class DietOrchestratorService {
             forcedContext.put("recipeQuery", Map.of("query", request.message()));
             context = forcedContext;
         }
-        final Map<String, Object> finalContext = context;
+        final Map<String, Object> finalContext = memoryService==null?context:
+                com.diet.service.memory.MemoryRequestContext.mergeRecipe(context,request.message());
         return executeRecipeQuery(sessionId, userId, request.message(), finalContext, traceId, state);
     }
 
@@ -434,7 +515,8 @@ public class DietOrchestratorService {
                                             Map<String, Object> finalContext,
                                             String traceId,
                                             SessionState state) {
-        if (recipeVideoCoordinator == null) {
+        if (recipeVideoCoordinator == null || (memoryService!=null
+                && !com.diet.service.memory.MemoryRequestContext.exclusions(finalContext).isEmpty())) {
             try {
                 var answer = recipeQueryService.answer(sessionId, userId, message, finalContext);
                 agentTraceService.recordEvent("RECIPE_ANSWER_READY", "RECIPE_RAG", null,
@@ -555,7 +637,7 @@ public class DietOrchestratorService {
     /**
      * 推荐主链路：合并槽位 → ClarifyAgent 判追问 → 槽位足够则进入 completeRecommendation。
      */
-    private ChatResponse handleRecommendation(String sessionId, Long userId, String userInput, String traceId, SessionState state, IntentResult intent) {
+    private ChatResponse handleRecommendation(String sessionId, Long userId, String userInput, String traceId, SessionState state, IntentResult intent,List<String> currentExclusions) {
         // 将历史 slots 与 IntentAgent 本轮识别的 slots 合并（本轮非空覆盖，本轮空保留历史）
         SlotBundle mergedSlots = slotMergeService.merge(state.slots(), intent.slots());
 
@@ -567,7 +649,8 @@ public class DietOrchestratorService {
 
         // 【重要】不能完全依靠agent的意图识别,在进入推荐之前,规则层面上也需要判断是否有足够的信息
         // 调用 ClarifyAgent：规则层先判缺失槽位，不足则 LLM 生成追问文案
-        ClarifyResult clarify = clarifyAgentService.decide(sessionId, userInput, mergedSlots);
+        ClarifyResult clarify = clarifyAgentService.decide(sessionId, userInput,
+                memoryPolicy==null?mergedSlots:memoryPolicy.defaults(userId,mergedSlots));
         // Trace 事件：CLARIFY_DECISION | 阶段 CLARIFY | 输入=mergedSlots | 输出=ClarifyResult（ASK/READY）
         agentTraceService.recordEvent("CLARIFY_DECISION", "CLARIFY", mergedSlots, clarify);
 
@@ -577,7 +660,7 @@ public class DietOrchestratorService {
             return completeAsk(sessionId, traceId, workingState, clarify);
         }
         // 槽位足够：phase 切 RECOMMEND，excludeMealIds 为空
-        return completeRecommendation(sessionId, userId, userInput, traceId, workingState.withPhase(SessionPhase.RECOMMEND), List.of());
+        return completeRecommendation(sessionId, userId, userInput, traceId, workingState.withPhase(SessionPhase.RECOMMEND), List.of(),currentExclusions);
     }
 
     private ChatResponse completeAsk(String sessionId, String traceId, SessionState workingState, ClarifyResult clarify) {
@@ -602,7 +685,7 @@ public class DietOrchestratorService {
     /**
      * 调整链路：合并槽位 → 取 excludeMealIds → 重跑推荐流水线。
      */
-    private ChatResponse handleAdjust(String sessionId, Long userId, String userInput, String traceId, SessionState state, IntentResult intent) {
+    private ChatResponse handleAdjust(String sessionId, Long userId, String userInput, String traceId, SessionState state, IntentResult intent,List<String> currentExclusions) {
         // 合并历史槽位与本轮 IntentAgent 识别的槽位
         SlotBundle mergedSlots = slotMergeService.merge(state.slots(), intent.slots());
 
@@ -618,13 +701,13 @@ public class DietOrchestratorService {
                 .withPhase(SessionPhase.RECOMMEND);
 
         // 进入推荐流水线，仅排除已推荐餐食，实现换一批
-        return completeRecommendation(sessionId, userId, userInput, traceId, workingState, excludeMealIds);
+        return completeRecommendation(sessionId, userId, userInput, traceId, workingState, excludeMealIds,currentExclusions);
     }
 
     /**
      * 多餐规划链路：合并槽位 → 标记 PLAN 阶段 → 走推荐流水线。
      */
-    private ChatResponse handlePlan(String sessionId, Long userId, String userInput, String traceId, SessionState state, IntentResult intent) {
+    private ChatResponse handlePlan(String sessionId, Long userId, String userInput, String traceId, SessionState state, IntentResult intent,List<String> currentExclusions) {
         // 合并历史槽位与本轮槽位
         SlotBundle mergedSlots = slotMergeService.merge(state.slots(), intent.slots());
         // Trace 事件：PLAN_CONTEXT_RESOLVED | 阶段 PLAN | 输入=intent | 输出=mergedSlots
@@ -632,7 +715,7 @@ public class DietOrchestratorService {
         // 构建规划态工作会话：意图=MEAL_PLAN，phase=PLAN
         SessionState workingState = state.withIntent(Intent.MEAL_PLAN).withSlots(mergedSlots).withPhase(SessionPhase.PLAN);
         // 将“三餐”展开为早餐、午餐、晚餐，分别检索并按餐次分组返回
-        return completeMealPlan(sessionId, userId, userInput, traceId, workingState);
+        return completeMealPlan(sessionId, userId, userInput, traceId, workingState,currentExclusions);
     }
 
     /**
@@ -643,9 +726,13 @@ public class DietOrchestratorService {
             Long userId,
             String userInput,
             String traceId,
-            SessionState state) {
+            SessionState state,List<String> currentExclusions) {
+        var baseContext=state.mealConstraintContext();
+        var effectiveContext=new MealConstraintContext(baseContext.queryText(),
+                withCurrentExclusions(baseContext.constraints(),currentExclusions),baseContext.source(),baseContext.pendingConstraintText());
         MealPlanService.PlanResult plan = mealPlanService.buildPlan(
-                sessionId, userId, userInput, state.sourceMode(), state.slots(), state.mealConstraintContext());
+                sessionId, userId, userInput, state.sourceMode(),
+                state.slots(), effectiveContext);
 
         agentTraceService.recordEvent(
                 plan.recommend().recommendations().isEmpty() ? "NO_MEAL_PLAN_MATCHED" : "MEAL_PLAN_BUILT",
@@ -713,15 +800,24 @@ public class DietOrchestratorService {
     /**
      * 完整推荐流水线：检索 → 重排 → LLM 生成理由与口语回复 → Guard 审查 → 持久化并返回。
      */
-    private ChatResponse completeRecommendation(String sessionId, Long userId, String userInput, String traceId, SessionState state, List<Long> excludeMealIds) {
+    private com.diet.service.meal.constraint.MealConstraints withCurrentExclusions(com.diet.service.meal.constraint.MealConstraints base,List<String> extra) {
+        if(extra.isEmpty())return base;
+        var excluded=new java.util.LinkedHashSet<>(base.excludedIngredients());
+        var catalog=new IngredientCatalog();extra.stream().map(catalog::normalize).forEach(excluded::add);
+        return new com.diet.service.meal.constraint.MealConstraints(base.requiredIngredients(),List.copyOf(excluded),base.requiredSlots(),base.excludedSlots());
+    }
+
+    private ChatResponse completeRecommendation(String sessionId, Long userId, String userInput, String traceId, SessionState state, List<Long> excludeMealIds,List<String> currentExclusions) {
+        SlotBundle effectiveSlots=memoryPolicy==null?state.slots():memoryPolicy.defaults(userId,state.slots());
         List<MealItem> candidates = mealSearchService.search(new MealSearchRequest(
-                state.sourceMode(), userId, state.slots(), excludeMealIds,
-                state.mealConstraintContext().constraints()));
+                state.sourceMode(), userId, effectiveSlots, excludeMealIds,
+                withCurrentExclusions(state.mealConstraintContext().constraints(),currentExclusions)));
         // Trace 事件：MEAL_SEARCHED | 阶段 SEARCH | 输入=slots | 输出=候选数量+candidates 列表
         agentTraceService.recordEvent("MEAL_SEARCHED", "SEARCH", state.slots(), Map.of("candidateCount", candidates.size(), "candidates", candidates));
 
         // 构造排序请求：候选列表 + slots + excludeMealIds，返回 top10
-        List<MealItem> ranked = mealRankService.rank(new MealRankRequest(candidates, state.slots(), excludeMealIds));
+        List<MealItem> ranked = mealRankService.rank(new MealRankRequest(candidates, effectiveSlots, excludeMealIds));
+        if(memoryPolicy!=null)ranked=memoryPolicy.rank(userId,state.slots(),ranked);
         // Trace 事件：MEAL_RANKED | 阶段 RANK | 输入=excludeMealIds | 输出=重排后数量+ranked 列表
         agentTraceService.recordEvent("MEAL_RANKED", "RANK", Map.of("excludeMealIds", excludeMealIds), Map.of("rankedCount", ranked.size(), "ranked", ranked));
 
@@ -741,7 +837,7 @@ public class DietOrchestratorService {
 
         // 调用 RecommendResponseAgent：top3 候选 + 用户原文 + slots → 推荐理由 + speechText + 卡片
         RecommendResponseAgentService.Result merged = recommendResponseAgentService.recommendAndRespond(
-                sessionId, userInput, state.sourceMode(), state.slots(), ranked);
+                sessionId, userInput, state.sourceMode(), effectiveSlots, ranked);
 
         // 从结果中取出 RecommendResult（含 recommendations 列表和 needDisclaimer 标记）
         RecommendResult recommend = merged.recommend();

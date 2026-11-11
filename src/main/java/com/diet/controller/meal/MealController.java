@@ -1,6 +1,6 @@
 package com.diet.controller.meal;
 
-import com.diet.constants.DietConstants;
+import com.diet.auth.AuthPrincipal;
 import com.diet.model.MealRequest;
 import com.diet.model.MealResponse;
 import com.diet.service.meal.MealService;
@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,23 +26,23 @@ public class MealController {
     }
 
     @GetMapping("/personal")
-    public List<MealResponse> findPersonal(@RequestHeader(value = DietConstants.USER_ID, defaultValue = "1") Long userId) {
-        return mealService.findPersonalMeals(userId).stream().map(MealResponse::from).toList();
+    public List<MealResponse> findPersonal(@AuthenticationPrincipal AuthPrincipal principal) {
+        return mealService.findPersonalMeals(principal.userId()).stream().map(MealResponse::from).toList();
     }
 
     @PostMapping("/personal")
-    public MealResponse createPersonal(@RequestHeader(value = DietConstants.USER_ID, defaultValue = "1") Long userId, @RequestBody MealRequest request) {
-        return MealResponse.from(mealService.createPersonalMeal(userId, request));
+    public MealResponse createPersonal(@AuthenticationPrincipal AuthPrincipal principal, @RequestBody MealRequest request) {
+        return MealResponse.from(mealService.createPersonalMeal(principal.userId(), request));
     }
 
     @PutMapping("/personal/{mealId}")
-    public MealResponse updatePersonal(@RequestHeader(value = DietConstants.USER_ID, defaultValue = "1") Long userId, @PathVariable Long mealId, @RequestBody MealRequest request) {
-        return MealResponse.from(mealService.updatePersonalMeal(userId, mealId, request));
+    public MealResponse updatePersonal(@AuthenticationPrincipal AuthPrincipal principal, @PathVariable Long mealId, @RequestBody MealRequest request) {
+        return MealResponse.from(mealService.updatePersonalMeal(principal.userId(), mealId, request));
     }
 
     @DeleteMapping("/personal/{mealId}")
-    public void deletePersonal(@RequestHeader(value = DietConstants.USER_ID, defaultValue = "1") Long userId, @PathVariable Long mealId) {
-        mealService.deletePersonalMeal(userId, mealId);
+    public void deletePersonal(@AuthenticationPrincipal AuthPrincipal principal, @PathVariable Long mealId) {
+        mealService.deletePersonalMeal(principal.userId(), mealId);
     }
 
     @GetMapping("/public")

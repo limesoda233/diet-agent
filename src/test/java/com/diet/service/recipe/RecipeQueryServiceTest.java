@@ -15,6 +15,8 @@ import com.diet.service.recipe.rag.model.RetrievedRecipe;
 import com.diet.service.recipe.rag.retrieval.HybridRecipeRetriever;
 import com.diet.service.recipe.rag.retrieval.RecipeQueryRewriter;
 import com.diet.service.recipe.rag.retrieval.RecipeReranker;
+import com.diet.service.recipe.rag.retrieval.RecipeRerankResult;
+import com.diet.service.trace.AgentTraceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
@@ -138,6 +140,80 @@ class RecipeQueryServiceTest {
         var answerQuery = org.mockito.ArgumentCaptor.forClass(RecipeQuery.class);
         verify(generator).generate(eq("s"), answerQuery.capture(), any());
         assertThat(answerQuery.getValue().text()).isEqualTo("马铃薯丝怎么炒得酸辣");
+    }
+
+    @Test
+    void filteredCandidatesStopBeforeGenerationAndRecordAdmissionOutcome() {
+        var trace = mock(AgentTraceService.class);
+        service = serviceWithResult(RecipeRerankResult.Status.FILTERED, trace);
+        var answer = service.answer("s", 7L, "新疆烤包子怎么做", Map.of());
+        assertThat(answer.refused()).isTrue();
+        assertThat(answer.diagnostics()).containsEntry("route", "no_relevant_evidence")
+                .containsEntry("generation", "not_called");
+        verifyNoInteractions(generator);
+        verify(trace).recordEvent(eq("RECIPE_RELEVANCE_CHECKED"), eq("RECIPE_RAG"), isNull(), any(), anyLong());
+    }
+
+    @Test
+    void unavailableScorerDoesNotBecomeSuccessfulEmptyRetrievalOrCallGenerator() {
+        service = serviceWithResult(RecipeRerankResult.Status.UNAVAILABLE, null);
+        var answer = service.answer("s", 7L, "新疆烤包子怎么做", Map.of());
+        assertThat(answer.refused()).isTrue();
+        assertThat(answer.diagnostics()).containsEntry("route", "relevance_failed")
+                .containsEntry("generation", "not_called");
+        assertThat(answer.text()).contains("暂时不可用");
+        verifyNoInteractions(generator);
+    }
+
+    @Test
+    void rerankingUsesResolvedOriginalQuestionAndPreservesScoringDiagnosticsInAnswer() {
+        var document = new RecipeDocument("r1", "酸辣土豆丝", List.of(), List.of("土豆"),
+                List.of("炒制"), "", Map.of(), "path.md", "commit", "hash");
+        var recipes = List.of(new RetrievedRecipe(document, 0.03, List.of()));
+        when(retriever.retrieve(any(), any())).thenReturn(Mono.just(new RecipeRetrievalResult(recipes, null)));
+        RecipeReranker reranker = mock(RecipeReranker.class);
+        when(reranker.rerankDetailed(any(), any())).thenReturn(Mono.just(new RecipeRerankResult(
+                RecipeRerankResult.Status.ACCEPTED, recipes, List.of(new RecipeRerankResult.CandidateScore("r1", 0.03, 0.9)),
+                "test-reranker", 0.5, 1, 10, "", "query-hash", List.of("doc-hash"))));
+        service = new RecipeQueryService(new RecipeQueryRouter(), knowledge, meals,
+                original -> Mono.just(new RecipeQuery("土豆丝", List.of(), List.of(), List.of(), null)),
+                retriever, reranker, generator, new RecipeRagProperties());
+        when(generator.generate(any(), any(), any())).thenReturn(new RecipeAnswer("答案 [S1]", List.of(), false,
+                Map.of("generation", "agent")));
+        var answer = service.answer("s", 7L, "马铃薯丝怎么炒得酸辣", Map.of(
+                "recipeQuery", Map.of("query", "马铃薯丝怎么炒得酸辣")));
+        verify(reranker).rerankDetailed(argThat(query -> query.text().equals("马铃薯丝怎么炒得酸辣")), eq(recipes));
+        assertThat(answer.diagnostics()).containsKey("relevance");
+        assertThat(answer.diagnostics().get("relevance").toString()).contains("0.03", "0.9", "ACCEPTED");
+    }
+
+    @Test
+    void enabledScoringGetsWiderParentPoolWhileDisabledPathKeepsOriginalBudget() {
+        var config = new RecipeRagProperties();
+        var factory = new RecipeQueryConfiguration();
+        var sparse = mock(com.diet.service.recipe.rag.index.RecipeSparseIndex.class);
+        var embedding = mock(com.diet.service.recipe.rag.index.RecipeEmbeddingModel.class);
+        var vector = mock(com.diet.service.recipe.rag.index.RecipeVectorIndex.class);
+        var parents = new com.diet.service.recipe.rag.retrieval.RecipeParentResolver(List.of());
+        var baseline = factory.hybridRecipeRetriever(sparse, embedding, vector, parents, config);
+        assertThat(org.springframework.test.util.ReflectionTestUtils.getField(baseline, "finalTopK")).isEqualTo(5);
+        config.getRerank().setEnabled(true);
+        config.getRerank().setCandidateTopK(20);
+        var enabled = factory.hybridRecipeRetriever(sparse, embedding, vector, parents, config);
+        assertThat(org.springframework.test.util.ReflectionTestUtils.getField(enabled, "finalTopK")).isEqualTo(20);
+    }
+
+    private RecipeQueryService serviceWithResult(RecipeRerankResult.Status status, AgentTraceService trace) {
+        var document = new RecipeDocument("r1", "普通包子", List.of(), List.of("面粉"),
+                List.of("蒸制"), "", Map.of(), "path.md", "commit", "hash");
+        when(retriever.retrieve(any(), any())).thenReturn(Mono.just(new RecipeRetrievalResult(
+                List.of(new RetrievedRecipe(document, 0.03, List.of())), null)));
+        RecipeReranker reranker = mock(RecipeReranker.class);
+        when(reranker.rerankDetailed(any(), any())).thenReturn(Mono.just(new RecipeRerankResult(
+                status, List.of(), List.of(), "test-reranker", 0.5, 1, 10,
+                status == RecipeRerankResult.Status.UNAVAILABLE ? "http_500" : "", "hash", List.of("hash"))));
+        return new RecipeQueryService(new RecipeQueryRouter(), knowledge, meals, query -> Mono.just(query),
+                retriever, reranker, generator, new RecipeRagProperties(), trace);
     }
 
     private RecipeRetrievalResult emptyRetrieval() {

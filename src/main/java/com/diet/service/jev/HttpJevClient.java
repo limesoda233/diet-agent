@@ -85,8 +85,17 @@ public class HttpJevClient implements JevClient {
         return new JevResponse(
                 root.path("model").asText(properties.getModel()),
                 Map.copyOf(answers),
-                new JevUsage(usage.path("input_tokens").asLong(0), usage.path("output_tokens").asLong(0))
+                completeUsage(usage)
         );
+    }
+
+    /** Missing or malformed usage is unknown, not free; it must not invalidate an otherwise valid decision. */
+    private JevUsage completeUsage(JsonNode usage) {
+        JsonNode input = usage.path("input_tokens"), output = usage.path("output_tokens");
+        if (!input.isIntegralNumber() || !output.isIntegralNumber()
+                || !input.canConvertToLong() || !output.canConvertToLong()
+                || input.longValue() < 0 || output.longValue() < 0) return null;
+        return new JevUsage(input.longValue(), output.longValue());
     }
 
     private JevAnswer parseAnswer(JsonNode node) {

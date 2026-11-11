@@ -54,7 +54,7 @@ public class IntentReviseService {
     }
 
     /** 健康风险关键词命中时，Java 规则直接前置拦截。 */
-    private boolean containsHealthRiskKeyword(String userInput) {
+    public boolean containsHealthRiskKeyword(String userInput) {
         if (userInput == null || userInput.isBlank()) {
             return false;
         }

@@ -73,6 +73,9 @@ public class SessionStateService {
         SessionRow row = sessionMapper.findById(sessionId, userId);
         // 不存在则用请求的 sessionId 创建新行
         if (row == null) {
+            if (sessionMapper.countById(sessionId) != 0) {
+                throw new DietException("会话不存在");
+            }
             SessionState state = SessionState.fresh(sessionId, userId, sourceMode);
             insert(state);
             return state;

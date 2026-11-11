@@ -1,6 +1,8 @@
 package com.diet.service.meal.intake;
 
 import com.diet.controller.meal.MealDraftController;
+import com.diet.auth.AuthService;
+import com.diet.auth.BearerAuthenticationFilter;
 import com.diet.mapper.AgentTraceMapper;
 import com.diet.model.RequestTraceRow;
 import com.diet.service.trace.AgentTraceService;
@@ -9,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import reactor.core.publisher.Mono;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -16,13 +19,20 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class MealDraftControllerTest {
+    private MockMvc mvc(MealDraftService service, AgentTraceService trace) {
+        return MockMvcBuilders.standaloneSetup(new MealDraftController(service, trace))
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
+                .addFilters(new BearerAuthenticationFilter(mock(AuthService.class), true))
+                .build();
+    }
+
     @Test void modelDietExceptionCannotLeakPrivateTextThroughFailureResponseOrTrace() throws Exception {
         ObjectMapper json = new ObjectMapper(); var mapper = mock(AgentTraceMapper.class);
         var trace = new AgentTraceService(mapper,json);
         String privateDetails = "私人做法和健康信息 private-key-456";
         var service = new MealDraftService((s,u) -> Mono.error(new com.diet.exception.DietException(privateDetails)),
                 MealDraftServiceTest.options(),json,new MealIntakeProperties(),trace);
-        var mvc = MockMvcBuilders.standaloneSetup(new MealDraftController(service,trace)).build();
+        var mvc = mvc(service,trace);
         var response = mvc.perform(post("/api/v1/diet/meals/personal/draft").contentType("application/json")
                 .content(json.writeValueAsString(java.util.Map.of("text",privateDetails))))
                 .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
@@ -39,7 +49,7 @@ class MealDraftControllerTest {
         var service = new MealDraftService((s,u) -> u.contains("失败")
                 ? Mono.error(new IllegalStateException(privateText)) : Mono.just(MealDraftServiceTest.COMPLETE),
                 MealDraftServiceTest.options(),json,new MealIntakeProperties(),trace);
-        var mvc = MockMvcBuilders.standaloneSetup(new MealDraftController(service,trace)).build();
+        var mvc = mvc(service,trace);
         mvc.perform(post("/api/v1/diet/meals/personal/draft").contentType("application/json")
                 .content(json.writeValueAsString(java.util.Map.of("text",privateText))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.originalText").value(privateText));
@@ -62,7 +72,7 @@ class MealDraftControllerTest {
         var trace = new AgentTraceService(mapper,json);
         var service = new MealDraftService((s,u) -> Mono.just(MealDraftServiceTest.COMPLETE),
                 MealDraftServiceTest.options(),json,new MealIntakeProperties(),trace);
-        MockMvc mvc = MockMvcBuilders.standaloneSetup(new MealDraftController(service,trace)).build();
+        MockMvc mvc = mvc(service,trace);
         mvc.perform(post("/api/v1/diet/meals/personal/draft").header("X-User-Id","7")
                 .contentType("application/json").content("{\"text\":\"宫保鸡丁，中午吃，微辣，鸡肉和花生\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("READY"))
@@ -78,7 +88,7 @@ class MealDraftControllerTest {
         ObjectMapper json = new ObjectMapper(); var mapper = mock(AgentTraceMapper.class);
         var trace = new AgentTraceService(mapper,json);
         var service = new MealDraftService((s,u) -> Mono.just("{}"),MealDraftServiceTest.options(),json,new MealIntakeProperties(),trace);
-        var mvc = MockMvcBuilders.standaloneSetup(new MealDraftController(service,trace)).build();
+        var mvc = mvc(service,trace);
         mvc.perform(post("/api/v1/diet/meals/personal/draft").contentType("application/json")
                 .content("{\"text\":\"鸡丁\",\"ownerUserId\":99}")) .andExpect(status().isBadRequest());
         mvc.perform(post("/api/v1/diet/meals/personal/draft").contentType("application/json")

@@ -28,6 +28,22 @@ public class ChatResponse {
     private String clarifyQuestion;
     private List<String> missingSlots;
     private MealDraft mealDraft;
+    private List<String> memoryNotices;
+    private com.diet.service.meal.planning.PlanningTypes.Result mealPlan;
+
+    public ChatResponse(String sessionId,String traceId,String responseType,String speechText,
+                        List<MealResponse> displayBlocks,List<MealPlanBlock> planBlocks,List<VideoResponse> videoBlocks,
+                        String nextAction,String clarifyQuestion,List<String> missingSlots,MealDraft mealDraft,List<String> memoryNotices) {
+        this(sessionId,traceId,responseType,speechText,displayBlocks,planBlocks,videoBlocks,nextAction,clarifyQuestion,missingSlots,mealDraft,memoryNotices,null);
+    }
+
+    public ChatResponse(String sessionId, String traceId, String responseType, String speechText,
+                        List<MealResponse> displayBlocks, List<MealPlanBlock> planBlocks,
+                        List<VideoResponse> videoBlocks, String nextAction, String clarifyQuestion,
+                        List<String> missingSlots, MealDraft mealDraft) {
+        this(sessionId, traceId, responseType, speechText, displayBlocks, planBlocks, videoBlocks,
+                nextAction, clarifyQuestion, missingSlots, mealDraft, List.of());
+    }
 
     public ChatResponse(String sessionId, String traceId, String responseType, String speechText,
                         List<MealResponse> displayBlocks, List<MealPlanBlock> planBlocks,

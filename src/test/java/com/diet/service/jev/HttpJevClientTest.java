@@ -2,6 +2,8 @@ package com.diet.service.jev;
 
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
@@ -68,6 +70,27 @@ class HttpJevClientTest {
                     .isInstanceOf(JevClientException.class)
                     .hasMessage("jev_http_401")
                     .hasMessageNotContaining("test-jev-key");
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"null", "{}", "{\"input_tokens\":10}", "{\"input_tokens\":-1,\"output_tokens\":2}",
+            "{\"input_tokens\":10,\"output_tokens\":\"2\"}", "{\"input_tokens\":1.5,\"output_tokens\":2}"})
+    void incompleteOrMalformedUsageStaysUnknownWithoutDiscardingValidDecision(String usage) throws Exception {
+        try (Fixture fixture = new Fixture()) {
+            fixture.responseBody = "{\"answers\":{\"intent\":{\"type\":\"choice\",\"choice\":\"OTHER\",\"confidence\":0.9}},\"usage\":" + usage + "}";
+            JevResponse response = fixture.client().systemOne("hello", Map.of("intent", Map.of("type", "choice")));
+            assertThat(response.answers().get("intent").choice()).isEqualTo("OTHER");
+            assertThat(response.usage()).isNull();
+        }
+    }
+
+    @Test
+    void completeZeroUsageRemainsAnObservedZero() throws Exception {
+        try (Fixture fixture = new Fixture()) {
+            fixture.responseBody = "{\"answers\":{\"intent\":{\"type\":\"choice\",\"choice\":\"OTHER\",\"confidence\":0.9}},\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}";
+            JevResponse response = fixture.client().systemOne("hello", Map.of("intent", Map.of("type", "choice")));
+            assertThat(response.usage()).isEqualTo(new JevUsage(0, 0));
         }
     }
 

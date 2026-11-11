@@ -200,6 +200,8 @@ mvn "-Dtest=RecipeRetrievalEvaluationTest" `
 
 这条命令复现历史七组标签，其中 rewrite/rerank 仍是 identity 口径，不应用它证明真实改写收益。
 
+专用 Cross-Encoder 重排与阈值筛选已有独立接入和三组共享候选评测入口，默认关闭、真实效果待验证，见[相关性筛选指南](recipe-relevance.md)。
+
 ### 7.2 Query Rewrite 对照：回答“改写到底有没有帮助”
 
 只在 dev split 上比较原查询与真实改写，避免用锁定 test 调参：

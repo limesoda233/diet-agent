@@ -14,6 +14,9 @@
         <result property="durationMs" column="duration_ms"/>
         <result property="errorMessage" column="error_message"/>
         <result property="traceJson" column="trace_json"/>
+        <result property="captureMode" column="capture_mode"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="diagnosticConsentId" column="diagnostic_consent_id"/>
         <result property="expectedIntent" column="expected_intent"/>
         <result property="expectedSlots" column="expected_slots"/>
         <result property="expectedClarifyAction" column="expected_clarify_action"/>
@@ -27,10 +30,12 @@
     <insert id="insert" parameterType="com.diet.model.RequestTraceRow">
         INSERT INTO diet_request_trace (
         trace_id, session_id, user_id, status, event_count,
-        duration_ms, error_message, trace_json, created_at, updated_at
+        duration_ms, error_message, trace_json, capture_mode, expires_at,
+        diagnostic_consent_id, created_at, updated_at
         ) VALUES (
         #{traceId}, #{sessionId}, #{userId}, #{status}, #{eventCount},
-        #{durationMs}, #{errorMessage}, #{traceJson}, NOW(), NOW()
+        #{durationMs}, #{errorMessage}, #{traceJson}, #{captureMode}, #{expiresAt},
+        #{diagnosticConsentId}, NOW(), NOW()
         )
     </insert>
 
@@ -44,6 +49,7 @@
         duration_ms,
         error_message,
         trace_json,
+        capture_mode, expires_at, diagnostic_consent_id,
         expected_intent,
         expected_slots,
         expected_clarify_action,
@@ -68,6 +74,7 @@
         duration_ms,
         error_message,
         trace_json,
+        capture_mode, expires_at, diagnostic_consent_id,
         expected_intent,
         expected_slots,
         expected_clarify_action,
@@ -93,6 +100,7 @@
         duration_ms,
         error_message,
         trace_json,
+        capture_mode, expires_at, diagnostic_consent_id,
         expected_intent,
         expected_slots,
         expected_clarify_action,

@@ -1,6 +1,6 @@
 # Diet Agent 菜谱 RAG 与视频 MCP：实现复盘及面试逐字稿
 
-> 整理日期：2026-10-10。面向 Java 后端 / Agent / RAG 相关面试。
+> 整理日期：2026-10-10；2026-10-19 更新相关性筛选接入状态。面向 Java 后端 / Agent / RAG 相关面试。
 >
 > 文中的 **【面试逐字稿】** 可以直接口述；其他内容用于理解实现、准备追问。
 >
@@ -45,7 +45,7 @@
 | Ragas 0.4.3 + Python / uv | 离线回答语义评测 | 与 Java 服务通过 JSONL 解耦，依赖可复现 |
 | 固定版本 Bilibili MCP Server | 教学视频搜索 | Java client 调用现成工具；没有自研 MCP server |
 
-**当前能力边界**：查询改写已经有可选的 LLM 实现，但默认仍为 identity，真实 dev 对照尚未运行；重排仍是 identity。当前不能宣称改写已经提升指标，也不能宣称用了 Cross-Encoder 重排、Agent 自主多轮检索或自动选择视频工具。
+**当前能力边界**：查询改写与重排默认仍为 identity。现已接入可选的 Cross-Encoder HTTP 重排和阈值筛选，完成本地协议与故障测试，但没有 Rerank Key，真实模型效果和阈值尚未验证，不能宣称已在线启用或取得指标提升。改写的真实 dev 对照也尚未运行；未实现 Agent 自主多轮检索或自动选择视频工具。操作见[相关性筛选指南](../guides/recipe-relevance.md)。
 
 ### 【面试逐字稿｜为什么不全部用 MySQL，或者全部用向量库？】
 
@@ -68,7 +68,7 @@ flowchart TD
     B --> F[RRF 按父菜谱融合与去重]
     D --> F
     F --> P[父菜谱恢复与结构化约束检查]
-    P --> RR[重排接口：当前 identity]
+    P --> RR[重排：默认 identity，可选 Cross-Encoder 与阈值筛选]
     RR --> E[证据预算裁剪 + 本轮引用编号]
     E --> A[Answer Agent + 输出校验 / 回退]
     A --> C[组合响应]
@@ -91,7 +91,7 @@ flowchart TD
 1. 生成参数使用 temperature 0、最多 128 tokens、一次尝试和独立超时。
 2. 返回值必须是只含 `query` 的 JSON 对象；空文本、额外字段、尾随内容或超长内容都按失败处理。
 3. 模型只能改检索文本。`requiredIngredients`、`excludedIngredients`、`requiredTools`、`maxMinutes` 始终复制服务端解析的原值，防止模型增加或放松硬约束。
-4. 检索和重排使用 effective query，回答生成仍收到 original query，避免把“原文没写就拒绝”等回答要求在改写时丢掉。
+4. 检索使用 effective query；重排和回答生成使用指代解析后的 original query，避免把“原文没写就拒绝”等要求在改写时丢掉。
 
 同步异常、异步异常、超时和解析失败统一回退原查询。Trace 记录 `originalQuery`、`effectiveQuery`、`REWRITTEN/UNCHANGED/FALLBACK`、模型名、耗时和异常类型；一次改写失败不会把整轮请求标成失败。
 
@@ -272,7 +272,7 @@ f59d67bece51a61cca10f2f70e0424f0ca42f4991003a30d59fbea1fc31de2f6
 2. Hybrid 相比 BM25 的 Recall@10 高 12.50 个百分点；相比 Dense 只高约 1.93 个百分点。Dense 的 Recall@5、MRR 和 nDCG 更好。因此不能说 Hybrid 在所有指标上更优。
 3. 评测最终取 10 道父菜谱，生产配置默认取 5 道。Recall@10 不是线上最终展示 5 道的质量保证。
 4. 七组实验当前主要通过 `mode` 切换调用同一 retriever。父块恢复已有在共同路径中，独立的 `parentExpansion/rerank/rewrite` 标签没有形成严格的完整消融。因此后三行不能证明父块、重排或改写的独立增益。
-5. 历史报告中的改写与重排仍是 identity，不能用于证明收益。现在已有显式开启的模型查询改写及独立 dev 对照入口，但真实模型报告尚未运行；重排仍为 identity。
+5. 历史报告中的改写与重排仍是 identity，不能用于证明收益。现在已有显式开启的模型查询改写和 Cross-Encoder 重排，分别提供 dev 对照入口，真实模型报告尚未运行；默认仍是 identity。
 6. 本地小样本、单轮历史结果不足以证明线上 SLA、吞吐、并发容量或统计显著性。性能结论需要固定冷热状态、重复运行并补并发压测。
 
 ### 【面试逐字稿｜评测结果不符合预期时怎么讲？】
@@ -289,7 +289,11 @@ f59d67bece51a61cca10f2f70e0424f0ca42f4991003a30d59fbea1fc31de2f6
 
 这说明 top-k 返回机制缺少“没有可信匹配”的出口。它**不等于端到端幻觉率 100%**：回答模型仍可能拒答，但检索层没有挡住相似却不相关的候选。
 
-下一步是在 dev 集上研究相关性阈值、精确菜名匹配与候选一致性、重排或独立判断器，并评估拒答率和误拒答率。不能直接给 RRF 分数设一个随意阈值，因为它不是校准后的相关概率。
+当前已增加可选 Cross-Encoder 重排和阈值准入，并区分“评分后没有相关证据”与“评分服务故障”；下一步需在 dev 校准阈值、评估错误接受与误拒，再冻结参数运行保留集。没有 Key，尚不能宣称旧 4 条无相关查询已被真实模型解决。不能直接给 RRF 分数设一个随意阈值，因为它不是校准后的相关概率。
+
+**【面试逐字稿｜为什么增加重排和相关性筛选？】**
+
+> 我们发现 Top-K 总会给出相对最像的菜谱，但这不代表它足够相关，所以在召回之后、生成之前接入了专用 Cross-Encoder。它批量比较完整问题和候选菜谱，把排序分数与 RRF 分数分开记录，再根据开发集校准的阈值决定是否提供证据。没有相关证据与评分服务失败分开处理，两种情况都不调用回答模型，视频分支可以独立返回。目前已完成接口、异常和离线回放验证，真实模型效果还没有测，不能说已经解决全部 OOD。后续会在同一批候选上比较原排序、仅重排、重排加过滤，重点看错误接受和误拒，而不是只看 Recall。
 
 ## 5. Ragas 引入了什么，解决了什么
 
@@ -580,7 +584,7 @@ https://www.bilibili.com/video/{bvid}
 | 外层并行与响应矩阵 | [RecipeVideoCoordinator](E:/Mycode/diet-agent/src/main/java/com/diet/service/recipe/RecipeVideoCoordinator.java)、[DietOrchestratorService](E:/Mycode/diet-agent/src/main/java/com/diet/service/orchestrator/DietOrchestratorService.java) |
 | Trace 跨线程传播 | [AgentTraceService](E:/Mycode/diet-agent/src/main/java/com/diet/service/trace/AgentTraceService.java)、[AgentTracePropagationTest](E:/Mycode/diet-agent/src/test/java/com/diet/service/trace/AgentTracePropagationTest.java) |
 | 视频 MCP | [AgentScopeBilibiliMcpClient](E:/Mycode/diet-agent/src/main/java/com/diet/service/video/AgentScopeBilibiliMcpClient.java)、[BilibiliMcpCookingVideoSearchProvider](E:/Mycode/diet-agent/src/main/java/com/diet/service/video/BilibiliMcpCookingVideoSearchProvider.java) |
-| 视频前端 | [chat-renderer.js](E:/Mycode/diet-agent/src/main/resources/static/assets/js/chat-renderer.js) |
+| 视频前端 | [MessageContent.tsx](E:/Mycode/diet-agent/frontend/src/features/chat/MessageContent.tsx) |
 | v2 数据与历史结果 | [queries.jsonl](E:/Mycode/diet-agent/src/test/resources/evaluation/recipe/v2/queries.jsonl)、[answers.jsonl](E:/Mycode/diet-agent/src/test/resources/evaluation/recipe/v2/answers.jsonl)、[v2 验收](E:/Mycode/diet-agent/docs/specs/004-recipe-rag/evaluation-v2-acceptance.md) |
 | 历史真实检索报告（本地产物） | [report.json](E:/Mycode/diet-agent/target/evaluation/recipe/report.json)；`target` 下文件可能被后续运行替换 |
 | Ragas 语义指标与并发 | [metrics.py](E:/Mycode/diet-agent/evals/recipe-ragas/src/recipe_ragas/metrics.py)、[evaluator.py](E:/Mycode/diet-agent/evals/recipe-ragas/src/recipe_ragas/evaluator.py) |

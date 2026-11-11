@@ -27,6 +27,9 @@ import java.util.Set;
  */
 @Service
 public class MealPlanService {
+    private com.diet.service.memory.MemoryPolicy memoryPolicy;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setMemoryPolicy(com.diet.service.memory.MemoryPolicy policy) {this.memoryPolicy=policy;}
 
     private static final List<String> PLAN_MEAL_TIMES = List.of("早餐", "午餐", "晚餐");
 
@@ -58,6 +61,7 @@ public class MealPlanService {
     public PlanResult buildPlan(String sessionId, Long userId, String userInput, SourceMode sourceMode,
                                 SlotBundle baseSlots, MealConstraintContext context) {
         SlotBundle safeBaseSlots = baseSlots == null ? SlotBundle.empty() : baseSlots;
+        if(memoryPolicy!=null)safeBaseSlots=memoryPolicy.defaults(userId,safeBaseSlots);
         List<MealPlanBlock> blocks = new ArrayList<>();
         List<RecommendedMealOption> recommendations = new ArrayList<>();
         List<MealResponse> displayBlocks = new ArrayList<>();
@@ -71,6 +75,7 @@ public class MealPlanService {
             List<MealItem> candidates = mealSearchService.search(
                     new MealSearchRequest(sourceMode, userId, mealSlots, excludeIds, context.constraints()));
             List<MealItem> ranked = mealRankService.rank(new MealRankRequest(candidates, mealSlots, excludeIds));
+            if(memoryPolicy!=null)ranked=memoryPolicy.rank(userId,baseSlots,ranked);
 
             RecommendResponseAgentService.Result generated = recommendResponseAgentService.recommendAndRespond(
                     sessionId, userInput, sourceMode, mealSlots, ranked);

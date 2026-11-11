@@ -24,6 +24,9 @@ import java.util.Set;
  */
 @Service
 public class MealService {
+    private com.diet.service.memory.MemoryPolicy memoryPolicy;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setMemoryPolicy(com.diet.service.memory.MemoryPolicy policy) {this.memoryPolicy=policy;}
 
     /** 单次检索从 DB 拉取的最大行数，初排后取 top10 交给 Rank 层。 */
     private static final int SEARCH_LIMIT = 50;
@@ -99,6 +102,24 @@ public class MealService {
 
     public List<MealItem> search(SourceMode sourceMode, Long userId, SlotBundle slots, MealConstraints constraints) {
         MealConstraints safeConstraints = constraints == null ? MealConstraints.empty() : constraints;
+        if(memoryPolicy!=null) safeConstraints=memoryPolicy.mealConstraints(userId,safeConstraints);
+        return queryMeals(sourceMode,userId,slots,safeConstraints);
+    }
+
+    /** Internal planning entry: constraints already merged from the server's frozen memory. */
+    @Transactional(readOnly=true,timeout=3)
+    public List<MealItem> searchFrozen(SourceMode sourceMode,Long userId,SlotBundle slots,MealConstraints constraints) {
+        return attachKnowledge(queryMeals(sourceMode,userId,slots,constraints));
+    }
+
+    @Transactional(readOnly=true,timeout=3)
+    public List<MealItem> findPlanningMeals(SourceMode mode,Long userId,List<Long> ids) {
+        if(ids.isEmpty())return List.of();
+        if(ids.size()>60)throw new IllegalArgumentException("规划候选数量超限");
+        return attachKnowledge(mealMapper.findForPlanning(mode,userId,ids).stream().map(this::toMealItem).toList());
+    }
+
+    private List<MealItem> queryMeals(SourceMode sourceMode,Long userId,SlotBundle slots,MealConstraints safeConstraints) {
         List<MealItemRow> rows = mealMapper.search(
                 sourceMode,
                 userId,

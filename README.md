@@ -1,4 +1,4 @@
-# Diet Agent
+# 小狗劝吃（Diet Agent）
 
 一个基于 Spring Boot 和 AgentScope Java 的饮食助手练习项目：用 MySQL 决定“今天吃什么”，用公共菜谱 RAG 回答“这道菜怎么做”，通过 Bilibili MCP 提供教学视频。
 

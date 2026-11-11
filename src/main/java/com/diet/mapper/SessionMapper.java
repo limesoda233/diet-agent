@@ -12,6 +12,8 @@ public interface SessionMapper {
 
     SessionRow findById(@Param("sessionId") String sessionId, @Param("userId") Long userId);
 
+    int countById(@Param("sessionId") String sessionId);
+
     int update(SessionRow row);
 
     int insertMessage(

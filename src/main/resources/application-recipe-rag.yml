@@ -28,3 +28,11 @@ diet:
     rerank:
       enabled: false
       timeout: 2s
+      endpoint: ${RECIPE_RERANK_ENDPOINT:https://api.siliconflow.cn/v1/rerank}
+      api-key: ${RECIPE_RERANK_API_KEY:}
+      model: ${RECIPE_RERANK_MODEL:BAAI/bge-reranker-v2-m3}
+      candidate-top-k: 20
+      top-n: 3
+      max-document-chars: 3000
+      filter-enabled: true
+      # No guessed min-score: provide it explicitly after dev calibration when filtering is enabled.

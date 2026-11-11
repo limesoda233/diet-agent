@@ -15,6 +15,9 @@ public class RequestTraceRow {
     private Long durationMs;
     private String errorMessage;
     private String traceJson;
+    private String captureMode;
+    private LocalDateTime expiresAt;
+    private String diagnosticConsentId;
     private String expectedIntent;
     private String expectedSlots;
     private String expectedClarifyAction;

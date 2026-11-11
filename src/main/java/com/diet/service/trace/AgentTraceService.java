@@ -14,8 +14,13 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,11 +55,44 @@ public class AgentTraceService {
 
     /** Jackson 序列化工具，将 payload 和 trace_json 转为 JSON 字符串。 */
     private final ObjectMapper objectMapper;
+    private DiagnosticConsentConsumer diagnosticConsent;
+    private final String defaultCaptureMode;
+    private long metadataTtlHours = 24L * 14L;
+    private long diagnosticTtlHours = 24L;
+    private long fullTtlHours = 24L * 14L;
 
     /** 构造器注入 Mapper 和 ObjectMapper。 */
     public AgentTraceService(AgentTraceMapper agentTraceMapper, ObjectMapper objectMapper) {
+        this(agentTraceMapper, objectMapper, (DiagnosticConsentConsumer) null, "FULL");
+    }
+
+    @Autowired
+    public AgentTraceService(AgentTraceMapper agentTraceMapper, ObjectMapper objectMapper,
+            @Value("${diet.trace.mode:FULL}") String mode) {
+        this(agentTraceMapper, objectMapper, (DiagnosticConsentConsumer) null, mode);
+    }
+
+    @Autowired(required = false)
+    public void setDiagnosticConsent(DiagnosticConsentConsumer consent) {
+        this.diagnosticConsent = consent;
+    }
+
+    @Value("${diet.trace.metadata-ttl-hours:336}")
+    public void setMetadataTtlHours(long hours) { this.metadataTtlHours = hours; }
+    @Value("${diet.trace.diagnostic-ttl-hours:24}")
+    public void setDiagnosticTtlHours(long hours) { this.diagnosticTtlHours = hours; }
+    @Value("${diet.trace.full-ttl-hours:336}")
+    public void setFullTtlHours(long hours) { this.fullTtlHours = hours; }
+
+    public AgentTraceService(AgentTraceMapper agentTraceMapper, ObjectMapper objectMapper,
+            DiagnosticConsentConsumer diagnosticConsent, String mode) {
         this.agentTraceMapper = agentTraceMapper;
         this.objectMapper = objectMapper;
+        this.diagnosticConsent = diagnosticConsent;
+        this.defaultCaptureMode = mode.toUpperCase(java.util.Locale.ROOT);
+        if (!List.of("FULL", "METADATA", "OFF").contains(this.defaultCaptureMode)) {
+            throw new IllegalArgumentException("Invalid diet.trace.mode");
+        }
     }
 
     /**
@@ -62,8 +100,18 @@ public class AgentTraceService {
      * 创建 TraceScope 并绑定到当前线程 ThreadLocal，供后续 recordEvent/callAgent 写入事件。
      */
     public TraceScope openTrace(String traceId, String sessionId, Long userId) {
+        String captureMode = defaultCaptureMode;
+        String consentId = null;
+        if ("METADATA".equals(captureMode) && diagnosticConsent != null
+                && RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
+            String consentToken = attributes.getRequest().getHeader("X-Diet-Diagnostic-Consent");
+            if (consentToken != null && !consentToken.isBlank()) {
+                consentId = diagnosticConsent.consume(userId, consentToken, traceId);
+                if (consentId != null) captureMode = "FULL";
+            }
+        }
         // 创建 TraceScope 实例，持有 traceId/sessionId/userId 和事件列表
-        TraceScope scope = new TraceScope(traceId, sessionId, userId);
+        TraceScope scope = new TraceScope(traceId, sessionId, userId, captureMode, consentId);
         // 将 scope 绑定到当前线程，record 方法通过 currentScope.get() 读取
         currentScope.set(scope);
         // 返回 scope 供 try-with-resources 在 finally 中 close
@@ -72,8 +120,15 @@ public class AgentTraceService {
 
     /** Capture this request's scope without transferring close/flush ownership. */
     public <T> Supplier<T> propagate(Supplier<T> work) {
+        TraceContext context=captureContext();
+        return ()->context.call(work);
+    }
+
+    /** Capture once at request entry; subsequent async stages can create their own callbacks. */
+    public TraceContext captureContext() {
         TraceScope captured = currentScope.get();
-        return () -> {
+        return new TraceContext() {
+          public <T> T call(Supplier<T> work) {
             TraceScope previous = currentScope.get();
             if (captured == null) currentScope.remove();
             else currentScope.set(captured);
@@ -83,8 +138,11 @@ public class AgentTraceService {
                 if (previous == null) currentScope.remove();
                 else currentScope.set(previous);
             }
+          }
         };
     }
+
+    public interface TraceContext { <T> T call(Supplier<T> work); }
 
     /**
      * 记录状态机事件（无耗时）。
@@ -140,14 +198,15 @@ public class AgentTraceService {
 
     /** 按 traceId 查询单条链路追踪记录（供调试 API 使用）。 */
     public RequestTraceRow findByTraceId(Long userId, String traceId) {
-        return agentTraceMapper.findByTraceId(userId, traceId);
+        return legacyMode(agentTraceMapper.findByTraceId(userId, traceId));
     }
 
     /** 按 sessionId 查询最近 N 条链路追踪，limit 会被 clamp 到 [1, MAX_LIMIT]。 */
     public List<RequestTraceRow> findBySessionId(Long userId, String sessionId, Integer limit) {
         // null 时用 DEFAULT_LIMIT；否则限制在 1~MAX_LIMIT 之间
         int safeLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(MAX_LIMIT, limit));
-        return agentTraceMapper.findBySessionId(userId, sessionId, safeLimit);
+        return agentTraceMapper.findBySessionId(userId, sessionId, safeLimit).stream()
+                .map(this::legacyMode).toList();
     }
 
     /** 按时间范围查询 Trace，供后台标注页和评估接口复用。 */
@@ -156,7 +215,13 @@ public class AgentTraceService {
             throw new DietException("Trace 查询时间范围不合法");
         }
         int safeLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(MAX_LIMIT, limit));
-        return agentTraceMapper.findByTimeRange(userId, startAt, endAt, Boolean.TRUE.equals(onlyUnlabeled), safeLimit);
+        return agentTraceMapper.findByTimeRange(userId, startAt, endAt, Boolean.TRUE.equals(onlyUnlabeled), safeLimit)
+                .stream().map(this::legacyMode).toList();
+    }
+
+    private RequestTraceRow legacyMode(RequestTraceRow row) {
+        if (row != null && row.getCaptureMode() == null) row.setCaptureMode("LEGACY_FULL");
+        return row;
     }
 
     /** 保存人工标注的标准答案，直接写回 diet_request_trace。 */
@@ -220,7 +285,9 @@ public class AgentTraceService {
         synchronized (scope) {
             if (scope.closed) return;
             // 将异常格式化为 "ClassName: message" 字符串，null 表示无异常
-            String errorMessage = error == null ? null : trim(error.getClass().getSimpleName() + ": " + error.getMessage());
+            String errorMessage = error == null ? null : "METADATA".equals(scope.captureMode())
+                    ? error.getClass().getSimpleName()
+                    : trim(error.getClass().getSimpleName() + ": " + error.getMessage());
             // 构造 TraceEvent：stepOrder 自增，payload 序列化为 JSON 字符串
             scope.addEvent(new TraceEvent(
                     scope.nextStep(),           // 事件序号，从 1 递增
@@ -228,8 +295,8 @@ public class AgentTraceService {
                     phase,                      // 阶段，如 HTTP / INTENT / AGENT
                     agentName,                  // Agent 名，仅 AGENT_CALL 时有值
                     modelName,                  // 模型名，仅 AGENT_CALL 时有值
-                    toPayload(inputPayload),    // 输入 payload JSON 字符串
-                    toPayload(outputPayload),   // 输出 payload JSON 字符串
+                    "FULL".equals(scope.captureMode()) ? toPayload(inputPayload) : null,
+                    "FULL".equals(scope.captureMode()) ? toPayload(outputPayload) : null,
                     latencyMs,                  // 耗时毫秒，可为 null
                     inputTokens,                // 输入 token 数，仅 AGENT_CALL 时有值
                     outputTokens,               // 输出 token 数，仅 AGENT_CALL 时有值
@@ -246,6 +313,7 @@ public class AgentTraceService {
 
     /** 将 TraceScope 内累积的所有事件序列化为 JSON 并 INSERT 到 agent_traces 表。 */
     private void flushTrace(TraceScope scope) {
+        if ("OFF".equals(scope.captureMode())) return;
         // 构造数据库行对象 RequestTraceRow
         RequestTraceRow row = new RequestTraceRow();
         row.setTraceId(scope.traceId());           // 主键 traceId
@@ -255,6 +323,11 @@ public class AgentTraceService {
         row.setEventCount(scope.eventCount());     // 事件总数
         row.setDurationMs(elapsedMs(scope.startedAt())); // 整轮耗时 ms
         row.setErrorMessage(scope.errorMessage()); // 失败时的错误摘要
+        row.setCaptureMode(scope.captureMode());
+        row.setDiagnosticConsentId(scope.diagnosticConsentId());
+        row.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusHours(scope.diagnosticConsentId() != null
+                ? diagnosticTtlHours : "METADATA".equals(scope.captureMode())
+                ? metadataTtlHours : fullTtlHours));
         // 构造 trace_json 内容：traceId + sessionId + userId + status + durationMs + events 数组
         Map<String, Object> trace = new LinkedHashMap<>();
         trace.put("traceId", scope.traceId());
@@ -406,6 +479,8 @@ public class AgentTraceService {
 
         /** 本轮 userId。 */
         private final Long userId;
+        private final String captureMode;
+        private final String diagnosticConsentId;
 
         /** 事件序号计数器，线程安全自增。 */
         private final AtomicInteger stepOrder = new AtomicInteger(0);
@@ -426,14 +501,19 @@ public class AgentTraceService {
         private boolean closed;
 
         /** 私有构造，仅 AgentTraceService#openTrace 创建。 */
-        private TraceScope(String traceId, String sessionId, Long userId) {
+        private TraceScope(String traceId, String sessionId, Long userId,
+                           String captureMode, String diagnosticConsentId) {
             this.traceId = traceId;
             this.sessionId = sessionId;
             this.userId = userId;
+            this.captureMode = captureMode;
+            this.diagnosticConsentId = diagnosticConsentId;
         }
         private String traceId() { return traceId; }
         private String sessionId() { return sessionId; }
         private Long userId() { return userId; }
+        private String captureMode() { return captureMode; }
+        private String diagnosticConsentId() { return diagnosticConsentId; }
 
         /** 返回下一个事件序号（先自增再返回）。 */
         private int nextStep() { return stepOrder.incrementAndGet(); }

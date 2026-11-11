@@ -55,6 +55,9 @@ public class SessionService {
     /** 确保 sessionId 对应行存在，不存在则插入空会话。 */
     public void ensureSession(String sessionId, Long userId) {
         if (sessionMapper.findById(sessionId, userId) == null) {
+            if (sessionMapper.countById(sessionId) != 0) {
+                throw new com.diet.exception.DietException("会话不存在");
+            }
             SessionRow row = new SessionRow();
             row.setId(sessionId);
             row.setUserId(userId);

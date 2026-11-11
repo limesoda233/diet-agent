@@ -96,6 +96,15 @@ class RecipeVideoCoordinatorTest {
     }
 
     @Test
+    void scoringServiceFailureIsFailedBranchButRetainsSuccessfulVideos() {
+        var answer = RecipeAnswer.refused("菜谱相关性筛选暂时不可用", Map.of(
+                "route", "relevance_failed", "error", "RecipeRagDependencyException"));
+        var result = successfulVideos().execute(() -> answer, QUESTION).block();
+        assertThat(result.recipe().status()).isEqualTo(BranchStatus.FAILED);
+        assertVideoSuccess(result);
+    }
+
+    @Test
     void retainsRecipeWhenVideoListIsEmpty() {
         var answer = groundedAnswer();
         var result = coordinator((query, platform, limit) -> Mono.just(List.of()))

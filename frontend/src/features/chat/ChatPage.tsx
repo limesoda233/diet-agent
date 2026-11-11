@@ -3,6 +3,8 @@ import type { ChatResponse, Meal, MealDraft, SourceMode } from '../../api/types'
 import { useApp } from '../../context/AppContext'
 import { Composer } from './Composer'
 import { MessageContent } from './MessageContent'
+import { MealPlanningCards } from './MealPlanningCards'
+import dogPortrait from '../../assets/dog.jpg'
 
 type Message = {
   id: number
@@ -19,7 +21,7 @@ const slotLabels: Record<string, string> = {
   healthGoal: '健康目标', cuisine: '菜系偏好', taste: '口味偏好', convenience: '便利程度',
 }
 const slotKeys = ['mealTime', 'mood', 'scene', 'healthGoal', 'cuisine', 'taste', 'convenience'] as const
-const welcome = '你好，我可以根据你的个人餐食库或公共餐食库推荐今天吃什么，也可以回答菜谱做法。'
+const welcome = '嗨，我是小狗。今天吃什么，交给我一起琢磨。你可以从自己的餐食库或公共餐食里找推荐，也可以问我菜谱做法。'
 const quickQuestions = ['早餐想吃方便一点', '晚饭推荐清淡低脂的', '帮我安排今天三餐', '宫保鸡丁怎么做？', '换一批，不想吃刚才那些']
 
 function initialMessages(): Message[] { return [{ id: 0, role: 'assistant', text: welcome }] }
@@ -63,17 +65,17 @@ function DraftCard({ draft, actionable, onAction }: {
 function MealCard({ meal, feedback, onFeedback }: {
   meal: Meal
   feedback?: { pending: boolean; result?: string }
-  onFeedback: (meal: Meal, action: 'LIKE' | 'ADOPT' | 'DISLIKE') => void
+  onFeedback?: (meal: Meal, action: 'LIKE' | 'ADOPT' | 'DISLIKE') => void
 }) {
   const tags = slotKeys.flatMap(key => (meal[key] ?? []).map(value => `${slotLabels[key]}：${value}`))
   return <article className="chat-meal-card" aria-label={meal.name}>
     <header><h4>{meal.name}</h4><small>{meal.sourceType === 'PERSONAL' ? '个人餐食' : '公共餐食'}</small></header>
     {tags.length > 0 && <div className="chat-chips">{tags.map((tag, index) => <span key={`${tag}-${index}`}>{tag}</span>)}</div>}
-    <div className="chat-card-actions">
+    {onFeedback && <div className="chat-card-actions">
       <button type="button" disabled={feedback?.pending || feedback?.result === '反馈已记录'} onClick={() => onFeedback(meal, 'LIKE')}>喜欢</button>
       <button type="button" className="secondary" disabled={feedback?.pending || feedback?.result === '反馈已记录'} onClick={() => onFeedback(meal, 'ADOPT')}>采纳</button>
       <button type="button" className="secondary" disabled={feedback?.pending || feedback?.result === '反馈已记录'} onClick={() => onFeedback(meal, 'DISLIKE')}>不合适</button>
-    </div>
+    </div>}
     {feedback?.result && <p className={feedback.result === '反馈已记录' ? 'chat-success' : 'chat-warning'} role="status">{feedback.result}</p>}
   </article>
 }
@@ -204,15 +206,19 @@ export function ChatPage() {
     }
   }
 
-  async function recordFeedback(message: Message, meal: Meal, action: 'LIKE' | 'ADOPT' | 'DISLIKE') {
+  async function recordFeedback(message: Message, meal: Meal, action: 'LIKE' | 'ADOPT' | 'DISLIKE', taskId?: string) {
     if (!message.sessionId || message.userId !== userId || message.sessionId !== sessionRef.current) return
-    const key = `${message.id}:${meal.id}`
+    const plan = message.response?.mealPlan
+    if (taskId && (!plan?.planId || !Number.isInteger(plan.version) || plan.version < 1 || !message.response?.traceId)) return
+    const key = feedbackKey(message, meal, taskId)
     if (feedback[key]?.pending || feedback[key]?.result === '反馈已记录') return
     const epoch = epochRef.current
     const owner = userId
     setFeedback(previous => ({ ...previous, [key]: { pending: true } }))
     try {
       await api.saveFeedback({ sessionId: message.sessionId, itemId: meal.id, action,
+        ...(message.response?.traceId ? { traceId: message.response.traceId } : {}),
+        ...(taskId && plan?.planId ? { planId: plan.planId, planVersion: plan.version, taskId } : {}),
         rating: action === 'DISLIKE' ? 2 : 5, reason: '' })
       if (current(epoch, owner)) setFeedback(previous => ({ ...previous, [key]: { pending: false, result: '反馈已记录' } }))
     } catch (failure) {
@@ -221,9 +227,15 @@ export function ChatPage() {
     }
   }
 
-  function renderMeal(message: Message, meal: Meal) {
-    return <MealCard key={`${message.id}-${meal.id}`} meal={meal} feedback={feedback[`${message.id}:${meal.id}`]}
-      onFeedback={(selected, action) => { void recordFeedback(message, selected, action) }} />
+  function feedbackKey(message: Message, meal: Meal, taskId?: string) {
+    const plan = message.response?.mealPlan
+    return taskId ? `${message.id}:${plan?.planId}:${plan?.version}:${taskId}:${meal.id}` : `${message.id}:${meal.id}`
+  }
+
+  function renderMeal(message: Message, meal: Meal, taskId?: string, actionable = true) {
+    const key = feedbackKey(message, meal, taskId)
+    return <MealCard key={key} meal={meal} feedback={feedback[key]}
+      onFeedback={actionable ? (selected, action) => { void recordFeedback(message, selected, action, taskId) } : undefined} />
   }
 
   function renderMessage(message: Message) {
@@ -231,12 +243,19 @@ export function ChatPage() {
     const latestDraft = response?.mealDraft && message.revision === revisionRef.current &&
       message.userId === userId && message.sessionId === sessionId && !sending
     return <article key={message.id} className={`chat-message ${message.role}`}>
+      {message.role === 'assistant' && <div className="chat-message-author"><img src={dogPortrait} alt="" /><strong>小狗</strong><span>饮食助手</span></div>}
       <div className="chat-bubble">{message.role === 'assistant'
         ? <MessageContent text={message.text} videos={response?.videoBlocks} />
         : <p>{message.text}</p>}</div>
+      {response?.memoryNotices?.length ? <aside className="chat-memory-notices" role="status" aria-label="饮食记忆提示">
+        {response.memoryNotices.map((notice, index) => <p key={index}>{notice}</p>)}
+        <a href="#/diet/memories">管理饮食记忆</a>
+      </aside> : null}
       {response?.missingSlots?.length ? <div className="chat-chips">{response.missingSlots.map(slot =>
         <span key={slot}>{slotLabels[slot] ?? slot}</span>)}</div> : null}
-      {response?.planBlocks?.length ? <div className="chat-meal-plan">{response.planBlocks.map((plan, index) =>
+      {response?.mealPlan ? <MealPlanningCards plan={response.mealPlan} canFeedback={Boolean(response.traceId)}
+        renderMeal={(meal, taskId, actionable) => renderMeal(message, meal, taskId, actionable)} />
+        : response?.planBlocks?.length ? <div className="chat-meal-plan">{response.planBlocks.map((plan, index) =>
         <section key={`${plan.mealTime}-${index}`}>
           <h3>{plan.mealTime || '餐次'}</h3>
           {plan.summary && <p>{plan.summary}</p>}
@@ -266,8 +285,8 @@ export function ChatPage() {
 
   return <section className="chat-page" aria-label="聊天推荐">
     <header className="chat-header">
-      <div><span className="chat-eyebrow">饮食助手</span><h1>今天想吃什么？</h1>
-        <p>当前会话：{sessionId || '发送消息后自动创建'}</p></div>
+      <div className="chat-header-identity"><span className="chat-header-avatar"><img src={dogPortrait} alt="" /></span><div><span className="chat-eyebrow">小狗 · 你的饮食搭子</span><h1>今天想吃什么？</h1>
+        <p>先说说你的想法，我认真听。{sessionId ? `会话 ${sessionId}` : ''}</p></div></div>
       <div className="chat-header-actions" aria-label="聊天设置">
         <div className="chat-source" role="group" aria-label="餐食来源">
           <button type="button" aria-pressed={sourceMode === 'PERSONAL'} onClick={() => sourceMode !== 'PERSONAL' && resetConversation('PERSONAL')}>个人库</button>

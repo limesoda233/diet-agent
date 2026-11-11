@@ -23,6 +23,10 @@ public interface MealMapper {
 
     int countPersonalMeals(Long userId);
 
+    @org.apache.ibatis.annotations.Options(timeout=3)
+    List<MealItemRow> findForPlanning(@Param("sourceMode") SourceMode sourceMode,@Param("userId") Long userId,@Param("ids") List<Long> ids);
+
+    @org.apache.ibatis.annotations.Options(timeout=3)
     List<MealItemRow> search(
             @Param("sourceMode") SourceMode sourceMode,
             @Param("userId") Long userId,

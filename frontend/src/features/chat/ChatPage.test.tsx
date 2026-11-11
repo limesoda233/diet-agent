@@ -28,6 +28,25 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
+const plannedMeal = {
+  mealId: 17, sourceMode: 'PERSONAL', ownerUserId: 1, name: '清蒸鱼', mealTimes: ['晚餐'],
+  ingredients: ['鱼'], ingredientsKnown: true, tags: { healthGoal: ['清淡'] },
+  facts: { 'meal:17:healthGoal:清淡': '清淡' }, fingerprint: 'meal17-snapshot',
+}
+const mealPlan = (overrides: Record<string, unknown> = {}) => ({
+  planId: 'plan-27', version: 3, status: 'COMPLETE', strategy: 'MULTI_AGENT', reviewed: true,
+  days: [
+    { date: '2026-10-21', blocks: [{ taskId: 'd0-dinner', mealTime: '晚餐', selectedMeal: plannedMeal, reason: '符合清淡偏好', repeated: false }] },
+    { date: '2026-10-22', blocks: [{ taskId: 'd1-dinner', mealTime: '晚餐', selectedMeal: { ...plannedMeal, mealId: 18, name: '番茄炒蛋' }, reason: '', repeated: false }] },
+  ], gaps: [], unsupportedConstraints: [], warnings: [], ...overrides,
+})
+
+async function requestPlan() {
+  render(<ChatPage />)
+  await userEvent.type(screen.getByRole('textbox', { name: '消息' }), '安排今天和明天的晚餐')
+  await userEvent.click(screen.getByRole('button', { name: '发送' }))
+}
+
 beforeEach(() => {
   app.userId = '1'
   app.api.createSession.mockReset().mockResolvedValue({ sessionId: 's1' })
@@ -37,6 +56,91 @@ beforeEach(() => {
 })
 
 describe('chat interaction', () => {
+  it('keeps planned dinners grouped by date without duplicating legacy meal blocks', async () => {
+    app.api.chat.mockResolvedValueOnce(answer({ responseType: 'PLAN', mealPlan: mealPlan(),
+      displayBlocks: [{ id: 99, name: '重复旧卡片' }], planBlocks: [{ mealTime: '早餐', meals: [{ id: 98, name: '多余早餐' }] }] }))
+    await requestPlan()
+    const today = await screen.findByRole('region', { name: '2026-10-21 餐食计划' })
+    const tomorrow = screen.getByRole('region', { name: '2026-10-22 餐食计划' })
+    expect(within(today).getByRole('heading', { name: '晚餐' })).toBeInTheDocument()
+    expect(within(today).getByRole('article', { name: '清蒸鱼' })).toHaveTextContent('健康目标：清淡')
+    expect(within(tomorrow).getByRole('article', { name: '番茄炒蛋' })).toBeInTheDocument()
+    expect(screen.queryByText('多余早餐')).not.toBeInTheDocument()
+    expect(screen.queryByText('重复旧卡片')).not.toBeInTheDocument()
+    expect(screen.getByText('计划已完成')).toBeInTheDocument()
+    expect(screen.getByText('已完成需求复核')).toBeInTheDocument()
+  })
+
+  it('shows a partial plan gap with a useful explanation and no feedback buttons', async () => {
+    app.api.chat.mockResolvedValueOnce(answer({ mealPlan: mealPlan({ status: 'PARTIAL', reviewed: false,
+      days: [{ date: '2026-10-21', blocks: [{ taskId: 'd0-dinner', mealTime: '晚餐', selectedMeal: null, reason: '', repeated: false }] }],
+      gaps: [{ taskId: 'd0-dinner', code: 'NO_DISTINCT_CANDIDATE' }],
+      unsupportedConstraints: ['MAX_BUDGET'], warnings: ['REVIEW_UNAVAILABLE', 'INTERNAL_NEW_CODE'],
+    }) }))
+    await requestPlan()
+    const plan = await screen.findByRole('region', { name: '2026-10-21 餐食计划' })
+    expect(plan).toHaveTextContent('晚餐')
+    expect(plan).toHaveTextContent('暂无符合不重复要求的餐食')
+    expect(within(plan).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByText('计划尚有缺口')).toBeInTheDocument()
+    expect(screen.getByText('尚未完成需求复核')).toBeInTheDocument()
+    expect(screen.getByText(/预算要求暂时无法核验/)).toBeInTheDocument()
+    expect(screen.queryByText(/REVIEW_UNAVAILABLE|INTERNAL_NEW_CODE|MAX_BUDGET/)).not.toBeInTheDocument()
+  })
+
+  it('sends plan, version, task and trace identity for the exact displayed task', async () => {
+    app.api.chat.mockResolvedValueOnce(answer({ traceId: 'plan-trace', mealPlan: mealPlan({
+      days: [
+        { date: '2026-10-21', blocks: [{ taskId: 'd0-dinner', mealTime: '晚餐', selectedMeal: plannedMeal, reason: '', repeated: false }] },
+        { date: '2026-10-22', blocks: [{ taskId: 'd1-dinner', mealTime: '晚餐', selectedMeal: plannedMeal, reason: '', repeated: true }] },
+      ],
+    }) }))
+    await requestPlan()
+    const tomorrow = await screen.findByRole('region', { name: '2026-10-22 餐食计划' })
+    expect(tomorrow).toHaveTextContent('与计划中其他餐次重复')
+    await userEvent.click(within(tomorrow).getByRole('button', { name: '采纳' }))
+    await waitFor(() => expect(app.api.saveFeedback).toHaveBeenCalledWith({
+      sessionId: 's1', itemId: 17, action: 'ADOPT', rating: 5, reason: '', traceId: 'plan-trace',
+      planId: 'plan-27', planVersion: 3, taskId: 'd1-dinner',
+    }))
+    expect(await within(tomorrow).findByText('反馈已记录')).toBeInTheDocument()
+    const today = screen.getByRole('region', { name: '2026-10-21 餐食计划' })
+    expect(within(today).getByRole('button', { name: '采纳' })).toBeEnabled()
+    expect(within(today).queryByText('反馈已记录')).not.toBeInTheDocument()
+  })
+
+  it('explains deterministic degraded output without claiming semantic review succeeded', async () => {
+    app.api.chat.mockResolvedValueOnce(answer({ mealPlan: mealPlan({ status: 'DEGRADED', strategy: 'DETERMINISTIC_MENU',
+      reviewed: false, warnings: ['MENU_FALLBACK', 'REVIEW_UNAVAILABLE'] }) }))
+    await requestPlan()
+    expect(await screen.findByText('计划以降级方式生成')).toBeInTheDocument()
+    expect(screen.getByText('使用确定性备用选择')).toBeInTheDocument()
+    expect(screen.getByText('尚未完成需求复核')).toBeInTheDocument()
+    expect(screen.queryByText('已完成需求复核')).not.toBeInTheDocument()
+  })
+
+  it.each([{ planId: null, version: 0 }, { planId: 'plan-27', version: undefined }])(
+    'does not offer feedback for a plan without persisted identity: %j', async identity => {
+      app.api.chat.mockResolvedValueOnce(answer({ mealPlan: mealPlan(identity) }))
+      await requestPlan()
+      const plan = await screen.findByRole('region', { name: '2026-10-21 餐食计划' })
+      expect(within(plan).queryByRole('button')).not.toBeInTheDocument()
+      expect(screen.getByText('计划尚未保存，暂不能反馈')).toBeInTheDocument()
+    },
+  )
+
+  it('shows server memory notices separately as safe text with a management link', async () => {
+    app.api.chat.mockResolvedValueOnce(answer({ memoryNotices: ['过敏记忆待确认', '<img src=x onerror=alert(1)>'] }))
+    render(<ChatPage />)
+    await userEvent.type(screen.getByRole('textbox', { name: '消息' }), '晚饭')
+    await userEvent.click(screen.getByRole('button', { name: '发送' }))
+    const status = await screen.findByRole('status', { name: '饮食记忆提示' })
+    expect(status).toHaveTextContent('过敏记忆待确认')
+    expect(status).toHaveTextContent('<img src=x onerror=alert(1)>')
+    expect(status.querySelector('img')).toBeNull()
+    expect(within(status).getByRole('link', { name: '管理饮食记忆' })).toHaveAttribute('href', '#/diet/memories')
+    expect(screen.getByText('可以试试清蒸鱼。').closest('.chat-bubble')).not.toContainElement(status)
+  })
   it('sends with Enter, inserts a newline with Shift+Enter, and ignores composition Enter', async () => {
     render(<ChatPage />)
     const input = screen.getByRole('textbox', { name: '消息' })
@@ -141,7 +245,7 @@ describe('chat interaction', () => {
   })
 
   it('records feedback for the displayed meal and session', async () => {
-    app.api.chat.mockResolvedValueOnce(answer({ displayBlocks: [{ id: 7, sourceType: 'PERSONAL',
+    app.api.chat.mockResolvedValueOnce(answer({ traceId: 'feedback-trace', displayBlocks: [{ id: 7, sourceType: 'PERSONAL',
       name: '小米粥', mealTime: ['早餐'], mood: [], scene: [], healthGoal: [], cuisine: [],
       taste: [], convenience: [], matchScore: 0.8, knowledge: null }] }))
     render(<ChatPage />)
@@ -150,7 +254,7 @@ describe('chat interaction', () => {
     const card = await screen.findByRole('article', { name: '小米粥' })
     await userEvent.click(within(card).getByRole('button', { name: '喜欢' }))
     await waitFor(() => expect(app.api.saveFeedback).toHaveBeenCalledWith({
-      sessionId: 's1', itemId: 7, action: 'LIKE', rating: 5, reason: '',
+      sessionId: 's1', itemId: 7, action: 'LIKE', rating: 5, reason: '', traceId: 'feedback-trace',
     }))
     expect(await within(card).findByText('反馈已记录')).toBeInTheDocument()
   })

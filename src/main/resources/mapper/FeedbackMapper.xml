@@ -3,6 +3,17 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.diet.mapper.FeedbackMapper">
+    <select id="ownsSession" resultType="int">
+        SELECT COUNT(*) FROM diet_sessions WHERE id=#{sessionId} AND user_id=#{userId}
+    </select>
+    <select id="canReferenceItem" resultType="int">
+        SELECT COUNT(*) FROM meal_item WHERE id=#{itemId}
+          AND (source_type='PUBLIC' AND owner_user_id IS NULL
+               OR source_type='PERSONAL' AND owner_user_id=#{userId})
+    </select>
+    <select id="ownsTrace" resultType="int">
+        SELECT COUNT(*) FROM diet_request_trace WHERE trace_id=#{traceId} AND user_id=#{userId}
+    </select>
 
     <resultMap id="FeedbackRowMap" type="com.diet.model.FeedbackRow">
         <id property="id" column="id"/>

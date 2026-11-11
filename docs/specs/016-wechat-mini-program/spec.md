@@ -1,6 +1,6 @@
 # 016 微信小程序认证、用户隔离与隐私 Trace 规格
 
-状态：设计已在对话中确认，等待书面规格复核。设计日期：2026-11-10。
+状态：设计已确认，代码与本地自动化验收完成；微信平台和真机验收待项目持有人执行。设计日期：2026-11-10。
 
 ## 1. 背景
 
@@ -33,7 +33,7 @@
 
 登录凭证使用 32 字节安全随机数并以 Base64 URL 形式返回。数据库只保存凭证的 SHA-256 摘要。高熵凭证无需密码哈希算法，摘要查询也能保持常量结构。
 
-小程序使用原生 TypeScript。首版页面数量有限，直接使用微信组件和 `wx.request` 可以保持构建、调试和发布链路清晰。
+小程序使用原生 TypeScript。体验部署选用云开发云托管，客户端通过 `wx.cloud.callContainer` 调用现有 Spring Boot API；无需将 Java 服务改写为云函数。
 
 ## 4. 交付边界
 
@@ -297,19 +297,20 @@
 - `pages/chat` 创建会话、发送消息并展示推荐、计划、做法证据和错误编号。
 - `pages/meals` 查看个人餐食并进入编辑页面。
 - `pages/meal-edit` 新增或修改个人餐食。
-- `pages/settings` 修改昵称、退出、创建诊断授权和删除账号数据。
+- `pages/settings` 修改昵称、管理员生成朋友邀请码、退出、创建诊断授权和删除账号数据。
 
 ### 10.2 客户端模块
 
 - `services/auth` 封装 `wx.login`、登录态保存和退出。
-- `services/api` 统一添加 Bearer 凭证、API base URL 和诊断授权 header。
+- `services/transport` 封装云托管环境 ID、服务名和 `wx.cloud.callContainer`。
+- `services/api` 统一添加 Bearer 凭证和诊断授权 header。
 - `services/session` 保存当前聊天 session ID，不跨用户复用。
 - `stores/auth-state` 管理登录状态和到期恢复。
 - `types/api` 定义与 Java DTO 对齐的接口类型。
 
 收到 HTTP 401 时，客户端清除本地会话并重新执行微信登录。重试仅发生一次，避免无效 code 或服务异常形成循环。
 
-AppID 写入 `project.config.json`。API base URL 按开发和体验环境配置。仓库不包含 AppSecret、Bearer 凭证、上传私钥或朋友邀请码。
+AppID 写入 `project.config.json`，云开发环境 ID 在 `miniapp/config.ts` 配置。仓库不包含 AppSecret、Bearer 凭证、上传私钥或朋友邀请码。
 
 ## 11. 错误契约
 

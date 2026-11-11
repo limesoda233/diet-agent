@@ -18,6 +18,36 @@ agentscope:
     api-key: ${DEEPSEEK_API_KEY:}
     base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
 diet:
+  wechat:
+    app-id: ${WECHAT_MINI_APP_ID:wx15b95618032f7270}
+    app-secret: ${WECHAT_MINI_APP_SECRET:}
+  auth:
+    bootstrap-invite-code: ${DIET_BOOTSTRAP_INVITE_CODE:}
+    session-ttl: ${DIET_AUTH_SESSION_TTL:7d}
+  trace:
+    mode: ${DIET_TRACE_MODE:FULL}
+    metadata-ttl-hours: ${DIET_TRACE_METADATA_TTL_HOURS:336}
+    diagnostic-ttl-hours: ${DIET_TRACE_DIAGNOSTIC_TTL_HOURS:24}
+    full-ttl-hours: ${DIET_TRACE_FULL_TTL_HOURS:336}
+    cleanup-max-batches: 10
+    cleanup-interval-ms: 3600000
+  diagnostics:
+    consent-ttl: ${DIET_DIAGNOSTIC_CONSENT_TTL:10m}
+  meal-planning:
+    # Apply db/migrations/006_meal_planning.sql before enabling.
+    enabled: ${DIET_MEAL_PLANNING_ENABLED:false}
+    total-timeout: 40s
+    planner-timeout: 5s
+    menu-timeout: 8s
+    review-timeout: 4s
+    retrieval-concurrency: 3
+  memory:
+    # Apply db/migrations/005_user_memory.sql before enabling.
+    enabled: ${USER_MEMORY_ENABLED:false}
+    jev-enabled: ${USER_MEMORY_JEV_ENABLED:false}
+    extraction-timeout: 8s
+    worker-delay-ms: 5000
+    inference-min-sessions: 3
   meal-intake:
     timeout: 10s
     max-input-chars: 4000
