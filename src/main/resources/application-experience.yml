@@ -9,7 +9,7 @@ spring:
   application:
     name: harness-agent
   datasource:
-    url: ${DB_URL:jdbc:mysql://sh-cynosdbmysql-grp-qfuroozi.sql.tencentcdb.com:28902/diet_experience?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
-    username: ${DB_USERNAME:diet_app}
-    password: ${DB_PASSWORD:}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
