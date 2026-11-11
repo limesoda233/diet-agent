@@ -16,7 +16,7 @@ export function getAuth(): AuthState | null {
 
 export function saveAuth(value: AuthState): void {
   const previous = wx.getStorageSync(KEY) as AuthState | undefined
-  if (previous?.user.id && previous.user.id !== value.user.id) {
+  if (previous?.user?.id && previous.user.id !== value.user.id) {
     wx.removeStorageSync(`diet-session-${previous.user.id}`)
   }
   wx.setStorageSync(KEY, value)
