@@ -1,14 +1,18 @@
 package com.diet.auth;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 public class HttpWechatCodeExchangeClient implements WechatCodeExchangeClient {
+    private static final Logger log = LoggerFactory.getLogger(HttpWechatCodeExchangeClient.class);
     private final RestClient client;
     private final String appId;
     private final String appSecret;
@@ -48,7 +52,19 @@ public class HttpWechatCodeExchangeClient implements WechatCodeExchangeClient {
         } catch (AuthException error) {
             throw error;
         } catch (RuntimeException error) {
+            log.warn("WeChat code exchange failed: {}", failureCategory(error));
             throw new AuthException("WECHAT_UNAVAILABLE", "微信登录暂时不可用");
         }
+    }
+
+    private static String failureCategory(RuntimeException error) {
+        if (error instanceof RestClientResponseException responseError) {
+            return "HTTP " + responseError.getStatusCode().value();
+        }
+        Throwable root = error;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        return error.getClass().getSimpleName() + " / " + root.getClass().getSimpleName();
     }
 }
