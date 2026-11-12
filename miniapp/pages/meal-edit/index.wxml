@@ -6,6 +6,7 @@
     <view class="field"><view class="field-label">餐食名称</view><input value="{{name}}" bindinput="onName" maxlength="128" placeholder="例如：番茄鸡蛋面" /></view>
     <view class="field"><view class="field-label">补充描述（选填）</view><input value="{{description}}" bindinput="onDescription" placeholder="例如：早上吃，不加辣" /></view>
     <button class="button-soft analyze" disabled="{{generating || saving}}" loading="{{generating}}" bindtap="generate">小狗帮我选标签</button>
+    <view wx:if="{{analysisResult}}" class="analysis-result" role="status">{{analysisResult}}</view>
     <view class="muted edit-tip">点选中的标签可取消，点未选中的标签可添加。</view>
     <view wx:for="{{groups}}" wx:key="field" class="tag-group">
       <view class="field-label">{{item.label}}{{item.field === 'mealTime' ? '（必选）' : ''}}</view>

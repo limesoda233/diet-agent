@@ -10,6 +10,7 @@
 | 微信小程序体验环境与朋友邀请 | [云开发部署清单](guides/wechat-cloudbase.md) · [小程序部署指南](guides/wechat-mini-program.md) |
 | 不知道从哪个 Java 文件开始 | [源码阅读路线](guides/code-reading.md) |
 | 一句话整理个人餐食与确认保存 | [个人餐食录入指南](guides/meal-intake.md) |
+| 云端餐食检索或录入没有结果 | [诊断日志格式与排查](guides/meal-diagnostics.md) |
 | 跨会话偏好、过敏确认与记忆管理 | [长期记忆指南](guides/user-memory.md)，先迁移 MySQL 再显式启用 |
 | 跨日选餐、Planner/Menu/Review 与有限修订 | [多 Agent 规划指南](guides/meal-planning.md)，先执行 006 迁移，默认关闭 |
 | 菜谱 RAG/MCP 面试复盘 | [面试逐字稿](interview/recipe-rag-mcp.md) |

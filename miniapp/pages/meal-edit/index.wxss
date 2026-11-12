@@ -8,6 +8,7 @@
 input { box-sizing: border-box; width: 100%; height: 78rpx; padding: 0 18rpx; border: 3rpx solid #E9D8C8; border-radius: 20rpx; background: #fff; font-size: 25rpx; }
 .edit-card button { margin-top: 10rpx; min-height: 88rpx; }
 .edit-card .analyze { width: 100%; margin: 5rpx 0 20rpx; }
+.analysis-result { margin: 0 0 18rpx; padding: 14rpx 18rpx; border-radius: 14rpx; background: #fff1df; color: #7b482f; font-size: 23rpx; }
 .edit-tip { font-size: 23rpx; margin: 7rpx 0 26rpx; }
 .tag-group { margin: 25rpx 0; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 12rpx; }

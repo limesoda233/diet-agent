@@ -144,6 +144,12 @@ public class AgentTraceService {
 
     public interface TraceContext { <T> T call(Supplier<T> work); }
 
+    /** Correlates concise application logs with the persisted request trace. */
+    public String currentTraceId() {
+        TraceScope scope=currentScope.get();
+        return scope==null?"-":scope.traceId();
+    }
+
     /**
      * 记录状态机事件（无耗时）。
      * 委托 record 方法，agentName/modelName/latency/error 均为 null。

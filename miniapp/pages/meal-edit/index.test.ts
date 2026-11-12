@@ -35,3 +35,21 @@ it('lets a person review meal-specific buttons and saves one composition version
     templateCode: 'MALATANG', selections: { size: 'LARGE' },
   }) }))
 })
+
+it('shows the draft parsing error even when an unsupported nutrition template returns successfully', async () => {
+  api.generateMealDraft.mockRejectedValueOnce(new Error('餐食整理失败或超时，请重试或手动录入'))
+  api.suggestNutrition.mockResolvedValueOnce({ templateCode: 'UNKNOWN', questions: [], selections: {}, estimate: null })
+  page.onName({ detail: { value: '番茄鸡蛋面' } })
+  await page.generate()
+  expect(page.data.error).toContain('餐食整理失败或超时')
+  expect(page.data.analysisResult).toBe('')
+})
+
+it('explains when parsing succeeds but adds no selectable tags', async () => {
+  api.generateMealDraft.mockResolvedValueOnce({ data: { mealTime: [], mood: [], scene: [],
+    healthGoal: [], cuisine: [], taste: [], convenience: [] } })
+  api.suggestNutrition.mockResolvedValueOnce({ templateCode: 'UNKNOWN', questions: [], selections: {}, estimate: null })
+  page.onName({ detail: { value: '番茄鸡蛋面' } })
+  await page.generate()
+  expect(page.data.analysisResult).toContain('没有新增标签')
+})

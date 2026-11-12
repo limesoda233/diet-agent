@@ -10,7 +10,7 @@ const empty = (): Record<Field, string[]> => ({ mealTime: [], mood: [], scene: [
 Page({
   data: { id: 0, name: '', description: '', selected: empty(),
     groups: [] as { field: Field; label: string; choices: { value: string; selected: boolean }[] }[],
-    options: {} as Record<string, string[]>, saving: false, generating: false, error: '',
+    options: {} as Record<string, string[]>, saving: false, generating: false, error: '', analysisResult: '',
     nutritionDraft: null as NutritionDraft | null,
     nutritionGroups: [] as { key: string; label: string; choices: { value: string; label: string; selected: boolean }[] }[],
     savedVariants: [] as NutritionVariant[] },
@@ -43,10 +43,10 @@ Page({
         selected: draft.selections[question.key] === choice.value })) })) : [] })
   },
   onName(event: { detail: { value: string } }) {
-    if (event.detail.value !== this.data.name) this.setData({ nutritionDraft: null, nutritionGroups: [] })
+    if (event.detail.value !== this.data.name) this.setData({ nutritionDraft: null, nutritionGroups: [], analysisResult: '' })
     this.setData({ name: event.detail.value })
   },
-  onDescription(event: { detail: { value: string } }) { this.setData({ description: event.detail.value }) },
+  onDescription(event: { detail: { value: string } }) { this.setData({ description: event.detail.value, analysisResult: '' }) },
   toggleTag(event: { currentTarget: { dataset: { field: Field; value: string } } }) {
     const { field, value } = event.currentTarget.dataset
     const current = this.data.selected[field]
@@ -88,20 +88,28 @@ Page({
     if (this.data.generating || this.data.saving) return
     const name = this.data.name.trim()
     if (!name) { this.setData({ error: '请先填写餐食名称' }); return }
-    this.setData({ generating: true, error: '' })
+    this.setData({ generating: true, error: '', analysisResult: '' })
     try {
       const text = `餐食名称：${name}${this.data.description.trim() ? '；' + this.data.description.trim() : ''}`
       const [mealResult,nutritionResult] = await Promise.allSettled([
         api.generateMealDraft(text),api.suggestNutrition(name,text)])
       if (mealResult.status === 'fulfilled') {
         const selected = { ...this.data.selected }
-        for (const field of fields) selected[field] = [...new Set([...selected[field], ...mealResult.value.data[field]])]
+        let added = 0
+        for (const field of fields) {
+          const previous = selected[field].length
+          selected[field] = [...new Set([...selected[field], ...(mealResult.value.data[field] || [])])]
+          added += selected[field].length - previous
+        }
         this.setData({ selected }); this.renderGroups()
+        this.setData({ analysisResult: added ? `已预选 ${added} 个新标签，请核对后保存。` : '没有新增标签，请手动选择或补充更具体的描述。' })
       }
       if (nutritionResult.status === 'fulfilled' && nutritionResult.value.questions.length) {
         this.setData({ nutritionDraft: nutritionResult.value }); this.renderNutrition()
+        if (mealResult.status === 'fulfilled' && this.data.analysisResult.startsWith('没有新增'))
+          this.setData({ analysisResult: '已整理这顿的搭配选项，请核对后保存。' })
       }
-      if (mealResult.status === 'rejected' && nutritionResult.status === 'rejected')
+      if (mealResult.status === 'rejected')
         throw mealResult.reason
     } catch (error) { this.setData({ error: error instanceof Error ? error.message : '解析失败，请手动选择标签' }) }
     finally { this.setData({ generating: false }) }

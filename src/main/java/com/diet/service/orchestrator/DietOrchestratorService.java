@@ -37,6 +37,7 @@ import com.diet.service.session.SessionService;
 import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
+import com.diet.service.trace.MealDiagnosticLog;
 import com.diet.service.recipe.RecipeQueryService;
 import com.diet.service.recipe.RecipeConversationContext;
 import com.diet.service.recipe.RecipeConversationResolver;
@@ -46,6 +47,8 @@ import com.diet.service.recipe.RecipeVideoCoordinator.BranchStatus;
 import com.diet.service.video.CookingVideo;
 import com.diet.service.video.CookingVideoSearchService;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -64,6 +67,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Service
 public class DietOrchestratorService {
+    private static final Logger log=LoggerFactory.getLogger(DietOrchestratorService.class);
     private com.diet.service.meal.planning.runtime.MealPlanningChatService mealPlanningChatService;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setMealPlanningChatService(com.diet.service.meal.planning.runtime.MealPlanningChatService service) {this.mealPlanningChatService=service;}
@@ -248,6 +252,9 @@ public class DietOrchestratorService {
             try {
                 // 记录请求开始时间（纳秒），用于最后计算整轮耗时
                 long startedAt = System.nanoTime();
+                log.info("DIET_DIAG v=1 event=CHAT_START traceId={} source={} freshSession={} draftAction={} priorSlots={}",
+                        traceId,request.sourceMode(),request.sessionId()==null || request.sessionId().isBlank(),
+                        draftAction,MealDiagnosticLog.slotCounts(initialState.slots()));
                 // Trace 事件：REQUEST_RECEIVED | 阶段 HTTP | 输入=ChatRequest | 输出=初始 SessionState
                 agentTraceService.recordEvent("REQUEST_RECEIVED", "HTTP", request, initialState);
 
@@ -262,10 +269,14 @@ public class DietOrchestratorService {
                     ChatResponse response = handleTurn(userId, request, traceId, currentState);
                     // Trace 事件：REQUEST_FINISHED | 阶段 HTTP | 输入=ChatRequest | 输出=ChatResponse | 耗时 ms
                     agentTraceService.recordEvent("REQUEST_FINISHED", "HTTP", request, response, elapsedMs(startedAt));
+                    log.info("DIET_DIAG v=1 event=CHAT_DONE traceId={} source={} responseType={} displayed={} durationMs={}",
+                            traceId,request.sourceMode(),response.responseType(),response.displayBlocks().size(),elapsedMs(startedAt));
                     // 将最终响应返回给 Controller
                     return response;
                 }
             } catch (RuntimeException error) {
+                log.warn("DIET_DIAG v=1 event=CHAT_FAILED traceId={} source={} errorType={}",
+                        traceId,request.sourceMode(),error.getClass().getSimpleName());
                 // Trace 事件：REQUEST_FAILED | 阶段 HTTP | 输入=ChatRequest | 记录异常并将 Trace 标记 FAILED
                 agentTraceService.recordError("REQUEST_FAILED", "HTTP", request, error);
                 // 继续向上抛出，由全局异常处理器返回错误响应
@@ -329,6 +340,12 @@ public class DietOrchestratorService {
             var intake = mealIntakeWorkflow.handle(userId, request, state);
             if (intake.isPresent()) {
                 var result = intake.get();
+                var finishedDraft = result.state().mealDraft();
+                log.info("DIET_DIAG v=1 event=MEAL_DRAFT_DONE traceId={} entry=CHAT status={} slots={} missing={}",
+                        traceId,finishedDraft == null ? "NONE" : finishedDraft.status(),
+                        finishedDraft == null || finishedDraft.data() == null ? "none"
+                                : MealDiagnosticLog.slotCounts(finishedDraft.data().toMealRequest().toSlots()),
+                        finishedDraft == null ? 0 : finishedDraft.missingFields().size());
                 if (!result.persisted()) sessionStateService.save(result.state());
                 sessionService.appendMessage(sessionId, "assistant", result.speechText(), null, traceId);
                 return ChatResponse.mealDraft(sessionId, traceId, result.speechText(), result.state().mealDraft());
@@ -390,6 +407,9 @@ public class DietOrchestratorService {
         IntentResult intent = intentReviseService.revise(state, rawIntent, request.message());
         // Trace 事件：INTENT_REVISED | 阶段 INTENT | 输入=矫正前 rawIntent | 输出=矫正后 intent
         agentTraceService.recordEvent("INTENT_REVISED", "INTENT", rawIntent, intent);
+        log.info("DIET_DIAG v=1 event=INTENT_RESOLVED traceId={} source={} priorPhase={} rawIntent={} finalIntent={} rawSlots={} finalSlots={}",
+                traceId,sourceMode,state.phase(),rawIntent.intent(),intent.intent(),
+                MealDiagnosticLog.slotCounts(rawIntent.slots()),MealDiagnosticLog.slotCounts(intent.slots()));
 
         if(mealPlanningChatService!=null && intent.intent()==Intent.MEAL_PLAN)
             return handleMultiAgentPlan(userId,request,traceId,state);
@@ -818,6 +838,9 @@ public class DietOrchestratorService {
         // 构造排序请求：候选列表 + slots + excludeMealIds，返回 top10
         List<MealItem> ranked = mealRankService.rank(new MealRankRequest(candidates, effectiveSlots, excludeMealIds));
         if(memoryPolicy!=null)ranked=memoryPolicy.rank(userId,state.slots(),ranked);
+        log.info("DIET_DIAG v=1 event=MEAL_SEARCH traceId={} source={} requestedSlots={} effectiveSlots={} candidates={} ranked={} excludedMealIds={}",
+                traceId,state.sourceMode(),MealDiagnosticLog.slotCounts(state.slots()),
+                MealDiagnosticLog.slotCounts(effectiveSlots),candidates.size(),ranked.size(),excludeMealIds.size());
         // Trace 事件：MEAL_RANKED | 阶段 RANK | 输入=excludeMealIds | 输出=重排后数量+ranked 列表
         agentTraceService.recordEvent("MEAL_RANKED", "RANK", Map.of("excludeMealIds", excludeMealIds), Map.of("rankedCount", ranked.size(), "ranked", ranked));
 

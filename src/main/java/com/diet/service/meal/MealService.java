@@ -13,12 +13,16 @@ import com.diet.service.meal.knowledge.MealKnowledgeRepository;
 import com.diet.service.slot.SlotOptionService;
 import com.diet.service.profile.DietaryProfileService;
 import com.diet.service.meal.nutrition.MealNutritionVariantService;
+import com.diet.service.trace.AgentTraceService;
+import com.diet.service.trace.MealDiagnosticLog;
 import com.diet.util.JsonService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.dao.DuplicateKeyException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -32,6 +36,10 @@ import java.util.Set;
  */
 @Service
 public class MealService {
+    private static final Logger log=LoggerFactory.getLogger(MealService.class);
+    private AgentTraceService diagnosticTrace;
+    @Autowired(required=false)
+    public void setDiagnosticTrace(AgentTraceService trace) { this.diagnosticTrace=trace; }
     private JdbcTemplate guardJdbc;
     @Autowired(required=false)
     public void setGuardJdbc(JdbcTemplate jdbc) { this.guardJdbc=jdbc; }
@@ -221,8 +229,27 @@ public class MealService {
 
     public List<MealItem> search(SourceMode sourceMode, Long userId, SlotBundle slots, MealConstraints constraints) {
         MealConstraints safeConstraints = constraints == null ? MealConstraints.empty() : constraints;
-        if(memoryPolicy!=null) safeConstraints=memoryPolicy.mealConstraints(userId,safeConstraints);
-        return queryMeals(sourceMode,userId,slots,safeConstraints);
+        try {
+            if(memoryPolicy!=null) safeConstraints=memoryPolicy.mealConstraints(userId,safeConstraints);
+        } catch(IllegalArgumentException blocked) {
+            log.info("DIET_DIAG v=1 event=MEAL_QUERY traceId={} source={} outcome=BLOCKED reason=POLICY",
+                    MealDiagnosticLog.traceId(diagnosticTrace),sourceMode);
+            throw blocked;
+        }
+        long started=System.nanoTime();
+        try {
+            List<MealItem> matches=queryMeals(sourceMode,userId,slots,safeConstraints);
+            log.info("DIET_DIAG v=1 event=MEAL_QUERY traceId={} source={} slots={} requiredIngredients={} excludedIngredients={} matched={} durationMs={}",
+                    MealDiagnosticLog.traceId(diagnosticTrace),sourceMode,MealDiagnosticLog.slotCounts(slots),
+                    safeConstraints.requiredIngredients().size(),safeConstraints.excludedIngredients().size(),matches.size(),
+                    (System.nanoTime()-started)/1_000_000);
+            return matches;
+        } catch (RuntimeException error) {
+            log.warn("DIET_DIAG v=1 event=MEAL_QUERY_FAILED traceId={} source={} errorType={} durationMs={}",
+                    MealDiagnosticLog.traceId(diagnosticTrace),sourceMode,error.getClass().getSimpleName(),
+                    (System.nanoTime()-started)/1_000_000);
+            throw error;
+        }
     }
 
     /** Internal planning entry: constraints already merged from the server's frozen memory. */
