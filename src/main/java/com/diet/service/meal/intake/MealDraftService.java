@@ -20,6 +20,8 @@ public class MealDraftService {
             "cuisine","taste","convenience","ingredients","preparation","multipleMeals","suggestions");
     private static final Set<String> SPICY = Set.of("辣", "微辣", "中辣", "重辣", "麻辣");
     private static final Pattern NO_SPICE = Pattern.compile("不加辣|不要辣|不放辣|不吃辣|不能吃辣|不辣|无辣|去辣|免辣");
+    private static final Pattern SPICY_DISH_NAME = Pattern.compile("辣子鸡|麻辣|香辣|酸辣|辣椒|辣酱");
+    private static final Pattern EXPLICIT_HIGH_SPICE = Pattern.compile("中辣|重辣|特辣|爆辣");
     private static final Pattern JSON_FENCE = Pattern.compile("\\A```(?:json)?[ \\t]*\\R([\\s\\S]*?)\\R```\\z", Pattern.CASE_INSENSITIVE);
     private static final Pattern ONLY_MEAL_TIME = Pattern.compile("(?:只|仅|只能)(?:在)?(早上|上午|早餐|中午|午餐|晚上|晚餐)");
     private static final String SUGGESTED = "~AI_SUGGESTED~";
@@ -37,6 +39,7 @@ public class MealDraftService {
             每个值必须由对应原文片段明确支持，不因菜名或常识推测。没提到的字段省略；明确清空数组才输出[]。
             可以额外输出 suggestions 对象：各槽位名称映射到启用词表中的标签字符串数组，每槽位至多3项。
             suggestions 只放基于菜名和常见食用方式推测的兼容标签，不放食材、做法或过敏安全判断。
+            菜名含辣子鸡、麻辣、香辣等明显辣味线索时，若用户没有说不加辣，应在 suggestions.taste 中给出辣味标签；仅可吃微辣的用户建议微辣。
             用户明确说的条件优先：早餐可与推测午餐/晚餐并列；不加辣只能选不辣，不可选辣、微辣、中辣、重辣、麻辣。
             结合提供的饮食限制，不推测任何与过敏原、忌口或不喜欢食物冲突的标签。
             多道餐食输出{"multipleMeals":true}。不得输出身份、来源类型、数据库ID等其它字段。
@@ -156,8 +159,8 @@ public class MealDraftService {
         if (noSpice) {
             state.remove("taste",SPICY);
             if (options.getOrDefault("taste",List.of()).contains("不辣")) state.addRule("taste","不辣");
-        } else if (profile != null && "MILD".equals(profile.spicePreference())) {
-            state.remove("taste",Set.of("辣","中辣","重辣","麻辣"));
+        } else if (!root.path("taste").isArray() || !root.path("taste").isEmpty()) {
+            applySpicyDishSuggestion(state,options,profile,original,currentText);
         }
         applyExclusions(state,original,profile);
         if (profile != null) {
@@ -183,6 +186,31 @@ public class MealDraftService {
         if (data.mealTime().isEmpty()) missing.add("mealTime");
         return new MealDraft(previous == null ? UUID.randomUUID().toString() : previous.draftId(),original,data,
                 missing,state.warnings,state.evidence,missing.isEmpty() ? MealDraftStatus.READY : MealDraftStatus.NEEDS_INPUT,null);
+    }
+    private void applySpicyDishSuggestion(ValidatedFields state,Map<String,List<String>> options,
+                                          DietaryProfileService.Profile profile,String original,String currentText) {
+        boolean spicyDish = SPICY_DISH_NAME.matcher(state.scalar("name")).find();
+        boolean mildOnly = profile != null && "MILD".equals(profile.spicePreference());
+        boolean hasSpicyTag = state.get("taste").stream().anyMatch(SPICY::contains);
+        if (mildOnly) {
+            state.remove("taste",Set.of("辣","中辣","重辣","麻辣"));
+            boolean explicitlyStronger = EXPLICIT_HIGH_SPICE.matcher(original).find()
+                    && !currentText.matches("(?s).*(?:改成|改为|换成).*?(?:微辣|不辣).*");
+            if (explicitlyStronger) {
+                state.remove("taste",Set.of("微辣","不辣"));
+                state.warnings.add("你明确要求了较高辣度，但设置为只吃微辣；请确认实际做法并手动选择合适标签");
+                return;
+            }
+            if ((spicyDish || hasSpicyTag) && options.getOrDefault("taste",List.of()).contains("微辣")) {
+                state.remove("taste",Set.of("不辣"));
+                state.addSuggested("taste","微辣");
+                if (spicyDish && !original.contains("微辣"))
+                    state.warnings.add("已按你的只吃微辣设置预选微辣，请确认这道餐食实际能做成微辣");
+            }
+        } else if (spicyDish) {
+            state.remove("taste",Set.of("不辣"));
+            if (!hasSpicyTag && options.getOrDefault("taste",List.of()).contains("辣")) state.addSuggested("taste","辣");
+        }
     }
     private void applyExclusions(ValidatedFields state,String original,DietaryProfileService.Profile profile) {
         var only=ONLY_MEAL_TIME.matcher(original);

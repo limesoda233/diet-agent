@@ -73,6 +73,73 @@ class MealDraftServiceTest {
                 new MealIntakeProperties(),null,profiles).generate(7L,"录入麻辣烫，午餐",null);
         assertThat(draft.data().taste()).containsExactly("不辣");
     }
+
+    @Test void infersSpicyTasteFromLazijiNoodlesEvenWhenModelOmitsTaste() {
+        var draft = service("""
+                {"name":{"value":"辣子鸡拌面","evidence":"辣子鸡拌面"},
+                 "mealTime":[{"value":"晚餐","evidence":"晚上"}]}
+                """).generate("晚上吃辣子鸡拌面");
+        assertThat(draft.data().taste()).containsExactly("辣");
+        assertThat(draft.evidence().get("taste")).containsExactly("~AI_SUGGESTED~");
+    }
+
+    @Test void mildOnlyProfilePreselectsMildForSpicyDishButNotEveryDish() {
+        var profiles=mock(com.diet.service.profile.DietaryProfileService.class);
+        when(profiles.get(7L)).thenReturn(new com.diet.service.profile.DietaryProfileService.Profile(
+                List.of(),List.of(),List.of(),"MILD","COMPLETED",""));
+        var service=new MealDraftService((system,user) -> Mono.just("""
+                {"name":{"value":"辣子鸡拌面","evidence":"辣子鸡拌面"}}
+                """),options(),new ObjectMapper(),new MealIntakeProperties(),null,profiles);
+        var draft=service.generate(7L,"辣子鸡拌面",null);
+        assertThat(draft.data().taste()).containsExactly("微辣");
+        assertThat(draft.warnings()).anyMatch(w -> w.contains("实际") && w.contains("微辣"));
+
+        var plain=new MealDraftService((system,user) -> Mono.just("""
+                {"name":{"value":"番茄鸡蛋面","evidence":"番茄鸡蛋面"}}
+                """),options(),new ObjectMapper(),new MealIntakeProperties(),null,profiles);
+        assertThat(plain.generate(7L,"番茄鸡蛋面",null).data().taste()).isEmpty();
+    }
+
+    @Test void explicitNoSpiceStillWinsForSpicyDishWithMildProfile() {
+        var profiles=mock(com.diet.service.profile.DietaryProfileService.class);
+        when(profiles.get(7L)).thenReturn(new com.diet.service.profile.DietaryProfileService.Profile(
+                List.of(),List.of(),List.of(),"MILD","COMPLETED",""));
+        var service=new MealDraftService((system,user) -> Mono.just("""
+                {"name":{"value":"辣子鸡拌面","evidence":"辣子鸡拌面"}}
+                """),options(),new ObjectMapper(),new MealIntakeProperties(),null,profiles);
+        assertThat(service.generate(7L,"辣子鸡拌面，不加辣",null).data().taste()).containsExactly("不辣");
+    }
+
+    @Test void mildProfileDoesNotSilentlyRewriteExplicitHeavySpice() {
+        var profiles=mock(com.diet.service.profile.DietaryProfileService.class);
+        when(profiles.get(7L)).thenReturn(new com.diet.service.profile.DietaryProfileService.Profile(
+                List.of(),List.of(),List.of(),"MILD","COMPLETED",""));
+        var service=new MealDraftService((system,user) -> Mono.just("""
+                {"name":{"value":"辣子鸡拌面","evidence":"辣子鸡拌面"},
+                 "taste":[{"value":"重辣","evidence":"重辣"}]}
+                """),options(),new ObjectMapper(),new MealIntakeProperties(),null,profiles);
+        var draft=service.generate(7L,"辣子鸡拌面，重辣",null);
+        assertThat(draft.data().taste()).isEmpty();
+        assertThat(draft.warnings()).anyMatch(w -> w.contains("只吃微辣"));
+    }
+
+    @Test void spicyDishDoesNotKeepContradictoryModelNoSpiceSuggestion() {
+        var draft=service("""
+                {"name":{"value":"辣子鸡拌面","evidence":"辣子鸡拌面"},
+                 "suggestions":{"taste":["辣","不辣"]}}
+                """).generate("辣子鸡拌面");
+        assertThat(draft.data().taste()).containsExactly("辣");
+    }
+
+    @Test void explicitlyClearedTasteIsNotReaddedFromSpicyDishName() {
+        var previous=service("""
+                {"name":{"value":"辣子鸡拌面","evidence":"辣子鸡拌面"}}
+                """).generate("辣子鸡拌面");
+        var revised=service("""
+                {"taste":[]}
+                """).generate("口味清空",previous);
+        assertThat(revised.data().taste()).isEmpty();
+    }
     static final String COMPLETE = """
             {"name":{"value":"宫保鸡丁","evidence":"宫保鸡丁"},
              "mealTime":[{"value":"午餐","evidence":"中午吃"}],
@@ -347,7 +414,7 @@ class MealDraftServiceTest {
         var mapper = mock(SlotOptionMapper.class);
         when(mapper.findEnabledValues(anyString())).thenReturn(List.of());
         when(mapper.findEnabledValues("mealTime")).thenReturn(List.of("早餐","午餐","晚餐"));
-        when(mapper.findEnabledValues("taste")).thenReturn(List.of("微辣","清淡","不辣"));
+        when(mapper.findEnabledValues("taste")).thenReturn(List.of("辣","微辣","重辣","清淡","不辣"));
         when(mapper.findEnabledValues("cuisine")).thenReturn(List.of("川菜"));
         return new SlotOptionService(mapper);
     }
