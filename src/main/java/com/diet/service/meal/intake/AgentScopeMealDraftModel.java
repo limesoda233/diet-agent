@@ -20,6 +20,7 @@ public final class AgentScopeMealDraftModel implements MealDraftModel {
     @Override public Mono<String> extract(String systemPrompt,String userPrompt) {
         return Mono.defer(() -> {
             GenerateOptions options = GenerateOptions.builder().stream(false).temperature(0.0).maxTokens(4096)
+                    .additionalBodyParam("response_format", java.util.Map.of("type", "json_object"))
                     .executionConfig(ExecutionConfig.builder().timeout(timeout).maxAttempts(1).build()).build();
             List<Msg> messages = List.of(Msg.builder().role(MsgRole.SYSTEM).textContent(systemPrompt).build(),
                     Msg.builder().role(MsgRole.USER).textContent(userPrompt).build());

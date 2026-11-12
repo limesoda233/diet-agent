@@ -15,6 +15,57 @@ import static org.mockito.ArgumentMatchers.*;
 import org.mockito.ArgumentCaptor;
 
 class PlanningMealSearchTest {
+    @Test void lightTasteDoesNotRequireASeparateLightHealthGoalTag() {
+        var mapper=mock(MealMapper.class);
+        var service=new MealService(mapper,mock(SlotOptionService.class),
+                new JsonService(new com.fasterxml.jackson.databind.ObjectMapper()));
+        var slots=new SlotBundle(List.of("晚餐"),List.of(),List.of(),List.of("清淡"),
+                List.of(),List.of("清淡"),List.of());
+
+        service.searchFrozen(SourceMode.PUBLIC,1L,slots,MealConstraints.empty());
+
+        var health=ArgumentCaptor.forClass(String.class);
+        var taste=ArgumentCaptor.forClass(String.class);
+        verify(mapper).search(eq(SourceMode.PUBLIC),eq(1L),any(),any(),any(),health.capture(),any(),
+                taste.capture(),any(),any(),any(),anyInt());
+        assertEquals("[]",health.getValue());
+        assertEquals("[\"清淡\"]",taste.getValue());
+    }
+
+    @Test void anotherHealthGoalRemainsRequiredAlongsideLightTaste() {
+        var mapper=mock(MealMapper.class);
+        var service=new MealService(mapper,mock(SlotOptionService.class),
+                new JsonService(new com.fasterxml.jackson.databind.ObjectMapper()));
+        var slots=new SlotBundle(List.of("晚餐"),List.of(),List.of(),List.of("减脂","清淡"),
+                List.of(),List.of("清淡"),List.of());
+
+        service.searchFrozen(SourceMode.PUBLIC,1L,slots,MealConstraints.empty());
+
+        var health=ArgumentCaptor.forClass(String.class);
+        var taste=ArgumentCaptor.forClass(String.class);
+        verify(mapper).search(eq(SourceMode.PUBLIC),eq(1L),any(),any(),any(),health.capture(),any(),
+                taste.capture(),any(),any(),any(),anyInt());
+        assertEquals("[\"减脂\"]",health.getValue());
+        assertEquals("[\"清淡\"]",taste.getValue());
+    }
+
+    @Test void explicitLightHealthGoalStillMatchesMealsTaggedOnlyForThatGoal() {
+        var mapper=mock(MealMapper.class);
+        var service=new MealService(mapper,mock(SlotOptionService.class),
+                new JsonService(new com.fasterxml.jackson.databind.ObjectMapper()));
+        var slots=new SlotBundle(List.of("晚餐"),List.of(),List.of(),List.of("清淡"),
+                List.of(),List.of(),List.of());
+
+        service.searchFrozen(SourceMode.PERSONAL,1L,slots,MealConstraints.empty());
+
+        var health=ArgumentCaptor.forClass(String.class);
+        var taste=ArgumentCaptor.forClass(String.class);
+        verify(mapper).search(eq(SourceMode.PERSONAL),eq(1L),any(),any(),any(),health.capture(),any(),
+                taste.capture(),any(),any(),any(),anyInt());
+        assertEquals("[\"清淡\"]",health.getValue());
+        assertEquals("[]",taste.getValue());
+    }
+
     @Test void broadSpicyRequestRecallsMildButNotNonSpicyMeals() {
         var mapper=mock(MealMapper.class);
         var service=new MealService(mapper,mock(SlotOptionService.class),

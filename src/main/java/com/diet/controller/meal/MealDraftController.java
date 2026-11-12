@@ -40,8 +40,9 @@ public class MealDraftController {
                         draft.missingFields().size(),(System.nanoTime()-started)/1_000_000);
                 return draft;
             } catch (RuntimeException error) {
-                log.warn("DIET_DIAG v=1 event=MEAL_DRAFT_FAILED traceId={} entry=MANUAL errorType={} durationMs={}",
-                        traceId,error.getClass().getSimpleName(),(System.nanoTime()-started)/1_000_000);
+                log.warn("DIET_DIAG v=1 event=MEAL_DRAFT_FAILED traceId={} entry=MANUAL errorType={} reason={} durationMs={}",
+                        traceId,error.getClass().getSimpleName(),MealDiagnosticLog.draftFailure(error),
+                        (System.nanoTime()-started)/1_000_000);
                 if(error instanceof DietException diet)
                     trace.recordError("MEAL_DRAFT_FAILED","HTTP",Map.of("entry","MANAGEMENT_PAGE"),diet);
                 throw error;

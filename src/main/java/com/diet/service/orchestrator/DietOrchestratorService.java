@@ -252,8 +252,9 @@ public class DietOrchestratorService {
             try {
                 // 记录请求开始时间（纳秒），用于最后计算整轮耗时
                 long startedAt = System.nanoTime();
-                log.info("DIET_DIAG v=1 event=CHAT_START traceId={} source={} freshSession={} draftAction={} priorSlots={}",
+                log.info("DIET_DIAG v=1 event=CHAT_START traceId={} source={} freshSession={} sourceReset={} draftAction={} priorSlots={}",
                         traceId,request.sourceMode(),request.sessionId()==null || request.sessionId().isBlank(),
+                        request.sessionId()!=null && !request.sessionId().equals(initialState.sessionId()),
                         draftAction,MealDiagnosticLog.slotCounts(initialState.slots()));
                 // Trace 事件：REQUEST_RECEIVED | 阶段 HTTP | 输入=ChatRequest | 输出=初始 SessionState
                 agentTraceService.recordEvent("REQUEST_RECEIVED", "HTTP", request, initialState);

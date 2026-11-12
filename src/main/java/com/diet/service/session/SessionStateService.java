@@ -80,15 +80,18 @@ public class SessionStateService {
             insert(state);
             return state;
         }
-        // 存在则从 DB 行反序列化为 SessionState
-        return fromRow(row, sourceMode);
+        // 一个会话只绑定一个餐食库；客户端恢复旧 sessionId 后切换餐食库时开启新会话。
+        SessionState existing = fromRow(row, sourceMode);
+        return existing.sourceMode() == sourceMode ? existing : create(userId, sourceMode);
     }
 
     /** Draft actions must target a session already owned by this user; never create one. */
     public SessionState loadExisting(String sessionId, Long userId, SourceMode sourceMode) {
         if (sessionId == null || sessionId.isBlank()) return null;
         SessionRow row = sessionMapper.findById(sessionId, userId);
-        return row == null ? null : fromRow(row, sourceMode);
+        if (row == null) return null;
+        SessionState existing = fromRow(row, sourceMode);
+        return existing.sourceMode() == sourceMode ? existing : null;
     }
 
     /**

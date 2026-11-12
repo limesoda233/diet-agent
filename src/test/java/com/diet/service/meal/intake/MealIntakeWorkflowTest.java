@@ -136,10 +136,10 @@ class MealIntakeWorkflowTest {
                 .appendLastRecommendations(List.of(4L)).withMealConstraintContext(state.mealConstraintContext())
                 .withRecipeConversation(state.recipeConversation());
         sessions.save(state);
-        var loaded = sessions.loadOrCreate("s",1L,SourceMode.PUBLIC);
+        var loaded = sessions.loadOrCreate("s",1L,SourceMode.PERSONAL);
         assertThat(loaded.mealDraft()).isEqualTo(draft);
         assertThat(loaded.lastRecommendations()).containsExactly(3L,4L);
         row[0].setSlots("{}");
-        assertThat(sessions.loadOrCreate("s",1L,SourceMode.PUBLIC).mealDraft()).isNull();
+        assertThat(sessions.loadOrCreate("s",1L,SourceMode.PERSONAL).mealDraft()).isNull();
     }
 }

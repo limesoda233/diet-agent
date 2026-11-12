@@ -237,10 +237,11 @@ public class MealService {
             throw blocked;
         }
         long started=System.nanoTime();
+        SlotBundle querySlots = normalizeSearchSlots(slots);
         try {
-            List<MealItem> matches=queryMeals(sourceMode,userId,slots,safeConstraints);
-            log.info("DIET_DIAG v=1 event=MEAL_QUERY traceId={} source={} slots={} requiredIngredients={} excludedIngredients={} matched={} durationMs={}",
-                    MealDiagnosticLog.traceId(diagnosticTrace),sourceMode,MealDiagnosticLog.slotCounts(slots),
+            List<MealItem> matches=queryMeals(sourceMode,userId,querySlots,safeConstraints);
+            log.info("DIET_DIAG v=1 event=MEAL_QUERY traceId={} source={} requestedSlots={} slots={} requiredIngredients={} excludedIngredients={} matched={} durationMs={}",
+                    MealDiagnosticLog.traceId(diagnosticTrace),sourceMode,MealDiagnosticLog.slotCounts(slots),MealDiagnosticLog.slotCounts(querySlots),
                     safeConstraints.requiredIngredients().size(),safeConstraints.excludedIngredients().size(),matches.size(),
                     (System.nanoTime()-started)/1_000_000);
             return matches;
@@ -255,7 +256,7 @@ public class MealService {
     /** Internal planning entry: constraints already merged from the server's frozen memory. */
     @Transactional(readOnly=true,timeout=3)
     public List<MealItem> searchFrozen(SourceMode sourceMode,Long userId,SlotBundle slots,MealConstraints constraints) {
-        return attachKnowledge(queryMeals(sourceMode,userId,slots,constraints));
+        return attachKnowledge(queryMeals(sourceMode,userId,normalizeSearchSlots(slots),constraints));
     }
 
     @Transactional(readOnly=true,timeout=3)
@@ -263,6 +264,13 @@ public class MealService {
         if(ids.isEmpty())return List.of();
         if(ids.size()>60)throw new IllegalArgumentException("规划候选数量超限");
         return attachKnowledge(mealMapper.findForPlanning(mode,userId,ids).stream().map(this::toMealItem).toList());
+    }
+
+    private SlotBundle normalizeSearchSlots(SlotBundle slots) {
+        if (!slots.healthGoal().contains("清淡") || !slots.taste().contains("清淡")) return slots;
+        List<String> goals = slots.healthGoal().stream().filter(value -> !"清淡".equals(value)).toList();
+        return new SlotBundle(slots.mealTime(),slots.mood(),slots.scene(),goals,
+                slots.cuisine(),slots.taste(),slots.convenience());
     }
 
     private List<MealItem> queryMeals(SourceMode sourceMode,Long userId,SlotBundle slots,MealConstraints safeConstraints) {

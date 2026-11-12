@@ -15,6 +15,20 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class MealDraftServiceTest {
+    @Test void acceptsOneExactJsonCodeFenceButStillValidatesEvidence() {
+        var draft = service("""
+                ```json
+                {"name":{"value":"鸡丁","evidence":"鸡丁"}}
+                ```
+                """).generate("鸡丁");
+        assertThat(draft.data().name()).isEqualTo("鸡丁");
+        assertThatThrownBy(() -> service("""
+                ```json
+                {"name":{"value":"宫保鸡丁","evidence":"鸡丁"}}
+                ```
+                """).generate("鸡丁")).isInstanceOf(DietException.class);
+    }
+
     @Test void addsCompatibleSuggestedMealTimesButKeepsExplicitBreakfast() {
         var draft = service("""
                 {"name":{"value":"番茄鸡蛋面","evidence":"番茄鸡蛋面"},

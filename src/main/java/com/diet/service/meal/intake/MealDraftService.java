@@ -20,6 +20,7 @@ public class MealDraftService {
             "cuisine","taste","convenience","ingredients","preparation","multipleMeals","suggestions");
     private static final Set<String> SPICY = Set.of("辣", "微辣", "中辣", "重辣", "麻辣");
     private static final Pattern NO_SPICE = Pattern.compile("不加辣|不要辣|不放辣|不吃辣|不能吃辣|不辣|无辣|去辣|免辣");
+    private static final Pattern JSON_FENCE = Pattern.compile("\\A```(?:json)?[ \\t]*\\R([\\s\\S]*?)\\R```\\z", Pattern.CASE_INSENSITIVE);
     private static final Pattern ONLY_MEAL_TIME = Pattern.compile("(?:只|仅|只能)(?:在)?(早上|上午|早餐|中午|午餐|晚上|晚餐)");
     private static final String SUGGESTED = "~AI_SUGGESTED~";
     private static final String USER_RULE = "~USER_RULE~";
@@ -237,7 +238,13 @@ public class MealDraftService {
 
     private JsonNode strictJson(String response) {
         if (response == null || response.isBlank() || response.length() > 100_000) throw invalidJson();
-        try (JsonParser parser = json.createParser(response)) {
+        String body = response.trim();
+        if (body.startsWith("```")) {
+            var fence = JSON_FENCE.matcher(body);
+            if (!fence.matches()) throw invalidJson();
+            body = fence.group(1).trim();
+        }
+        try (JsonParser parser = json.createParser(body)) {
             parser.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
             JsonNode root = json.readTree(parser);
             if (root == null || !root.isObject() || parser.nextToken() != null) throw invalidJson();
