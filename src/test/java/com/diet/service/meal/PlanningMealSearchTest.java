@@ -49,7 +49,7 @@ class PlanningMealSearchTest {
         assertEquals("[\"清淡\"]",taste.getValue());
     }
 
-    @Test void explicitLightHealthGoalStillMatchesMealsTaggedOnlyForThatGoal() {
+    @Test void lightHealthGoalAlsoSearchesMealsWithOnlyLightTaste() {
         var mapper=mock(MealMapper.class);
         var service=new MealService(mapper,mock(SlotOptionService.class),
                 new JsonService(new com.fasterxml.jackson.databind.ObjectMapper()));
@@ -62,8 +62,22 @@ class PlanningMealSearchTest {
         var taste=ArgumentCaptor.forClass(String.class);
         verify(mapper).search(eq(SourceMode.PERSONAL),eq(1L),any(),any(),any(),health.capture(),any(),
                 taste.capture(),any(),any(),any(),anyInt());
-        assertEquals("[\"清淡\"]",health.getValue());
-        assertEquals("[]",taste.getValue());
+        assertEquals("[]",health.getValue());
+        assertEquals("[\"清淡\"]",taste.getValue());
+    }
+
+    @Test void lightTasteSearchAlsoIncludesMealsTaggedOnlyWithLightHealthGoal() throws Exception {
+        var configuration=new org.apache.ibatis.session.Configuration();
+        try(var xml=PlanningMealSearchTest.class.getResourceAsStream("/mapper/MealMapper.xml")) {
+            assertNotNull(xml);
+            new org.apache.ibatis.builder.xml.XMLMapperBuilder(xml,configuration,
+                    "mapper/MealMapper.xml",configuration.getSqlFragments()).parse();
+        }
+        var params=new HashMap<String,Object>();
+        params.put("sourceMode",SourceMode.PUBLIC);
+        var sql=configuration.getMappedStatement("com.diet.mapper.MealMapper.search")
+                .getBoundSql(params).getSql();
+        assertTrue(sql.contains("JSON_OVERLAPS(m.health_goal, JSON_ARRAY('清淡'))"));
     }
 
     @Test void broadSpicyRequestRecallsMildButNotNonSpicyMeals() {

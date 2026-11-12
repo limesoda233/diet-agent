@@ -267,10 +267,12 @@ public class MealService {
     }
 
     private SlotBundle normalizeSearchSlots(SlotBundle slots) {
-        if (!slots.healthGoal().contains("清淡") || !slots.taste().contains("清淡")) return slots;
+        if (!slots.healthGoal().contains("清淡")) return slots;
         List<String> goals = slots.healthGoal().stream().filter(value -> !"清淡".equals(value)).toList();
+        List<String> tastes = new ArrayList<>(slots.taste());
+        if (!tastes.contains("清淡")) tastes.add("清淡");
         return new SlotBundle(slots.mealTime(),slots.mood(),slots.scene(),goals,
-                slots.cuisine(),slots.taste(),slots.convenience());
+                slots.cuisine(),tastes,slots.convenience());
     }
 
     private List<MealItem> queryMeals(SourceMode sourceMode,Long userId,SlotBundle slots,MealConstraints safeConstraints) {
