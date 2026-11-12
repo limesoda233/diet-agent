@@ -25,15 +25,24 @@
     </view>
     <view wx:if="{{draft}}" class="draft-card">
       <view class="draft-eyebrow">我的餐食 · 录入草稿</view>
-      <view class="draft-title">{{draft.status === 'SAVED' ? '已存入个人餐食库' : draft.status === 'CANCELLED' ? '已取消录入' : '先核对这道餐食'}}</view>
+      <view class="draft-title">{{draft.status === 'SAVED' ? '已存入个人餐食库' : draft.status === 'CANCELLED' ? '已取消录入' : draft.status === 'AWAITING_MERGE' ? '已有同名餐食，确认合并？' : '先核对这道餐食'}}</view>
       <view class="draft-name">{{draft.data.name || '还需要菜名'}}</view>
       <view class="draft-meta">餐次：{{draft.data.mealTime.length ? draft.data.mealTime : '待补充'}}</view>
+      <view wx:if="{{draftTags}}" class="draft-review-hint">点击标签可以调整，确认后再保存。</view>
+      <view wx:for="{{draftGroups}}" wx:key="field" class="draft-tag-group">
+        <view class="draft-tag-label">{{item.label}}</view>
+        <view class="draft-tag-list">
+          <button wx:for="{{item.choices}}" wx:for-item="choice" wx:key="value"
+            class="draft-tag {{choice.selected ? 'selected' : ''}}" data-field="{{item.field}}" data-value="{{choice.value}}" bindtap="toggleDraftTag">{{choice.value}}</button>
+        </view>
+      </view>
       <view wx:if="{{draftIngredients.length}}" class="draft-meta">食材：{{draftIngredients}}</view>
       <view wx:if="{{draftPreparation}}" class="draft-meta">做法：{{draftPreparation}}</view>
       <view wx:if="{{draftMissing.length}}" class="draft-note">请在聊天框补充{{draftMissing}}，再确认保存。</view>
       <view wx:for="{{draftWarnings}}" wx:key="index" class="draft-note">{{item}}</view>
-      <view wx:if="{{draft.status === 'READY' || draft.status === 'NEEDS_INPUT'}}" class="draft-actions">
+      <view wx:if="{{draft.status === 'READY' || draft.status === 'NEEDS_INPUT' || draft.status === 'AWAITING_MERGE'}}" class="draft-actions">
         <button wx:if="{{draft.status === 'READY'}}" class="draft-save" disabled="{{sending}}" data-action="SAVE" bindtap="handleDraftAction">确认保存</button>
+        <button wx:if="{{draft.status === 'AWAITING_MERGE'}}" class="draft-save" disabled="{{sending}}" data-action="MERGE" bindtap="handleDraftAction">合并到已有餐食</button>
         <button class="draft-cancel" disabled="{{sending}}" data-action="CANCEL" bindtap="handleDraftAction">取消录入</button>
       </view>
     </view>

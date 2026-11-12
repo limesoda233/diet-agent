@@ -1,0 +1,25 @@
+<view class="onboarding">
+  <view class="top">
+    <button class="close" aria-label="关闭引导" bindtap="close">×</button>
+    <view class="progress"><view wx:for="{{total}}" wx:key="index" class="progress-part {{index <= step ? 'filled' : ''}}" /></view>
+    <view class="step-count">{{step + 1}} / {{total}}</view>
+  </view>
+  <view wx:if="{{loading}}" class="loading">正在准备你的个人空间...</view>
+  <view wx:else class="content">
+    <image class="dog" src="../../assets/dog.jpg" mode="aspectFill" />
+    <view class="eyebrow">小狗先了解一下你</view>
+    <view class="question">{{title}}</view>
+    <view class="hint">{{hint}}</view>
+    <view class="options">
+      <button wx:for="{{choices}}" wx:key="label" data-label="{{item.label}}" bindtap="toggle" class="choice {{item.selected ? 'selected' : ''}}">{{item.label}}<text wx:if="{{item.selected}}">✓</text></button>
+    </view>
+    <view class="custom-row"><input value="{{custom}}" bindinput="onCustom" placeholder="其他？自己填写" /><button bindtap="addCustom">添加</button></view>
+    <view wx:if="{{step === 2 &amp;&amp; profile.spiceNote}}" class="custom-note">补充：{{profile.spiceNote}}</view>
+    <view class="hint safety" wx:if="{{step === 0}}">餐食缺少完整配料信息时，小狗无法判断过敏安全，请以实际配料为准。</view>
+    <view wx:if="{{error}}" class="error">{{error}}</view>
+  </view>
+  <view class="footer">
+    <button wx:if="{{step > 0}}" class="back" bindtap="back">上一步</button>
+    <button class="next" disabled="{{busy || loading}}" loading="{{busy}}" bindtap="next">{{step === total - 1 ? '保存，开始使用' : '继续'}}</button>
+  </view>
+</view>

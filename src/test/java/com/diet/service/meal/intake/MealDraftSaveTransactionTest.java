@@ -44,6 +44,8 @@ class MealDraftSaveTransactionTest {
         jdbc.execute("CREATE TABLE diet_sessions(id VARCHAR(80) PRIMARY KEY,user_id BIGINT,phase VARCHAR(40),slots CLOB,last_recommendations CLOB,created_at TIMESTAMP,updated_at TIMESTAMP)");
         jdbc.execute("CREATE TABLE meal_item(id BIGINT AUTO_INCREMENT PRIMARY KEY,source_type VARCHAR(30),owner_user_id BIGINT,name VARCHAR(128),meal_time CLOB,mood CLOB,scene CLOB,health_goal CLOB,cuisine CLOB,taste CLOB,convenience CLOB,created_at TIMESTAMP,updated_at TIMESTAMP)");
         jdbc.execute("CREATE TABLE meal_knowledge(meal_id BIGINT PRIMARY KEY,ingredients CLOB,description CLOB,preparation CLOB,source_type VARCHAR(40),source_reference VARCHAR(300),updated_at TIMESTAMP)");
+        jdbc.execute("CREATE TABLE recommend_feedback(id BIGINT AUTO_INCREMENT PRIMARY KEY,user_id BIGINT,item_id BIGINT)");
+        jdbc.execute("CREATE TABLE personal_meal_name_guard(user_id BIGINT,normalized_name VARCHAR(128),created_at TIMESTAMP,PRIMARY KEY(user_id,normalized_name))");
         jdbc.execute("CREATE TABLE diet_slot_option(id BIGINT AUTO_INCREMENT PRIMARY KEY,slot_name VARCHAR(40),option_value VARCHAR(40),enabled INT,sort_order INT)");
         jdbc.update("INSERT INTO diet_slot_option(slot_name,option_value,enabled,sort_order) VALUES('mealTime','午餐',1,1)");
         sessions=context.getBean(SessionStateService.class); saves=context.getBean(MealDraftSaveService.class);
@@ -67,6 +69,34 @@ class MealDraftSaveTransactionTest {
         assertThat(saves.save(7L,"draft",reloaded).mealDraft().savedMealId()).isEqualTo(saved.mealDraft().savedMealId());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM meal_item WHERE source_type='PERSONAL' AND owner_user_id=7",Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT source_type FROM meal_knowledge",String.class)).isEqualTo("USER_PROVIDED");
+    }
+    @Test void reviewedTagsReplaceSuggestedTagsBeforeSave() {
+        jdbc.update("INSERT INTO diet_slot_option(slot_name,option_value,enabled,sort_order) VALUES('mealTime','晚餐',1,2)");
+        var saved=saves.save(7L,"draft",state,Map.of("mealTime",List.of("晚餐"),
+                "mood",List.of(),"scene",List.of(),"healthGoal",List.of(),"cuisine",List.of(),
+                "taste",List.of(),"convenience",List.of()));
+        assertThat(saved.mealDraft().data().mealTime()).containsExactly("晚餐");
+        assertThat(jdbc.queryForObject("SELECT meal_time FROM meal_item",String.class)).contains("晚餐").doesNotContain("午餐");
+    }
+    @Test void duplicateRequiresConfirmationThenMergesMealTimesIntoOriginal() {
+        jdbc.update("INSERT INTO diet_slot_option(slot_name,option_value,enabled,sort_order) VALUES('mealTime','早餐',1,0)");
+        var meals=context.getBean(MealService.class);
+        var old=meals.createPersonalMeal(7L,new MealRequest("番茄面",List.of("早餐"),
+                List.of(),List.of(),List.of(),List.of(),List.of(),List.of()));
+        jdbc.update("INSERT INTO meal_item(source_type,owner_user_id,name,meal_time,mood,scene,health_goal,cuisine,taste,convenience,created_at,updated_at) "
+                + "SELECT source_type,owner_user_id,name,meal_time,mood,scene,health_goal,cuisine,taste,convenience,created_at,updated_at FROM meal_item WHERE id=?",old.id());
+        Long extra=jdbc.queryForObject("SELECT MAX(id) FROM meal_item",Long.class);
+        jdbc.update("INSERT INTO recommend_feedback(user_id,item_id) VALUES(?,?)",7,extra);
+        assertThatThrownBy(() -> saves.save(7L,"draft",state))
+                .isInstanceOf(com.diet.exception.DuplicateMealException.class);
+        var awaiting=state.withMealDraft(state.mealDraft().awaitingMerge());
+        sessions.save(awaiting);
+        var merged=saves.save(7L,"draft",awaiting,null,true);
+        assertThat(merged.mealDraft().savedMealId()).isEqualTo(old.id());
+        assertThat(merged.mealDraft().data().mealTime()).containsExactly("午餐");
+        assertThat(jdbc.queryForObject("SELECT meal_time FROM meal_item",String.class)).contains("早餐","午餐");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM meal_item",Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT item_id FROM recommend_feedback",Long.class)).isEqualTo(old.id());
     }
     @Test void wrongUserStaleCancelledAndIncompleteCannotWrite() {
         assertThatThrownBy(() -> saves.save(8L,"draft",state)).isInstanceOf(RuntimeException.class);

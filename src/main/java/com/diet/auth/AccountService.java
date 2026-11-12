@@ -47,6 +47,8 @@ public class AccountService {
         deleteIfPresent("user_memory_job", userId);
         deleteIfPresent("user_memory", userId);
         deleteIfPresent("user_memory_profile", userId);
+        deleteIfPresent("user_dietary_profile", userId);
+        deleteIfPresent("personal_meal_name_guard", userId);
         deleteIfPresent("meal_plan_feedback", userId);
         if (tableExists("meal_plan_version") && tableExists("meal_plan")) {
             jdbc.update("DELETE FROM meal_plan_version WHERE plan_id IN (SELECT id FROM meal_plan WHERE user_id=?)", userId);

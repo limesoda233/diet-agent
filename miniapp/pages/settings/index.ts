@@ -8,6 +8,7 @@ Page({
     catch { wx.showToast({ title: '加载资料失败', icon: 'none' }) }
   },
   onHide() { this.setData({ invitationCode: '' }) },
+  editDietaryProfile() { wx.navigateTo({ url: '/pages/diet-profile/index?edit=1' }) },
   onName(event: { detail: { value: string } }) { this.setData({ displayName: event.detail.value }) },
   async saveName() {
     try { await api.rename(this.data.displayName.trim()); wx.showToast({ title: '已保存' }) }

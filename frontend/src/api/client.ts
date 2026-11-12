@@ -1,7 +1,7 @@
 import type {
   ChatRequest, ChatResponse, CreateSessionResponse, EvaluationReport, EvaluationRequest,
   FeedbackRequest, Meal, MealDraft, MealRequest, SlotOptions, Trace, TraceFilters,
-  TraceLabelRequest, MemoryItem, MemoryPatch, MemorySnapshot,
+  TraceLabelRequest, MemoryItem, MemoryPatch, MemorySnapshot, DietaryProfile,
 } from './types'
 
 const BASE = '/api/v1/diet'
@@ -15,20 +15,25 @@ function query(params: Record<string, string | number | boolean | null | undefin
   return encoded ? `?${encoded}` : ''
 }
 
-async function responseError(response: Response): Promise<string> {
+export class ApiRequestError extends Error {
+  constructor(public status: number, public code: string, message: string) { super(message) }
+}
+
+async function responseError(response: Response): Promise<{ message: string; code: string }> {
   const body = await response.text()
-  if (!body) return `请求失败：${response.status}`
+  if (!body) return { message: `请求失败：${response.status}`, code: 'REQUEST_FAILED' }
   try {
     const parsed: unknown = JSON.parse(body)
     if (parsed && typeof parsed === 'object') {
       const fields = parsed as Record<string, unknown>
-      if (typeof fields.message === 'string' && fields.message) return fields.message
-      if (typeof fields.error === 'string' && fields.error) return fields.error
+      if (typeof fields.message === 'string' && fields.message)
+        return { message: fields.message, code: typeof fields.code === 'string' ? fields.code : 'REQUEST_FAILED' }
+      if (typeof fields.error === 'string' && fields.error) return { message: fields.error, code: 'REQUEST_FAILED' }
     }
   } catch {
     // Plain text errors are useful as returned by the server.
   }
-  return body
+  return { message: body, code: 'REQUEST_FAILED' }
 }
 
 /** Creates a request client bound to one user, so later identity changes cannot redirect pending work. */
@@ -41,7 +46,10 @@ export function createApi(userId: string) {
       headers,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     })
-    if (!response.ok) throw new Error(await responseError(response))
+    if (!response.ok) {
+      const error = await responseError(response)
+      throw new ApiRequestError(response.status,error.code,error.message)
+    }
     if (response.status === 204) return null as T
     const text = await response.text()
     if (!text) return null as T
@@ -58,10 +66,13 @@ export function createApi(userId: string) {
     listPersonalMeals: () => request<Meal[]>('/meals/personal'),
     generateMealDraft: (text: string) => request<MealDraft>('/meals/personal/draft', 'POST', { text }),
     createPersonalMeal: (payload: MealRequest) => request<Meal>('/meals/personal', 'POST', payload),
+    mergePersonalMeal: (payload: MealRequest) => request<Meal>('/meals/personal/merge', 'POST', payload),
     updatePersonalMeal: (mealId: number | string, payload: MealRequest) => request<Meal>(`/meals/personal/${encodeURIComponent(mealId)}`, 'PUT', payload),
     deletePersonalMeal: (mealId: number | string) => request<null>(`/meals/personal/${encodeURIComponent(mealId)}`, 'DELETE'),
     listPublicMeals: () => request<Meal[]>('/meals/public'),
     slotOptions: () => request<SlotOptions>('/slot-options'),
+    dietaryProfile: () => request<DietaryProfile>('/profile'),
+    saveDietaryProfile: (payload: DietaryProfile) => request<DietaryProfile>('/profile', 'PUT', payload),
     listMemories: () => request<MemorySnapshot>('/memories'),
     updateMemorySettings: (collectionEnabled: boolean) => request<MemorySnapshot>('/memories/settings', 'PUT', { collectionEnabled }),
     patchMemory: (id: string, payload: MemoryPatch) => request<MemoryItem>(`/memories/${encodeURIComponent(id)}`, 'PATCH', payload),

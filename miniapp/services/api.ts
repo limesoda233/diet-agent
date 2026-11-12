@@ -63,8 +63,14 @@ export const api = {
   personalMeals: () => request<Meal[]>('/api/v1/diet/meals/personal'),
   publicMeals: () => request<Meal[]>('/api/v1/diet/meals/public'),
   createMeal: (body: MealInput) => request<Meal>('/api/v1/diet/meals/personal', 'POST', body),
+  mergeMeal: (body: MealInput) => request<Meal>('/api/v1/diet/meals/personal/merge', 'POST', body),
   updateMeal: (id: number, body: MealInput) => request<Meal>(`/api/v1/diet/meals/personal/${id}`, 'PUT', body),
   deleteMeal: (id: number) => request(`/api/v1/diet/meals/personal/${id}`, 'DELETE'),
+  slotOptions: () => request<Record<string, string[]>>('/api/v1/diet/slot-options'),
+  generateMealDraft: (text: string) => request<MealDraft>('/api/v1/diet/meals/personal/draft', 'POST', { text }),
+  dietaryProfile: () => request<DietaryProfile>('/api/v1/diet/profile'),
+  saveDietaryProfile: (body: DietaryProfile) => request<DietaryProfile>('/api/v1/diet/profile', 'PUT', body),
+  skipDietaryProfile: () => request<DietaryProfile>('/api/v1/diet/profile/skip', 'POST'),
   consent: () => request<{ id: string; token: string; expiresAt: string }>('/api/v1/diagnostics/consents', 'POST'),
   createInvitation: () => request<{ invitationCode: string }>('/api/v1/admin/invitations', 'POST'),
 }
@@ -75,6 +81,11 @@ export interface Meal {
   cuisine: string[]; taste: string[]; convenience: string[]
 }
 export type MealInput = Omit<Meal, 'id' | 'sourceType'>
+export interface DietaryProfile {
+  allergens: string[]; avoidedFoods: string[]; dislikedFoods: string[];
+  spicePreference: 'UNSET' | 'NEVER' | 'MILD' | 'OK';
+  spiceNote: string; onboardingStatus: 'NEW' | 'COMPLETED' | 'SKIPPED'
+}
 export interface ChatResponse {
   sessionId: string; traceId: string; speechText: string;
   displayBlocks: Meal[]; planBlocks?: { mealTime: string; summary: string; meals: Meal[] }[];
@@ -85,7 +96,7 @@ export interface ChatResponse {
 }
 
 export interface MealDraft {
-  draftId: string; originalText: string; status: 'READY' | 'NEEDS_INPUT' | 'SAVED' | 'CANCELLED';
+  draftId: string; originalText: string; status: 'READY' | 'NEEDS_INPUT' | 'AWAITING_MERGE' | 'SAVED' | 'CANCELLED';
   savedMealId?: number | null; missingFields: string[]; warnings: string[];
   data: MealInput & { knowledge?: { ingredients?: string[]; description?: string; preparation?: string } }
 }

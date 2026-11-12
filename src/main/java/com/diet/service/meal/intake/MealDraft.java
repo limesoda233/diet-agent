@@ -21,4 +21,7 @@ public record MealDraft(String draftId, String originalText, MealDraftData data,
     public MealDraft cancelled() {
         return new MealDraft(draftId,originalText,data,missingFields,warnings,evidence,MealDraftStatus.CANCELLED,savedMealId);
     }
+    public MealDraft awaitingMerge() {
+        return new MealDraft(draftId,originalText,data,missingFields,warnings,evidence,MealDraftStatus.AWAITING_MERGE,savedMealId);
+    }
 }

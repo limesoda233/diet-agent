@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { HashRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { BookOpen, Brain, FlaskConical, Home, Menu, MessageSquare, Search, Utensils, X } from 'lucide-react';
+import { BookOpen, Brain, FlaskConical, Home, Menu, MessageSquare, Search, ShieldCheck, Utensils, X } from 'lucide-react';
 import dogPortrait from '../assets/dog.jpg';
 import { AppProvider, useApp } from '../context/AppContext';
 import ChatPage from '../features/chat/ChatPage';
@@ -9,12 +9,14 @@ import TracePage from '../features/debug/TracePage';
 import EvaluationPage from '../features/debug/EvaluationPage';
 import HomePage from './HomePage';
 import MemoryPage from '../features/memories/MemoryPage';
+import DietaryProfilePage from '../features/profile/DietaryProfilePage';
 
 const navigation = [
   { to: '/diet/chat', label: '聊天助手', Icon: MessageSquare },
   { to: '/diet/meals/personal', label: '个人餐食', Icon: Utensils },
   { to: '/diet/meals/public', label: '公共餐食', Icon: BookOpen },
   { to: '/diet/memories', label: '饮食记忆', Icon: Brain },
+  { to: '/diet/profile', label: '饮食限制', Icon: ShieldCheck },
   { to: '/diet', label: '使用概览', Icon: Home },
   { to: '/admin/traces', label: 'Trace 调试', Icon: Search },
   { to: '/admin/evaluations', label: '意图评测', Icon: FlaskConical },
@@ -69,6 +71,7 @@ function Shell() {
         <Route path="/diet/meals/personal" element={<MealsPage />} />
         <Route path="/diet/meals/public" element={<MealsPage publicOnly />} />
         <Route path="/diet/memories" element={<MemoryPage />} />
+        <Route path="/diet/profile" element={<DietaryProfilePage />} />
         <Route path="/diet" element={<HomePage />} />
         <Route path="/admin/traces" element={<TracePage />} />
         <Route path="/admin/evaluations" element={<EvaluationPage />} />

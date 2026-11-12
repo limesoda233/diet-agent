@@ -32,7 +32,7 @@ public class MealDraftController {
                 trace.recordError("MEAL_DRAFT_FAILED","HTTP",Map.of("entry","MANAGEMENT_PAGE"),error);
                 throw error;
             }
-            return service.generate(request.get("text").textValue());
+            return service.generate(principal.userId(),request.get("text").textValue(),null);
         }
     }
     @ExceptionHandler(DietException.class)

@@ -7,6 +7,11 @@
     <input value="{{displayName}}" bindinput="onName" placeholder="输入你喜欢的称呼" />
     <button bindtap="saveName">保存昵称</button>
   </view>
+  <view class="card settings-card">
+    <view class="card-title">饮食限制</view>
+    <view class="muted">查看或修改过敏原、忌口、辣度和不喜欢的食物。</view>
+    <button class="button-soft" bindtap="editDietaryProfile">修改饮食限制</button>
+  </view>
   <view wx:if="{{isAdmin}}" class="card settings-card">
     <view class="card-title">邀请朋友</view>
     <view class="muted">每个邀请码只能给一位朋友使用，7 天内有效。新朋友会有独立的餐食库。</view>

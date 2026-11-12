@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.*;
 import java.util.regex.Pattern;
 import com.diet.exception.DietException;
+import com.diet.exception.DuplicateMealException;
 
 @Service
 public class MealIntakeWorkflow {
@@ -28,14 +29,20 @@ public class MealIntakeWorkflow {
         MealDraft draft=state.mealDraft();
         boolean actionProvided=request.context()!=null && request.context().containsKey("mealDraftAction");
         String action=null;
+        Map<?,?> reviewedTags=null;
         if (actionProvided) {
             if (!Objects.equals(userId,state.userId())) return result(state,"草稿不属于当前用户，请重新录入。",false);
             Object raw=request.context().get("mealDraftAction");
             if (!(raw instanceof Map<?,?> map) || !(map.get("draftId") instanceof String id) || id.isBlank()
-                    || !(map.get("action") instanceof String value) || !Set.of("SAVE","CANCEL").contains(value))
+                    || !(map.get("action") instanceof String value) || !Set.of("SAVE","CANCEL","MERGE").contains(value))
                 return result(state,"草稿操作无效，请使用当前草稿的确认保存或取消按钮。",false);
             if (draft==null || !id.equals(draft.draftId())) return result(state,"这份草稿已过期，请使用最新草稿或重新录入。",false);
             action=value;
+            if (map.containsKey("tags")) {
+                if (!(map.get("tags") instanceof Map<?,?> tags))
+                    return result(state,"草稿标签无效，请重新核对。",false);
+                reviewedTags=tags;
+            }
         } else if (text.equals("确认保存")) action="SAVE";
         else if (text.equals("取消录入") || text.equals("取消草稿")) action="CANCEL";
         if (action!=null) {
@@ -47,19 +54,27 @@ public class MealIntakeWorkflow {
                 event("MEAL_DRAFT_CANCELLED",draft);
                 return result(state.withMealDraft(draft.cancelled()),"已取消录入，未创建餐食。",false);
             }
-            if (draft.status()!=MealDraftStatus.READY && draft.status()!=MealDraftStatus.SAVED)
+            if (draft.status()!=MealDraftStatus.READY && draft.status()!=MealDraftStatus.AWAITING_MERGE
+                    && draft.status()!=MealDraftStatus.SAVED)
                 return result(state,"草稿还缺少菜名或餐次，请补齐后再确认保存。",false);
             try {
-                SessionState saved=saves.save(userId,draft.draftId(),state);
+                SessionState saved=saves.save(userId,draft.draftId(),state,reviewedTags,"MERGE".equals(action));
                 event("MEAL_DRAFT_SAVED",saved.mealDraft());
-                return result(saved,"已保存到你的个人餐食库，餐食 ID："+saved.mealDraft().savedMealId()+"。",true);
+                return result(saved,("MERGE".equals(action) ? "已合并到" : "已保存到")
+                        +"你的个人餐食库，餐食 ID："+saved.mealDraft().savedMealId()+"。",true);
+            } catch (DuplicateMealException duplicate) {
+                return result(state.withMealDraft(draft.awaitingMerge()),
+                        "你的个人餐食库已有同名餐食。核对标签后点击“合并到已有餐食”，会保留并合并原有标签。",false);
             } catch (RuntimeException failure) {
                 event("MEAL_DRAFT_SAVE_FAILED",draft);
-                return result(state,"餐食保存失败，本次未保存。草稿已保留，请重试确认保存。",true);
+                String message=failure instanceof DietException ? failure.getMessage() :
+                        "餐食保存失败，本次未保存。草稿已保留，请重试确认保存。";
+                return result(state,message,true);
             }
         }
         boolean start=explicitIntake(text,NEW) || explicitIntake(text,LIBRARY);
-        boolean active=draft!=null && (draft.status()==MealDraftStatus.READY || draft.status()==MealDraftStatus.NEEDS_INPUT);
+        boolean active=draft!=null && (draft.status()==MealDraftStatus.READY || draft.status()==MealDraftStatus.NEEDS_INPUT
+                || draft.status()==MealDraftStatus.AWAITING_MERGE);
         boolean missingReply=active && draft.status()==MealDraftStatus.NEEDS_INPUT
                 && ((draft.missingFields().contains("mealTime") && TIMES.contains(text))
                     || (draft.missingFields().contains("name") && dishNameReply(text)));
@@ -72,7 +87,7 @@ public class MealIntakeWorkflow {
             input=text+"\n明确选中的菜名："+selected;
         }
         try {
-            MealDraft generated=drafts.generate(input,start ? null : draft);
+            MealDraft generated=drafts.generate(userId,input,start ? null : draft);
             event(start ? "MEAL_DRAFT_CHAT_GENERATED" : "MEAL_DRAFT_CLARIFIED",generated);
             String speech=generated.status()==MealDraftStatus.READY ? "餐食草稿已整理，请核对后确认保存，或继续明确修改草稿。"
                     : "餐食草稿已整理，请补充"+(generated.missingFields().contains("name") ? "菜名" : "")

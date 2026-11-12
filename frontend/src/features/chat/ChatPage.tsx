@@ -21,6 +21,9 @@ const slotLabels: Record<string, string> = {
   healthGoal: '健康目标', cuisine: '菜系偏好', taste: '口味偏好', convenience: '便利程度',
 }
 const slotKeys = ['mealTime', 'mood', 'scene', 'healthGoal', 'cuisine', 'taste', 'convenience'] as const
+type DraftTags = Record<typeof slotKeys[number], string[]>
+const tagsFromDraft = (draft: MealDraft): DraftTags => Object.fromEntries(
+  slotKeys.map(key => [key, [...(draft.data?.[key] ?? [])]])) as DraftTags
 const welcome = '嗨，我是小狗。今天吃什么，交给我一起琢磨。你可以从自己的餐食库或公共餐食里找推荐，也可以问我菜谱做法。'
 const quickQuestions = ['早餐想吃方便一点', '晚饭推荐清淡低脂的', '帮我安排今天三餐', '宫保鸡丁怎么做？', '换一批，不想吃刚才那些']
 
@@ -32,8 +35,18 @@ function errorText(error: unknown, fallback: string): string {
 function DraftCard({ draft, actionable, onAction }: {
   draft: MealDraft
   actionable: boolean
-  onAction: (action: 'SAVE' | 'CANCEL') => void
+  onAction: (action: 'SAVE' | 'CANCEL' | 'MERGE', tags: DraftTags | null) => void
 }) {
+  const { api } = useApp()
+  const [options, setOptions] = useState<Record<string, string[]>>({})
+  const [selected, setSelected] = useState<DraftTags>(() => tagsFromDraft(draft))
+  useEffect(() => { setSelected(tagsFromDraft(draft)) }, [draft])
+  useEffect(() => {
+    if (!actionable || !api.slotOptions) return
+    let active = true
+    void api.slotOptions().then(result => { if (active) setOptions(result) }).catch(() => {})
+    return () => { active = false }
+  }, [api, actionable])
   const missing = (draft.missingFields ?? []).map(key => slotLabels[key] ?? key)
   const tags: string[] = []
   if (draft.data?.name) tags.push(draft.data.name)
@@ -43,11 +56,20 @@ function DraftCard({ draft, actionable, onAction }: {
   for (const ingredient of draft.data?.knowledge?.ingredients ?? []) tags.push(ingredient)
   const status = draft.status === 'SAVED' ? `已保存，餐食 ID：${draft.savedMealId ?? ''}`
     : draft.status === 'CANCELLED' ? '已取消录入'
+      : draft.status === 'AWAITING_MERGE' ? '已有同名餐食，确认合并到原餐食'
       : missing.length ? `待补充：${missing.join('、')}` : '请核对草稿后确认保存'
 
   return <section className="chat-draft" role="region" aria-label="餐食录入草稿">
     <strong>{status}</strong>
-    {tags.length > 0 && <div className="chat-chips">{tags.map((tag, index) => <span key={`${tag}-${index}`}>{tag}</span>)}</div>}
+    {actionable && (draft.status === 'READY' || draft.status === 'NEEDS_INPUT' || draft.status === 'AWAITING_MERGE') ?
+      <div className="chat-draft-slots"><p>点击标签可添加或取消，确认后保存。</p>{slotKeys.map(key =>
+        <div key={key} className="chat-draft-slot" role="group" aria-label={slotLabels[key]}>
+          <strong>{slotLabels[key]}</strong><div>{[...new Set([...(options[key] ?? []), ...selected[key]])].map(option =>
+            <button key={option} type="button" aria-pressed={selected[key].includes(option)}
+              onClick={() => setSelected(old => ({ ...old, [key]: old[key].includes(option) ?
+                old[key].filter(value => value !== option) : [...old[key], option] }))}>{option}</button>)}</div>
+        </div>)}</div> : tags.length > 0 &&
+      <div className="chat-chips">{tags.map((tag, index) => <span key={`${tag}-${index}`}>{tag}</span>)}</div>}
     <dl className="chat-draft-review">
       <div><dt>原话</dt><dd>{draft.originalText || '未提供'}</dd></div>
       <div><dt>描述</dt><dd>{draft.data?.knowledge?.description || '未提供'}</dd></div>
@@ -55,9 +77,11 @@ function DraftCard({ draft, actionable, onAction }: {
     </dl>
     {missing.length > 0 && <p>请在聊天框补充{missing.join('、')}，再确认保存。</p>}
     {(draft.warnings ?? []).map((warning, index) => <p className="chat-warning" key={index}>{warning}</p>)}
-    {(draft.status === 'READY' || draft.status === 'NEEDS_INPUT') && <div className="chat-card-actions">
-      {draft.status === 'READY' && <button type="button" disabled={!actionable} onClick={() => onAction('SAVE')}>确认保存</button>}
-      <button type="button" className="secondary" disabled={!actionable} onClick={() => onAction('CANCEL')}>取消录入</button>
+    {(draft.status === 'READY' || draft.status === 'NEEDS_INPUT' || draft.status === 'AWAITING_MERGE') && <div className="chat-card-actions">
+      {draft.status === 'READY' && <button type="button" disabled={!actionable} onClick={() => onAction('SAVE',
+        Object.prototype.hasOwnProperty.call(draft.data,'mealTime') ? selected : null)}>确认保存</button>}
+      {draft.status === 'AWAITING_MERGE' && <button type="button" disabled={!actionable} onClick={() => onAction('MERGE',selected)}>合并到已有餐食</button>}
+      <button type="button" className="secondary" disabled={!actionable} onClick={() => onAction('CANCEL',null)}>取消录入</button>
     </div>}
   </section>
 }
@@ -173,21 +197,25 @@ export function ChatPage() {
     }
   }
 
-  async function actOnDraft(message: Message, action: 'SAVE' | 'CANCEL') {
+  async function actOnDraft(message: Message, action: 'SAVE' | 'CANCEL' | 'MERGE', tags: DraftTags | null) {
     const draft = message.response?.mealDraft
     const session = message.sessionId
     if (!draft?.draftId || !session || sendingRef.current || message.userId !== userId ||
       session !== sessionRef.current || message.revision !== revisionRef.current ||
       (action === 'SAVE' && draft.status !== 'READY') ||
-      (action === 'CANCEL' && draft.status !== 'READY' && draft.status !== 'NEEDS_INPUT')) return
+      (action === 'MERGE' && draft.status !== 'AWAITING_MERGE') ||
+      (action === 'CANCEL' && draft.status !== 'READY' && draft.status !== 'NEEDS_INPUT'
+        && draft.status !== 'AWAITING_MERGE')) return
     const epoch = epochRef.current
     const owner = userId
     sendingRef.current = true
     setSending(true)
     setError('')
     try {
-      const response = await api.chat({ sessionId: session, message: action === 'SAVE' ? '确认保存' : '取消录入',
-        sourceMode, context: { mealDraftAction: { draftId: draft.draftId, action } } })
+      const response = await api.chat({ sessionId: session, message: action === 'SAVE' ? '确认保存' :
+        action === 'MERGE' ? '确认合并' : '取消录入',
+        sourceMode, context: { mealDraftAction: { draftId: draft.draftId, action,
+          ...(action !== 'CANCEL' && tags ? { tags } : {}) } } })
       if (!current(epoch, owner)) return
       const actualSession = response.sessionId || session
       sessionRef.current = actualSession
@@ -264,7 +292,7 @@ export function ChatPage() {
         </section>)}</div>
         : response?.displayBlocks?.length ? <div className="chat-meals">{response.displayBlocks.map(meal => renderMeal(message, meal))}</div> : null}
       {response?.mealDraft && <DraftCard draft={response.mealDraft} actionable={Boolean(latestDraft)}
-        onAction={action => { void actOnDraft(message, action) }} />}
+        onAction={(action,tags) => { void actOnDraft(message, action, tags) }} />}
       {response?.traceId && <div className="chat-message-meta">Trace：<a href={`#/admin/traces?traceId=${encodeURIComponent(response.traceId)}`}>{response.traceId}</a></div>}
     </article>
   }

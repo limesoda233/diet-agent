@@ -1,10 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import MealsPage from './MealsPage'
+import { ApiRequestError } from '../../api/client'
 
 const api = {
   listPersonalMeals: vi.fn(), listPublicMeals: vi.fn(), slotOptions: vi.fn(),
-  generateMealDraft: vi.fn(), createPersonalMeal: vi.fn(), updatePersonalMeal: vi.fn(), deletePersonalMeal: vi.fn(),
+  generateMealDraft: vi.fn(), createPersonalMeal: vi.fn(), mergePersonalMeal: vi.fn(),
+  updatePersonalMeal: vi.fn(), deletePersonalMeal: vi.fn(),
 }
 const refreshMeals = vi.fn()
 vi.mock('../../context/AppContext', () => ({ useApp: () => ({ api, userId: '1', mealVersion: 0, refreshMeals }) }))
@@ -22,8 +24,21 @@ beforeEach(() => {
   api.listPublicMeals.mockResolvedValue([seed])
   api.slotOptions.mockResolvedValue(slots)
   api.createPersonalMeal.mockResolvedValue(seed)
+  api.mergePersonalMeal.mockResolvedValue(seed)
   api.updatePersonalMeal.mockResolvedValue(seed)
   api.deletePersonalMeal.mockResolvedValue(null)
+})
+
+test('same-name save asks before merging into the original meal', async () => {
+  api.createPersonalMeal.mockRejectedValueOnce(new ApiRequestError(409,'DUPLICATE_MEAL','已有同名餐食'))
+  render(<MealsPage />)
+  fireEvent.change(await screen.findByLabelText('餐食名称'), { target: { value: '番茄面' } })
+  fireEvent.click(screen.getByRole('button', { name: '早餐' }))
+  fireEvent.click(screen.getByRole('button', { name: '保存到我的餐食库' }))
+  const dialog=await screen.findByRole('dialog', { name: '合并同名餐食确认' })
+  expect(api.mergePersonalMeal).not.toHaveBeenCalled()
+  fireEvent.click(within(dialog).getByRole('button', { name: '确认合并' }))
+  await waitFor(() => expect(api.mergePersonalMeal).toHaveBeenCalledWith(expect.objectContaining({ name: '番茄面', mealTime: ['早餐'] })))
 })
 
 test('draft fills a preview and editable form without saving; a new save includes knowledge even unchanged', async () => {

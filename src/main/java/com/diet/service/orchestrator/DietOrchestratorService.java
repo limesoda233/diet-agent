@@ -234,7 +234,7 @@ public class DietOrchestratorService {
                     || !(raw instanceof Map<?,?> action)
                     || !(action.get("draftId") instanceof String id) || id.isBlank()
                     || !(action.get("action") instanceof String kind)
-                    || !Set.of("SAVE", "CANCEL").contains(kind)) {
+                    || !Set.of("SAVE", "CANCEL", "MERGE").contains(kind)) {
                 throw new DietException("草稿操作无效，请使用当前草稿的确认保存或取消按钮。");
             }
         }

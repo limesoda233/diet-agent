@@ -1,4 +1,5 @@
 import { login } from '../../services/auth'
+import { api } from '../../services/api'
 
 Page({
   data: { invitationCode: '', loading: false, error: '' },
@@ -8,7 +9,9 @@ Page({
     this.setData({ loading: true, error: '' })
     try {
       await login(this.data.invitationCode.trim() || undefined)
-      wx.switchTab({ url: '/pages/chat/index' })
+      const profile = await api.dietaryProfile()
+      if (profile.onboardingStatus === 'NEW') wx.reLaunch({ url: '/pages/diet-profile/index?onboarding=1' })
+      else wx.switchTab({ url: '/pages/chat/index' })
     } catch (error) {
       this.setData({ error: error instanceof Error ? error.message : '登录失败' })
     } finally { this.setData({ loading: false }) }

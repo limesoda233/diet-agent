@@ -38,8 +38,17 @@ export interface MealDraft {
   missingFields: string[]
   warnings: string[]
   evidence: Record<string, string[]>
-  status: 'NEEDS_INPUT' | 'READY' | 'SAVED' | 'CANCELLED'
+  status: 'NEEDS_INPUT' | 'READY' | 'AWAITING_MERGE' | 'SAVED' | 'CANCELLED'
   savedMealId: number | null
+}
+
+export interface DietaryProfile {
+  allergens: string[]
+  avoidedFoods: string[]
+  dislikedFoods: string[]
+  spicePreference: 'UNSET' | 'NEVER' | 'MILD' | 'OK'
+  spiceNote: string
+  onboardingStatus: 'NEW' | 'COMPLETED' | 'SKIPPED'
 }
 
 export interface ChatRequest {

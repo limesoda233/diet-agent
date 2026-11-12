@@ -26,6 +26,12 @@
 .draft-name { font-size: 28rpx; font-weight: 700; }
 .draft-meta { margin-top: 7rpx; color: #664D43; font-size: 24rpx; line-height: 1.5; word-break: break-word; }
 .draft-note { margin-top: 12rpx; color: #9A4B2C; font-size: 22rpx; line-height: 1.5; }
+.draft-review-hint { margin-top: 15rpx; font-size: 22rpx; color: #8a634d; }
+.draft-tag-group { margin-top: 17rpx; }
+.draft-tag-label { font-size: 22rpx; font-weight: 700; margin-bottom: 8rpx; }
+.draft-tag-list { display: flex; flex-wrap: wrap; gap: 8rpx; }
+.draft-tag-list .draft-tag { width: auto; min-height: 55rpx; margin: 0; padding: 5rpx 13rpx; background: #fff; color: #6e5242; border: 2rpx solid #e6c58f; box-shadow: none; font-size: 21rpx; }
+.draft-tag-list .draft-tag.selected { background: #d94b2b; border-color: #d94b2b; color: #fff; }
 .draft-actions { display: flex; gap: 12rpx; margin-top: 22rpx; }
 .draft-actions .draft-save, .draft-actions .draft-cancel { flex: 1; margin: 0; padding: 0 10rpx; font-size: 24rpx; }
 .draft-actions .draft-cancel { border: 2rpx solid #D9B99B; color: #664D43; background: #FFF9F1; box-shadow: 0 4rpx 0 #D9B99B; }

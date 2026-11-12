@@ -14,6 +14,7 @@ public interface MealMapper {
     int updatePersonal(MealItemRow row);
 
     int deletePersonal(@Param("id") Long id, @Param("userId") Long userId);
+    int repointPersonalFeedback(@Param("userId") Long userId,@Param("oldId") Long oldId,@Param("newId") Long newId);
 
     MealItemRow findPersonalById(@Param("id") Long id, @Param("userId") Long userId);
 

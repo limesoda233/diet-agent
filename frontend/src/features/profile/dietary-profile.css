@@ -1,0 +1,22 @@
+.dietary-page { width: min(720px,100%); min-height: calc(100vh - 100px); margin: auto; padding: 25px 24px 45px; display: flex; flex-direction: column; box-sizing: border-box; }
+.dietary-top { display: flex; align-items: center; gap: 18px; }
+.dietary-top a { color: #775e52; font-size: 31px; text-decoration: none; line-height: 1; }
+.dietary-progress { flex: 1; display: flex; gap: 6px; }
+.dietary-progress span { flex: 1; height: 12px; border-radius: 20px; background: #eddacc; }
+.dietary-progress span.filled { background: #e0a640; }
+.dietary-top small { color: #775e52; font-weight: 700; }
+.dietary-content { flex: 1; padding-top: 46px; }
+.dietary-content > img { width: 74px; height: 74px; border: 3px solid #f3c785; border-radius: 50%; object-fit: cover; }
+.dietary-content h1 { font-size: clamp(27px,4vw,40px); margin: 12px 0; }
+.dietary-content > p { color: #775e52; }
+.dietary-choices { display: grid; gap: 10px; margin-top: 30px; }
+.dietary-choices button { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: white; color: #39251f; border: 2px solid #e6d3c5; border-radius: 15px; box-shadow: 0 4px 0 #e6d3c5; text-align: left; font-weight: 700; }
+.dietary-choices button[aria-pressed="true"] { border-color: #d94b2b; background: #fff0e5; color: #a93420; box-shadow: 0 4px 0 #a93420; }
+.dietary-custom { display: flex; gap: 10px; margin-top: 28px; }
+.dietary-custom input { flex: 1; min-width: 0; padding: 11px 14px; border: 2px solid #e6d3c5; border-radius: 12px; }
+.dietary-custom button,.dietary-footer button { border: 2px solid #d94b2b; background: #d94b2b; color: white; border-radius: 12px; padding: 10px 18px; font-weight: 800; box-shadow: 0 4px 0 #a93420; }
+.dietary-safety { margin-top: 24px; font-size: 13px; }
+.dietary-error { color: #a34237 !important; }
+.dietary-footer { display: flex; gap: 12px; margin-top: 30px; }
+.dietary-footer button:last-child { flex: 1; }
+.dietary-footer .back { background: #fff1df; color: #a93420; border-color: #f3c785; box-shadow: 0 4px 0 #f3c785; }

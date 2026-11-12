@@ -34,6 +34,10 @@ public class MealController {
     public MealResponse createPersonal(@AuthenticationPrincipal AuthPrincipal principal, @RequestBody MealRequest request) {
         return MealResponse.from(mealService.createPersonalMeal(principal.userId(), request));
     }
+    @PostMapping("/personal/merge")
+    public MealResponse mergePersonal(@AuthenticationPrincipal AuthPrincipal principal,@RequestBody MealRequest request) {
+        return MealResponse.from(mealService.mergePersonalMeal(principal.userId(),request));
+    }
 
     @PutMapping("/personal/{mealId}")
     public MealResponse updatePersonal(@AuthenticationPrincipal AuthPrincipal principal, @PathVariable Long mealId, @RequestBody MealRequest request) {

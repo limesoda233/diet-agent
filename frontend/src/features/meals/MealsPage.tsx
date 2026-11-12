@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useApp } from '../../context/AppContext'
+import { ApiRequestError } from '../../api/client'
 import type { Meal, MealDraft, MealKnowledge, MealRequest, SlotKey, SlotOptions } from '../../api/types'
 import MealEditor, { SLOT_KEYS, SLOT_LABELS, type EditorValue } from './MealEditor'
 import './meals.css'
@@ -64,6 +65,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Meal | null>(null)
+  const [mergePayload, setMergePayload] = useState<MealRequest | null>(null)
   const [deleting, setDeleting] = useState(false)
   const mounted = useRef(true)
   const editorEpoch = useRef(0)
@@ -112,6 +114,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
     setEditor(EMPTY_EDITOR)
     setEditing(null)
     setDraft(null)
+    setMergePayload(null)
     setText('')
     setFormError('')
     setGenerating(false)
@@ -126,6 +129,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
 
   function changeEditor(next: EditorValue) {
     editorEpoch.current++
+    setMergePayload(null)
     setEditor(next)
   }
 
@@ -180,6 +184,10 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
       if (epoch === editorEpoch.current) clearEditor()
       await reload()
     } catch (error) {
+      if (error instanceof ApiRequestError && error.code === 'DUPLICATE_MEAL' && !editing) {
+        if (mounted.current && epoch === editorEpoch.current) setMergePayload(payload)
+        return
+      }
       if (mounted.current && epoch === editorEpoch.current) setFormError(errorText(error, '保存失败，请重试'))
     } finally {
       mutationBusy.current = false
@@ -187,6 +195,25 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
         if (operation === operationEpoch.current) busy.current = false
         setSaving(false)
       }
+    }
+  }
+
+  async function confirmMerge() {
+    if (!mergePayload || mutationBusy.current) return
+    mutationBusy.current = true
+    setSaving(true)
+    setFormError('')
+    try {
+      await api.mergePersonalMeal(mergePayload)
+      if (!mounted.current) return
+      clearEditor()
+      refreshMeals()
+      await reload()
+    } catch (error) {
+      if (mounted.current) setFormError(errorText(error, '合并失败，请重试'))
+    } finally {
+      mutationBusy.current = false
+      if (mounted.current) setSaving(false)
     }
   }
 
@@ -248,6 +275,13 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
           <button className="meal-button meal-button-ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>取消</button>
           <button className="meal-button meal-button-danger" onClick={() => void confirmDelete()} disabled={deleting || saving}>{deleting ? '删除中...' : '确认删除'}</button>
         </div></div>}
+      {mergePayload && !publicOnly && <div className="meal-confirm" role="dialog" aria-modal="true" aria-label="合并同名餐食确认">
+        <p>个人餐食库已有“{mergePayload.name}”。确认后会把新标签和已有同名记录合并到一条餐食。</p>
+        <div className="meal-actions">
+          <button className="meal-button meal-button-ghost" onClick={() => setMergePayload(null)} disabled={saving}>返回修改</button>
+          <button className="meal-button meal-button-primary" onClick={() => void confirmMerge()} disabled={saving}>{saving ? '合并中...' : '确认合并'}</button>
+        </div>
+      </div>}
     </section>
     {!publicOnly && <MealEditor value={editor} onChange={changeEditor} options={options} draft={draft} text={text}
       onTextChange={changeText} onGenerate={() => void generate()} onSave={() => void save()} onClear={clearEditor}

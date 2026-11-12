@@ -1,5 +1,5 @@
 {
-  "pages": ["pages/login/index", "pages/chat/index", "pages/meals/index", "pages/meal-edit/index", "pages/settings/index"],
+  "pages": ["pages/login/index", "pages/chat/index", "pages/meals/index", "pages/meal-edit/index", "pages/settings/index", "pages/diet-profile/index"],
   "window": {"navigationBarTitleText": "小狗劝吃", "navigationBarBackgroundColor": "#FFFCF8", "backgroundColor": "#FFF9F1", "navigationBarTextStyle": "black"},
   "tabBar": {
     "color": "#775E52", "selectedColor": "#D94B2B", "backgroundColor": "#FFFCF8", "borderStyle": "white",

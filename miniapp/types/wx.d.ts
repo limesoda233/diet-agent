@@ -10,6 +10,7 @@ declare const wx: {
   removeStorageSync(key: string): void
   setClipboardData(options: { data: string; success?(): void }): void
   navigateTo(options: { url: string }): void
+  navigateBack(options?: { delta?: number }): void
   switchTab(options: { url: string }): void
   reLaunch(options: { url: string }): void
   showToast(options: { title: string; icon?: 'none' | 'success' }): void

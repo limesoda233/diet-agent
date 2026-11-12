@@ -89,6 +89,10 @@
         AND source_type = 'PERSONAL'
         AND owner_user_id = #{userId}
     </delete>
+    <update id="repointPersonalFeedback">
+        UPDATE recommend_feedback SET item_id=#{newId}
+        WHERE user_id=#{userId} AND item_id=#{oldId}
+    </update>
 
     <select id="findPersonalById" resultMap="MealItemRowMap">
         SELECT <include refid="MealColumns"/>

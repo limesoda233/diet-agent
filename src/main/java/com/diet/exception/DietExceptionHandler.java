@@ -13,6 +13,11 @@ import com.diet.auth.AuthExceptionHandler.ApiError;
 
 @RestControllerAdvice(basePackages = "com.diet.controller")
 public class DietExceptionHandler {
+    @ExceptionHandler(DuplicateMealException.class)
+    public org.springframework.http.ResponseEntity<ApiError> duplicateMeal(DuplicateMealException error) {
+        return org.springframework.http.ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiError("DUPLICATE_MEAL",error.getMessage(),UUID.randomUUID().toString(),Instant.now()));
+    }
     @ExceptionHandler(DietException.class)
     public org.springframework.http.ResponseEntity<ApiError> handleNewDietException(DietException e) {
         String code = e.getMessage() != null && e.getMessage().contains("不存在")

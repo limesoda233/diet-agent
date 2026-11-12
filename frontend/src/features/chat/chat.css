@@ -134,6 +134,13 @@
 .chat-meal-card, .chat-draft, .chat-video-card { border: 2px solid #E9D8C8; border-radius: 17px; box-shadow: 0 3px 0 #E9D8C8; }
 .chat-card-actions button { border-color: #D94B2B; background: #D94B2B; }
 .chat-card-actions button.secondary { border-color: #E9D8C8; color: #A93420; background: white; box-shadow: 0 3px 0 #E9D8C8; }
+.chat-draft-slots { margin: 12px 0; }
+.chat-draft-slots > p { color: #775E52; font-size: 13px; }
+.chat-draft-slot { margin-top: 12px; }
+.chat-draft-slot > strong { display: block; margin-bottom: 7px; font-size: 13px; }
+.chat-draft-slot > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.chat-draft-slot button { padding: 5px 10px; border: 1px solid #e9d8c8; border-radius: 999px; background: #fff; color: #715246; }
+.chat-draft-slot button[aria-pressed="true"] { border-color: #d94b2b; background: #fff1df; color: #a93420; font-weight: 700; }
 .chat-quick button { border: 2px solid #E9D8C8; border-radius: 999px; background: #fff; color: #8B472F; font-weight: 700; }
 .chat-quick button:hover { border-color: #F3C785; background: #FFF1DF; }
 .chat-composer textarea { border: 2px solid #E9D8C8; border-radius: 15px; box-shadow: none; }

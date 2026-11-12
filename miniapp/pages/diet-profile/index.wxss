@@ -1,0 +1,24 @@
+.onboarding { min-height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; padding: 28rpx 32rpx 52rpx; background: #fffaf3; }
+.top { display: flex; align-items: center; gap: 18rpx; }
+.close { width: 64rpx; min-height: 64rpx; padding: 0; margin: 0; background: transparent; color: #7b695f; box-shadow: none; font-size: 52rpx; line-height: 56rpx; }
+.progress { flex: 1; display: flex; gap: 7rpx; }
+.progress-part { flex: 1; height: 15rpx; border-radius: 20rpx; background: #eddacc; }
+.progress-part.filled { background: #e0a640; }
+.step-count { color: #896958; font-size: 23rpx; font-weight: 700; }
+.loading { padding: 90rpx 0; text-align: center; color: #775e52; }
+.content { flex: 1; padding: 65rpx 10rpx 30rpx; }
+.dog { width: 130rpx; height: 130rpx; border-radius: 50%; border: 6rpx solid #f3c785; margin-bottom: 25rpx; }
+.question { font-size: 48rpx; line-height: 1.24; font-weight: 900; margin: 18rpx 0; }
+.hint { font-size: 25rpx; line-height: 1.55; color: #775e52; }
+.options { display: flex; flex-direction: column; gap: 14rpx; margin-top: 38rpx; }
+.choice { display: flex; justify-content: space-between; align-items: center; min-height: 92rpx; margin: 0; padding: 12rpx 28rpx; text-align: left; color: #39251f; background: #fff; border: 3rpx solid #e6d3c5; border-radius: 23rpx; box-shadow: 0 6rpx 0 #e6d3c5; font-size: 28rpx; }
+.choice.selected { border-color: #d94b2b; background: #fff0e5; box-shadow: 0 6rpx 0 #a93420; color: #a93420; }
+.custom-row { display: flex; gap: 12rpx; margin-top: 30rpx; }
+.custom-row input { box-sizing: border-box; flex: 1; min-width: 0; height: 82rpx; border: 3rpx solid #e6d3c5; border-radius: 20rpx; background: #fff; padding: 0 20rpx; }
+.custom-row button { width: 125rpx; min-height: 82rpx; margin: 0; }
+.custom-note { margin-top: 12rpx; color: #a93420; }
+.safety { margin-top: 32rpx; }
+.error { margin-top: 22rpx; color: #a34237; }
+.footer { display: flex; gap: 14rpx; padding: 20rpx 0 0; }
+.footer .next { flex: 1; min-height: 90rpx; margin: 0; }
+.footer .back { width: 190rpx; min-height: 90rpx; margin: 0; background: #fff1df; color: #a93420; box-shadow: 0 7rpx 0 #f3c785; }

@@ -56,7 +56,7 @@ public class ChatResponse {
     public static ChatResponse mealDraft(String sessionId, String traceId, String speechText, MealDraft draft) {
         String next = draft == null ? "WAIT_USER" : switch (draft.status()) {
             case NEEDS_INPUT -> "ASK_CLARIFY";
-            case READY -> "WAIT_USER";
+            case READY, AWAITING_MERGE -> "WAIT_USER";
             case SAVED, CANCELLED -> "WAIT_USER";
         };
         return new ChatResponse(sessionId, traceId, "MEAL_DRAFT", speechText,
