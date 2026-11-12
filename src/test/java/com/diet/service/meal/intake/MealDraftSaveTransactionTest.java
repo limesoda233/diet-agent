@@ -4,6 +4,7 @@ import com.diet.enums.SourceMode;
 import com.diet.mapper.*;
 import com.diet.model.*;
 import com.diet.service.meal.MealService;
+import com.diet.service.meal.nutrition.*;
 import com.diet.service.meal.knowledge.*;
 import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotOptionService;
@@ -46,6 +47,7 @@ class MealDraftSaveTransactionTest {
         jdbc.execute("CREATE TABLE meal_knowledge(meal_id BIGINT PRIMARY KEY,ingredients CLOB,description CLOB,preparation CLOB,source_type VARCHAR(40),source_reference VARCHAR(300),updated_at TIMESTAMP)");
         jdbc.execute("CREATE TABLE recommend_feedback(id BIGINT AUTO_INCREMENT PRIMARY KEY,user_id BIGINT,item_id BIGINT)");
         jdbc.execute("CREATE TABLE personal_meal_name_guard(user_id BIGINT,normalized_name VARCHAR(128),created_at TIMESTAMP,PRIMARY KEY(user_id,normalized_name))");
+        jdbc.execute("CREATE TABLE meal_nutrition_variant(id BIGINT AUTO_INCREMENT PRIMARY KEY,meal_id BIGINT NOT NULL,variant_key VARCHAR(64) NOT NULL,label VARCHAR(64) NOT NULL,template_code VARCHAR(32) NOT NULL,selections CLOB NOT NULL,estimate_json CLOB NOT NULL,created_at TIMESTAMP NOT NULL,updated_at TIMESTAMP NOT NULL,UNIQUE(meal_id,variant_key))");
         jdbc.execute("CREATE TABLE diet_slot_option(id BIGINT AUTO_INCREMENT PRIMARY KEY,slot_name VARCHAR(40),option_value VARCHAR(40),enabled INT,sort_order INT)");
         jdbc.update("INSERT INTO diet_slot_option(slot_name,option_value,enabled,sort_order) VALUES('mealTime','午餐',1,1)");
         sessions=context.getBean(SessionStateService.class); saves=context.getBean(MealDraftSaveService.class);
@@ -69,6 +71,15 @@ class MealDraftSaveTransactionTest {
         assertThat(saves.save(7L,"draft",reloaded).mealDraft().savedMealId()).isEqualTo(saved.mealDraft().savedMealId());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM meal_item WHERE source_type='PERSONAL' AND owner_user_id=7",Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT source_type FROM meal_knowledge",String.class)).isEqualTo("USER_PROVIDED");
+    }
+    @Test void reviewedNutritionVariantIsSavedWithChatDraft() {
+        var data=new MealDraftData("麻辣烫",List.of("午餐"),null,null,null,null,null,null,null);
+        var changed=state.withMealDraft(new MealDraft("draft","麻辣烫 午餐",data,List.of(),List.of(),Map.of(),MealDraftStatus.READY,null));
+        sessions.save(changed);
+        var choices=new NutritionTemplateService().draft("麻辣烫","麻辣烫，不加辣",Map.of()).selections();
+        var variant=new MealNutritionVariantService.Input("清汤版","MALATANG",choices);
+        saves.save(7L,"draft",changed,null,false,variant);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM meal_nutrition_variant",Integer.class)).isEqualTo(1);
     }
     @Test void reviewedTagsReplaceSuggestedTagsBeforeSave() {
         jdbc.update("INSERT INTO diet_slot_option(slot_name,option_value,enabled,sort_order) VALUES('mealTime','晚餐',1,2)");
@@ -152,6 +163,10 @@ class MealDraftSaveTransactionTest {
         @Bean JsonService jsonService(ObjectMapper json) { return new JsonService(json); }
         @Bean MealKnowledgeRepository knowledge(JdbcTemplate jdbc,ObjectMapper json) { return new MealKnowledgeRepository(jdbc,json); }
         @Bean MealService mealService(MealMapper mapper,SlotOptionService slots,JsonService json,MealKnowledgeRepository knowledge) { return new MealService(mapper,slots,json,knowledge); }
+        @Bean NutritionTemplateService nutritionTemplateService() { return new NutritionTemplateService(); }
+        @Bean MealNutritionVariantService nutritionVariants(JdbcTemplate jdbc,ObjectMapper json,NutritionTemplateService templates) {
+            return new MealNutritionVariantService(jdbc,json,templates);
+        }
         @Bean SessionStateService sessions(SessionMapper mapper,ObjectMapper json) { return new SessionStateService(mapper,json); }
         @Bean MealDraftSaveService saves(MealService meals,SessionStateService sessions) { return new MealDraftSaveService(meals,sessions); }
     }

@@ -7,6 +7,7 @@ const api = {
   listPersonalMeals: vi.fn(), listPublicMeals: vi.fn(), slotOptions: vi.fn(),
   generateMealDraft: vi.fn(), createPersonalMeal: vi.fn(), mergePersonalMeal: vi.fn(),
   updatePersonalMeal: vi.fn(), deletePersonalMeal: vi.fn(),
+  suggestNutrition: vi.fn(), previewNutrition: vi.fn(), listPersonalVariants: vi.fn(), deletePersonalVariant: vi.fn(),
 }
 const refreshMeals = vi.fn()
 vi.mock('../../context/AppContext', () => ({ useApp: () => ({ api, userId: '1', mealVersion: 0, refreshMeals }) }))
@@ -27,6 +28,39 @@ beforeEach(() => {
   api.mergePersonalMeal.mockResolvedValue(seed)
   api.updatePersonalMeal.mockResolvedValue(seed)
   api.deletePersonalMeal.mockResolvedValue(null)
+  api.listPersonalVariants.mockResolvedValue([])
+  api.suggestNutrition.mockResolvedValue({ templateCode: 'UNKNOWN', questions: [], selections: {}, estimate: null })
+})
+
+test('manual meal saves the reviewed portion choices with the meal', async () => {
+  const estimate={ kcalLow: 350, kcalHigh: 600, carbsLow: 20, carbsHigh: 40,
+    proteinLow: 15, proteinHigh: 30, fatLow: 10, fatHigh: 30, fiberLow: 3, fiberHigh: 8,
+    method: 'APPROX_RULE_V1', assumptions: [] }
+  api.suggestNutrition.mockResolvedValue({ templateCode: 'MALATANG',
+    questions: [{ key: 'spice', label: '辣度', options: [
+      { value: 'NONE', label: '不辣' }, { value: 'MILD', label: '微辣' }] }],
+    selections: { spice: 'MILD' }, estimate })
+  api.previewNutrition.mockResolvedValue(estimate)
+  render(<MealsPage />)
+  fireEvent.change(await screen.findByLabelText('餐食名称'), { target: { value: '麻辣烫' } })
+  fireEvent.click(screen.getByRole('button', { name: '小狗帮我选搭配' }))
+  const choices=await screen.findByRole('region', { name: '这顿怎么搭配' })
+  fireEvent.click(within(choices).getByRole('button', { name: '不辣' }))
+  fireEvent.click(screen.getByRole('button', { name: '晚餐' }))
+  fireEvent.click(screen.getByRole('button', { name: '保存到我的餐食库' }))
+  await waitFor(() => expect(api.createPersonalMeal).toHaveBeenCalledWith(expect.objectContaining({
+    name: '麻辣烫', nutritionVariant: expect.objectContaining({ templateCode: 'MALATANG', selections: { spice: 'NONE' } }),
+  })))
+})
+
+test('AI can preselect tags from a meal name alone', async () => {
+  api.generateMealDraft.mockResolvedValue({ draftId: 'name-only', originalText: '番茄面', status: 'READY',
+    missingFields: [], warnings: [], data: { name: '番茄面', ...slots, mealTime: ['午餐'], knowledge: null } })
+  render(<MealsPage />)
+  fireEvent.change(await screen.findByLabelText('餐食名称'), { target: { value: '番茄面' } })
+  fireEvent.click(screen.getByRole('button', { name: 'AI 整理' }))
+  await waitFor(() => expect(api.generateMealDraft).toHaveBeenCalledWith('番茄面'))
+  expect(await screen.findByRole('group', { name: '用餐时间（必选）' })).toBeInTheDocument()
 })
 
 test('same-name save asks before merging into the original meal', async () => {

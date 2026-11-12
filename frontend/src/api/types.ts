@@ -18,13 +18,25 @@ export interface Meal extends Slots {
   name: string
   matchScore: number
   knowledge: MealKnowledge | null
+  nutritionVariant?: NutritionVariant | null
 }
 
 /** Omitting knowledge preserves stored knowledge on edit; null explicitly clears it. */
 export interface MealRequest extends Slots {
   name: string
   knowledge?: MealKnowledge | null
+  nutritionVariant?: NutritionVariantInput
 }
+export interface NutritionEstimate {
+  kcalLow: number; kcalHigh: number; carbsLow: number; carbsHigh: number
+  proteinLow: number; proteinHigh: number; fatLow: number; fatHigh: number
+  fiberLow: number; fiberHigh: number; method: string; assumptions: string[]
+}
+export interface NutritionVariantInput { label: string; templateCode: string; selections: Record<string,string> }
+export interface NutritionVariant extends NutritionVariantInput { id: number; mealId: number; estimate: NutritionEstimate }
+export interface NutritionDraft { templateCode: string; questions: {
+  key: string; label: string; options: { value: string; label: string }[] }[]
+  selections: Record<string,string>; estimate: NutritionEstimate | null }
 
 export interface MealDraftData extends Slots {
   name: string

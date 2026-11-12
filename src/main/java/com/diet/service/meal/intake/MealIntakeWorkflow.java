@@ -8,6 +8,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 import com.diet.exception.DietException;
 import com.diet.exception.DuplicateMealException;
+import com.diet.service.meal.nutrition.MealNutritionVariantService;
 
 @Service
 public class MealIntakeWorkflow {
@@ -30,6 +31,7 @@ public class MealIntakeWorkflow {
         boolean actionProvided=request.context()!=null && request.context().containsKey("mealDraftAction");
         String action=null;
         Map<?,?> reviewedTags=null;
+        MealNutritionVariantService.Input nutritionVariant=null;
         if (actionProvided) {
             if (!Objects.equals(userId,state.userId())) return result(state,"草稿不属于当前用户，请重新录入。",false);
             Object raw=request.context().get("mealDraftAction");
@@ -42,6 +44,10 @@ public class MealIntakeWorkflow {
                 if (!(map.get("tags") instanceof Map<?,?> tags))
                     return result(state,"草稿标签无效，请重新核对。",false);
                 reviewedTags=tags;
+            }
+            if (map.containsKey("nutritionVariant")) {
+                try { nutritionVariant=MealNutritionVariantService.Input.from(map.get("nutritionVariant")); }
+                catch (DietException invalid) { return result(state,invalid.getMessage(),false); }
             }
         } else if (text.equals("确认保存")) action="SAVE";
         else if (text.equals("取消录入") || text.equals("取消草稿")) action="CANCEL";
@@ -58,7 +64,7 @@ public class MealIntakeWorkflow {
                     && draft.status()!=MealDraftStatus.SAVED)
                 return result(state,"草稿还缺少菜名或餐次，请补齐后再确认保存。",false);
             try {
-                SessionState saved=saves.save(userId,draft.draftId(),state,reviewedTags,"MERGE".equals(action));
+                SessionState saved=saves.save(userId,draft.draftId(),state,reviewedTags,"MERGE".equals(action),nutritionVariant);
                 event("MEAL_DRAFT_SAVED",saved.mealDraft());
                 return result(saved,("MERGE".equals(action) ? "已合并到" : "已保存到")
                         +"你的个人餐食库，餐食 ID："+saved.mealDraft().savedMealId()+"。",true);

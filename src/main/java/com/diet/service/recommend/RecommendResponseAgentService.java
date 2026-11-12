@@ -27,6 +27,9 @@ import java.util.Map;
  */
 @Service
 public class RecommendResponseAgentService {
+    private com.diet.service.meal.nutrition.MealNutritionVariantService nutritionVariants;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setNutritionVariants(com.diet.service.meal.nutrition.MealNutritionVariantService service) { this.nutritionVariants=service; }
 
     /**
      * 按 sessionId 提供 RecommendResponseAgent 实例的工厂。
@@ -104,13 +107,13 @@ public class RecommendResponseAgentService {
             RecommendResult recommend = new RecommendResult(parsed.options(), needDisclaimer);
 
             // 构造 ResponseResult：speechText + 前端卡片 displayBlocks + nextAction=WAIT_USER
-            ResponseResult responseResult = new ResponseResult(parsed.speechText(), toDisplayBlocks(recommend), "WAIT_USER");
+            ResponseResult responseResult = new ResponseResult(parsed.speechText(), toDisplayBlocks(recommend,slots), "WAIT_USER");
             return new Result(recommend, responseResult);
 
         } catch (Exception ignored) {
             // LLM 异常时用模板理由 + 模板 speechText 兜底
             RecommendResult recommend = new RecommendResult(templateOptions(topMeals, slots), needDisclaimer);
-            return new Result(recommend, new ResponseResult(templateSpeech(recommend), toDisplayBlocks(recommend), "WAIT_USER"));
+            return new Result(recommend, new ResponseResult(templateSpeech(recommend), toDisplayBlocks(recommend,slots), "WAIT_USER"));
         }
     }
 
@@ -200,20 +203,20 @@ public class RecommendResponseAgentService {
     /**
      * 将 RecommendResult 转为前端展示用的 MealResponse 卡片列表。
      */
-    private List<MealResponse> toDisplayBlocks(RecommendResult recommendResult) {
+    private List<MealResponse> toDisplayBlocks(RecommendResult recommendResult,SlotBundle slots) {
         if (recommendResult == null || recommendResult.recommendations() == null) {
             return List.of();
         }
         return recommendResult.recommendations().stream()
-                .map(this::toMealResponse)
+                .map(option -> toMealResponse(option,slots))
                 .toList();
     }
 
     /**
      * RecommendedMealOption 转为 MealResponse（含各维 slots 标签）。
      */
-    private MealResponse toMealResponse(RecommendedMealOption option) {
-        return new MealResponse(
+    private MealResponse toMealResponse(RecommendedMealOption option,SlotBundle slots) {
+        var response=new MealResponse(
                 option.itemId(),
                 option.sourceType(),
                 option.name(),
@@ -227,6 +230,12 @@ public class RecommendResponseAgentService {
                 option.matchScore(),
                 option.knowledge()
         );
+        if(nutritionVariants!=null) {
+            String goal=slots==null?null:slots.healthGoal().stream()
+                    .filter(java.util.Set.of("控碳水","低糖","减脂","高蛋白","增肌")::contains).findFirst().orElse(null);
+            response.nutritionVariant(nutritionVariants.bestInternal(option.itemId(),goal));
+        }
+        return response;
     }
 
     /**

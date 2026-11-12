@@ -1,6 +1,6 @@
 # Diet Agent 规格驱动开发
 
-更新日期：2026-10-19。
+更新日期：2026-11-12。
 
 ## 已确认决策
 
@@ -29,6 +29,7 @@
 | 014（当前） | MySQL 用户长期记忆、消息任务、过敏确认和偏好归纳；默认关闭 | [规格](014-user-memory/spec.md) · [运行指南](../guides/user-memory.md) · [验收](014-user-memory/acceptance.md) |
 | 015（当前） | Planner/Menu/Review 受控协作、跨日餐食规划、确定性校验和有限修订；默认关闭 | [技术方案](015-multi-agent-meal-planning/spec.md) · [运行指南](../guides/meal-planning.md) · [验收](015-multi-agent-meal-planning/acceptance.md) |
 | 016（待平台验收） | 微信小程序认证、邀请制用户隔离、隐私 Trace 与体验客户端 | [规格](016-wechat-mini-program/spec.md) · [云开发部署](../guides/wechat-cloudbase.md) · [本地验收](016-wechat-mini-program/acceptance.md) |
+| 017（待云端验收） | 餐食搭配版本、份量问卷与粗估营养区间 | [规格与验证](017-nutrition-variants.md) · [云库迁移](../guides/wechat-cloudbase.md) |
 
 第一阶段已完成工程验收，见 [001 验收记录](001-meal-retrieval-evaluation/acceptance.md)。阶段 002 的餐食 RAG 文档与代码已删除，阶段 003 只保留带退役标记的历史文档。阶段 004 定义菜谱 RAG，阶段 005 定义真实视频 MCP，阶段 006 定义并行编排和 Ragas，阶段 007 定义可选查询改写；实现和运行状态以最新对应阶段文档为准。
 

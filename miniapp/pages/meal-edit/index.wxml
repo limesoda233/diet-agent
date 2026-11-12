@@ -14,6 +14,30 @@
           class="tag {{choice.selected ? 'selected' : ''}}" data-field="{{item.field}}" data-value="{{choice.value}}" bindtap="toggleTag">{{choice.value}}</button>
       </view>
     </view>
+    <view wx:if="{{nutritionGroups.length}}" class="nutrition-section">
+      <view class="field-label">这顿怎么搭配？</view>
+      <view class="muted edit-tip">按平时吃的一份来选，热量只是粗估范围。</view>
+      <view wx:for="{{nutritionGroups}}" wx:key="key" class="tag-group">
+        <view class="field-label">{{item.label}}</view>
+        <view class="tag-list">
+          <button wx:for="{{item.choices}}" wx:for-item="choice" wx:key="value"
+            class="tag {{choice.selected ? 'selected' : ''}}" data-key="{{item.key}}" data-value="{{choice.value}}" bindtap="chooseNutrition">{{choice.label}}</button>
+        </view>
+      </view>
+      <view wx:if="{{nutritionDraft.estimate}}" class="nutrition-estimate">
+        <view>每份约 {{nutritionDraft.estimate.kcalLow}}–{{nutritionDraft.estimate.kcalHigh}} 千卡</view>
+        <view class="muted">碳水 {{nutritionDraft.estimate.carbsLow}}–{{nutritionDraft.estimate.carbsHigh}} g · 蛋白质 {{nutritionDraft.estimate.proteinLow}}–{{nutritionDraft.estimate.proteinHigh}} g</view>
+        <view class="muted">仅供搭配参考，实际分量和做法会改变热量。</view>
+      </view>
+    </view>
+    <view wx:if="{{savedVariants.length}}" class="nutrition-section">
+      <view class="field-label">已保存的搭配版本</view>
+      <view wx:for="{{savedVariants}}" wx:key="id" class="saved-variant">
+        <view>{{item.label}}</view>
+        <view class="muted">约 {{item.estimate.kcalLow}}–{{item.estimate.kcalHigh}} 千卡/份</view>
+        <view class="variant-actions"><button class="button-soft" data-id="{{item.id}}" bindtap="editVariant">按此版本修改</button><button class="button-soft" data-id="{{item.id}}" bindtap="removeVariant">删除版本</button></view>
+      </view>
+    </view>
     <view wx:if="{{error}}" class="danger edit-error">{{error}}</view>
     <button loading="{{saving}}" disabled="{{generating || saving}}" bindtap="save">{{id ? '保存修改' : '保存到我的餐食库'}}</button>
   </view>

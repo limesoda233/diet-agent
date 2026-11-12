@@ -3,11 +3,15 @@ package com.diet.service.meal;
 import com.diet.model.MealItem;
 import com.diet.model.MealRankRequest;
 import com.diet.model.SlotBundle;
+import com.diet.service.meal.nutrition.MealNutritionVariantService;
 import org.springframework.stereotype.Service;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
 
 /**
  * 餐食重排服务（Orchestrator 推荐流水线第二层）。
@@ -15,6 +19,9 @@ import java.util.Set;
  */
 @Service
 public class MealRankService {
+    private MealNutritionVariantService nutritionVariants;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setNutritionVariants(MealNutritionVariantService service) { this.nutritionVariants=service; }
 
     /**
      * 在search检索时,只要用户输入的槽位信息有匹配有交集就会返回
@@ -25,12 +32,39 @@ public class MealRankService {
     public List<MealItem> rank(MealRankRequest request) {
         // 将 excludeMealIds 转为 HashSet，便于 O(1) 查找
         Set<Long> excludeIds = new HashSet<>(request.excludeMealIds() == null ? List.of() : request.excludeMealIds());
-        return request.candidates().stream()
+        var base=request.candidates().stream()
                 .filter(item -> item != null && !excludeIds.contains(item.id()))  // 过滤 null 和需排除的 ID
                 .map(item -> withRankScore(item, request.slots())) // 计算排序分数
+                .toList();
+        Map<Long,Double> nutritionBonuses=nutritionBonuses(base,request.slots());
+        return base.stream()
+                .peek(item -> item.matchScore(clamp(item.matchScore()+nutritionBonuses.getOrDefault(item.id(),0.0))))
                 .sorted(Comparator.comparingDouble((MealItem item) -> item.matchScore()).reversed()) // 按分数降序
                 .limit(10)   // 最多返回 10 条
                 .toList();
+    }
+    private Map<Long,Double> nutritionBonuses(List<MealItem> meals,SlotBundle slots) {
+        if(nutritionVariants==null||slots==null)return Map.of();
+        String goal=slots.healthGoal().stream().filter(Set.of("控碳水","低糖","减脂","高蛋白","增肌")::contains)
+                .findFirst().orElse(null);
+        if(goal==null)return Map.of();
+        var known=new ArrayList<Map.Entry<Long,Integer>>();
+        for(var meal:meals) {
+            var variant=nutritionVariants.bestInternal(meal.id(),goal);
+            if(variant==null||variant.estimate()==null)continue;
+            var estimate=variant.estimate();
+            int score=switch(goal) {
+                case "控碳水","低糖" -> estimate.carbsHigh();
+                case "减脂" -> estimate.kcalHigh();
+                default -> -estimate.proteinLow();
+            };
+            known.add(Map.entry(meal.id(),score));
+        }
+        known.sort(Comparator.comparingInt(Map.Entry::getValue));
+        var bonuses=new HashMap<Long,Double>();
+        for(int i=0;i<known.size();i++)
+            bonuses.put(known.get(i).getKey(),known.size()==1?0.05:0.15*(known.size()-1-i)/(known.size()-1));
+        return bonuses;
     }
 
     /**
@@ -50,7 +84,7 @@ public class MealRankService {
                 + overlap(item.scene(), safeQuery.scene())
                 + overlap(item.healthGoal(), safeQuery.healthGoal())
                 + overlap(item.cuisine(), safeQuery.cuisine())
-                + overlap(item.taste(), safeQuery.taste())
+                + tasteOverlap(item.taste(), safeQuery.taste())
                 + overlap(item.convenience(), safeQuery.convenience());
         return clamp(total / 7.0); // 归一化到 [0,1]
     }
@@ -69,6 +103,12 @@ public class MealRankService {
         // 于是最终得分，鸡胸肉的 score = 2 / 2 = 1,  猪肘的 score = 1 / 2 = 0.5 分
         // 排序的规则就是看 谁更能满足用户的需求
         return hits * 1.0 / queryValues.size();
+    }
+
+    private double tasteOverlap(List<String> itemValues,List<String> queryValues) {
+        if(queryValues==null||queryValues.isEmpty())return 0;
+        long hits=queryValues.stream().filter(value -> SpicyTasteMatcher.matches(value,itemValues)).count();
+        return hits*1.0/queryValues.size();
     }
 
     /** 将分数约束在 [0, 1] 区间。 */

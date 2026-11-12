@@ -59,9 +59,31 @@ describe('miniapp chat', () => {
     expect(page.data.draft).toMatchObject({ draftId: 'draft-1', status: 'READY' })
 
     await page.handleDraftAction({ currentTarget: { dataset: { action: 'SAVE' } } })
-    expect(calls[1].data).toMatchObject({ sessionId: 'next-session',
+    expect(calls.filter(call => call.path.endsWith('/chat'))[1].data).toMatchObject({ sessionId: 'next-session',
       context: { mealDraftAction: { draftId: 'draft-1', action: 'SAVE' } } })
     expect(page.data.draft).toMatchObject({ status: 'SAVED', savedMealId: 42 })
+  })
+
+  it('submits reviewed nutrition choices with a spoken meal draft', async () => {
+    const draft = { draftId: 'draft-3', originalText: '录入麻辣烫，不加辣',
+      data: { name: '麻辣烫', mealTime: ['晚餐'], knowledge: { ingredients: [] } },
+      missingFields: [], warnings: [], status: 'READY' }
+    reply = call => call.path.endsWith('/nutrition/suggest')
+      ? { templateCode: 'MALATANG', questions: [{ key: 'spice', label: '辣度',
+        options: [{ value: 'NONE', label: '不辣' }, { value: 'MILD', label: '微辣' }] }],
+        selections: { spice: 'NONE' }, estimate: { kcalLow: 300, kcalHigh: 500 } }
+      : call.data?.context && Object.keys(call.data.context).length
+        ? { sessionId: 'next-session', speechText: '已保存', mealDraft: { ...draft, status: 'SAVED' } }
+        : { sessionId: 'next-session', speechText: '请核对', mealDraft: draft }
+    page.onInput({ detail: { value: draft.originalText } })
+    await page.send()
+    await vi.waitFor(() => expect(page.data.nutritionDraft?.selections.spice).toBe('NONE'))
+    expect(page.data.nutritionDraft?.selections.spice).toBe('NONE')
+    await page.handleDraftAction({ currentTarget: { dataset: { action: 'SAVE' } } })
+    const saveCall = calls.find(call => call.data?.context && Object.keys(call.data.context).length)
+    expect(saveCall?.data?.context).toMatchObject({ mealDraftAction: {
+      nutritionVariant: { templateCode: 'MALATANG', selections: { spice: 'NONE' } },
+    } })
   })
 
   it('does not save an incomplete spoken meal draft', async () => {
@@ -74,7 +96,7 @@ describe('miniapp chat', () => {
     await page.send()
     await page.handleDraftAction({ currentTarget: { dataset: { action: 'SAVE' } } })
 
-    expect(calls).toHaveLength(1)
+    expect(calls.filter(call => call.path.endsWith('/chat'))).toHaveLength(1)
     expect(page.data.draftMissing).toEqual(['餐次'])
   })
 

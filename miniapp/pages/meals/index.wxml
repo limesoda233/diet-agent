@@ -8,6 +8,7 @@
   <view wx:if="{{empty}}" class="card empty-card"><view class="empty-title">还没有个人餐食</view><view class="muted">先录入一道常吃的，之后就能在“我的餐食”中找它。</view></view>
   <view wx:for="{{meals}}" wx:key="id" class="card meal-card">
     <view class="meal-main"><view class="name">{{item.name}}</view><view class="meal-time">{{item.mealTime}}</view></view>
+    <view wx:if="{{item.nutritionVariant.estimate}}" class="muted">{{item.nutritionVariant.label}} · 约 {{item.nutritionVariant.estimate.kcalLow}}–{{item.nutritionVariant.estimate.kcalHigh}} 千卡/份（粗估）</view>
     <view class="meal-actions"><button class="button-soft" size="mini" data-id="{{item.id}}" bindtap="edit">编辑餐食</button><button class="button-danger" size="mini" data-id="{{item.id}}" bindtap="remove">删除</button></view>
   </view>
 </view>

@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react'
-import type { MealDraft, SlotKey, SlotOptions, Slots } from '../../api/types'
+import type { MealDraft, NutritionDraft, NutritionVariant, SlotKey, SlotOptions, Slots } from '../../api/types'
+import { NutritionChoices } from './NutritionChoices'
 
 export const SLOT_LABELS: Record<SlotKey, string> = {
   mealTime: '用餐时间', mood: '心情状态', scene: '用餐场景', healthGoal: '健康目标',
@@ -29,10 +30,17 @@ interface Props {
   saving: boolean
   mutationLocked: boolean
   error: string
+  nutrition: NutritionDraft | null
+  variants: NutritionVariant[]
+  onSuggestNutrition: () => void
+  onChooseNutrition: (key: string,value: string) => void
+  onEditVariant: (variant: NutritionVariant) => void
+  onDeleteVariant: (variant: NutritionVariant) => void
 }
 
 export default function MealEditor({ value, onChange, options, draft, text, onTextChange, onGenerate,
-  onSave, onClear, editing, generating, saving, mutationLocked, error }: Props) {
+  onSave, onClear, editing, generating, saving, mutationLocked, error,
+  nutrition, variants, onSuggestNutrition, onChooseNutrition, onEditVariant, onDeleteVariant }: Props) {
   const busy = generating || saving || mutationLocked
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -51,7 +59,7 @@ export default function MealEditor({ value, onChange, options, draft, text, onTe
         <button className="meal-button meal-button-soft" type="button" onClick={onGenerate} disabled={busy}>
           {generating ? '整理中...' : 'AI 整理'}
         </button>
-        <p className="meal-hint">整理结果只回填下方表单，核对后再保存。</p>
+        <p className="meal-hint">只填餐食名称也能整理标签；结果会回填表单，核对后再保存。</p>
       </div>}
       {draft && !editing && <section className="meal-draft-preview" aria-live="polite">
         <strong>整理预览</strong>
@@ -63,6 +71,14 @@ export default function MealEditor({ value, onChange, options, draft, text, onTe
         <label htmlFor="meal-name">餐食名称</label>
         <input id="meal-name" value={value.name} maxLength={128} onChange={event => onChange({ ...value, name: event.target.value })} />
       </div>
+      <button className="meal-button meal-button-soft" type="button" onClick={onSuggestNutrition} disabled={busy || !value.name.trim()}>小狗帮我选搭配</button>
+      <NutritionChoices draft={nutrition} onChoose={onChooseNutrition} disabled={busy} />
+      {variants.length > 0 && <section className="nutrition-saved" aria-label="已保存的搭配版本">
+        <h3>已保存的搭配版本</h3>{variants.map(variant => <div key={variant.id}>
+          <strong>{variant.label}</strong><span>约 {variant.estimate.kcalLow}–{variant.estimate.kcalHigh} 千卡/份</span>
+          <button className="meal-button meal-button-soft" type="button" onClick={() => onEditVariant(variant)} disabled={busy}>按此版本修改</button>
+          <button className="meal-button meal-button-ghost" type="button" onClick={() => onDeleteVariant(variant)} disabled={busy}>删除版本</button>
+        </div>)}</section>}
       <p className="meal-hint">点击标签即可选择，再点一次可取消。</p>
       <div className="meal-slot-grid">{SLOT_KEYS.map(key => {
         const choices = Array.from(new Set([...(options[key] ?? []), ...value[key]]))

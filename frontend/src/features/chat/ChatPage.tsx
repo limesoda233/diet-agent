@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { ChatResponse, Meal, MealDraft, SourceMode } from '../../api/types'
+import type { ChatResponse, Meal, MealDraft, NutritionDraft, NutritionVariantInput, SourceMode } from '../../api/types'
 import { useApp } from '../../context/AppContext'
+import { NutritionChoices, nutritionVariantOf } from '../meals/NutritionChoices'
+import '../meals/meals.css'
 import { Composer } from './Composer'
 import { MessageContent } from './MessageContent'
 import { MealPlanningCards } from './MealPlanningCards'
@@ -35,11 +37,12 @@ function errorText(error: unknown, fallback: string): string {
 function DraftCard({ draft, actionable, onAction }: {
   draft: MealDraft
   actionable: boolean
-  onAction: (action: 'SAVE' | 'CANCEL' | 'MERGE', tags: DraftTags | null) => void
+  onAction: (action: 'SAVE' | 'CANCEL' | 'MERGE', tags: DraftTags | null, nutrition?: NutritionVariantInput) => void
 }) {
   const { api } = useApp()
   const [options, setOptions] = useState<Record<string, string[]>>({})
   const [selected, setSelected] = useState<DraftTags>(() => tagsFromDraft(draft))
+  const [nutrition,setNutrition] = useState<NutritionDraft | null>(null)
   useEffect(() => { setSelected(tagsFromDraft(draft)) }, [draft])
   useEffect(() => {
     if (!actionable || !api.slotOptions) return
@@ -47,6 +50,23 @@ function DraftCard({ draft, actionable, onAction }: {
     void api.slotOptions().then(result => { if (active) setOptions(result) }).catch(() => {})
     return () => { active = false }
   }, [api, actionable])
+  useEffect(() => {
+    if (!actionable || !draft.data?.name || !api.suggestNutrition) return
+    let active=true
+    void api.suggestNutrition(draft.data.name,draft.originalText).then(value => {
+      if(active && value.questions?.length)setNutrition(value)
+    }).catch(() => {})
+    return () => {active=false}
+  }, [api, actionable, draft])
+  async function chooseNutrition(key:string,value:string) {
+    if(!nutrition || !api.previewNutrition)return
+    const selections={...nutrition.selections,[key]:value}
+    setNutrition({...nutrition,selections})
+    try {
+      const estimate=await api.previewNutrition(nutrition.templateCode,selections)
+      setNutrition(old => old && JSON.stringify(old.selections)===JSON.stringify(selections) ? {...old,estimate} : old)
+    } catch { /* Save without an estimate remains available. */ }
+  }
   const missing = (draft.missingFields ?? []).map(key => slotLabels[key] ?? key)
   const tags: string[] = []
   if (draft.data?.name) tags.push(draft.data.name)
@@ -75,12 +95,15 @@ function DraftCard({ draft, actionable, onAction }: {
       <div><dt>描述</dt><dd>{draft.data?.knowledge?.description || '未提供'}</dd></div>
       <div><dt>做法</dt><dd>{draft.data?.knowledge?.preparation || '未提供'}</dd></div>
     </dl>
+    {actionable && <NutritionChoices draft={nutrition} onChoose={(key,value) => { void chooseNutrition(key,value) }} />}
     {missing.length > 0 && <p>请在聊天框补充{missing.join('、')}，再确认保存。</p>}
     {(draft.warnings ?? []).map((warning, index) => <p className="chat-warning" key={index}>{warning}</p>)}
     {(draft.status === 'READY' || draft.status === 'NEEDS_INPUT' || draft.status === 'AWAITING_MERGE') && <div className="chat-card-actions">
       {draft.status === 'READY' && <button type="button" disabled={!actionable} onClick={() => onAction('SAVE',
-        Object.prototype.hasOwnProperty.call(draft.data,'mealTime') ? selected : null)}>确认保存</button>}
-      {draft.status === 'AWAITING_MERGE' && <button type="button" disabled={!actionable} onClick={() => onAction('MERGE',selected)}>合并到已有餐食</button>}
+        Object.prototype.hasOwnProperty.call(draft.data,'mealTime') ? selected : null,
+        nutrition?.estimate ? nutritionVariantOf(nutrition) : undefined)}>确认保存</button>}
+      {draft.status === 'AWAITING_MERGE' && <button type="button" disabled={!actionable} onClick={() => onAction('MERGE',selected,
+        nutrition?.estimate ? nutritionVariantOf(nutrition) : undefined)}>合并到已有餐食</button>}
       <button type="button" className="secondary" disabled={!actionable} onClick={() => onAction('CANCEL',null)}>取消录入</button>
     </div>}
   </section>
@@ -95,6 +118,7 @@ function MealCard({ meal, feedback, onFeedback }: {
   return <article className="chat-meal-card" aria-label={meal.name}>
     <header><h4>{meal.name}</h4><small>{meal.sourceType === 'PERSONAL' ? '个人餐食' : '公共餐食'}</small></header>
     {tags.length > 0 && <div className="chat-chips">{tags.map((tag, index) => <span key={`${tag}-${index}`}>{tag}</span>)}</div>}
+    {meal.nutritionVariant?.estimate && <p className="nutrition-card-hint">{meal.nutritionVariant.label} · 约 {meal.nutritionVariant.estimate.kcalLow}–{meal.nutritionVariant.estimate.kcalHigh} 千卡/份（粗估）</p>}
     {onFeedback && <div className="chat-card-actions">
       <button type="button" disabled={feedback?.pending || feedback?.result === '反馈已记录'} onClick={() => onFeedback(meal, 'LIKE')}>喜欢</button>
       <button type="button" className="secondary" disabled={feedback?.pending || feedback?.result === '反馈已记录'} onClick={() => onFeedback(meal, 'ADOPT')}>采纳</button>
@@ -197,7 +221,8 @@ export function ChatPage() {
     }
   }
 
-  async function actOnDraft(message: Message, action: 'SAVE' | 'CANCEL' | 'MERGE', tags: DraftTags | null) {
+  async function actOnDraft(message: Message, action: 'SAVE' | 'CANCEL' | 'MERGE', tags: DraftTags | null,
+                            nutrition?: NutritionVariantInput) {
     const draft = message.response?.mealDraft
     const session = message.sessionId
     if (!draft?.draftId || !session || sendingRef.current || message.userId !== userId ||
@@ -215,7 +240,8 @@ export function ChatPage() {
       const response = await api.chat({ sessionId: session, message: action === 'SAVE' ? '确认保存' :
         action === 'MERGE' ? '确认合并' : '取消录入',
         sourceMode, context: { mealDraftAction: { draftId: draft.draftId, action,
-          ...(action !== 'CANCEL' && tags ? { tags } : {}) } } })
+          ...(action !== 'CANCEL' && tags ? { tags } : {}),
+          ...(action !== 'CANCEL' && nutrition ? { nutritionVariant: nutrition } : {}) } } })
       if (!current(epoch, owner)) return
       const actualSession = response.sessionId || session
       sessionRef.current = actualSession
@@ -292,7 +318,7 @@ export function ChatPage() {
         </section>)}</div>
         : response?.displayBlocks?.length ? <div className="chat-meals">{response.displayBlocks.map(meal => renderMeal(message, meal))}</div> : null}
       {response?.mealDraft && <DraftCard draft={response.mealDraft} actionable={Boolean(latestDraft)}
-        onAction={(action,tags) => { void actOnDraft(message, action, tags) }} />}
+        onAction={(action,tags,nutrition) => { void actOnDraft(message, action, tags, nutrition) }} />}
       {response?.traceId && <div className="chat-message-meta">Trace：<a href={`#/admin/traces?traceId=${encodeURIComponent(response.traceId)}`}>{response.traceId}</a></div>}
     </article>
   }

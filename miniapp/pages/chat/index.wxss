@@ -28,6 +28,7 @@
 .draft-note { margin-top: 12rpx; color: #9A4B2C; font-size: 22rpx; line-height: 1.5; }
 .draft-review-hint { margin-top: 15rpx; font-size: 22rpx; color: #8a634d; }
 .draft-tag-group { margin-top: 17rpx; }
+.draft-nutrition { margin-top: 22rpx; padding-top: 18rpx; border-top: 2rpx solid #e6c58f; }
 .draft-tag-label { font-size: 22rpx; font-weight: 700; margin-bottom: 8rpx; }
 .draft-tag-list { display: flex; flex-wrap: wrap; gap: 8rpx; }
 .draft-tag-list .draft-tag { width: auto; min-height: 55rpx; margin: 0; padding: 5rpx 13rpx; background: #fff; color: #6e5242; border: 2rpx solid #e6c58f; box-shadow: none; font-size: 21rpx; }

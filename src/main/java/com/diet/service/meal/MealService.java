@@ -12,6 +12,7 @@ import com.diet.service.meal.constraint.MealConstraints;
 import com.diet.service.meal.knowledge.MealKnowledgeRepository;
 import com.diet.service.slot.SlotOptionService;
 import com.diet.service.profile.DietaryProfileService;
+import com.diet.service.meal.nutrition.MealNutritionVariantService;
 import com.diet.util.JsonService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,9 @@ public class MealService {
     private JdbcTemplate guardJdbc;
     @Autowired(required=false)
     public void setGuardJdbc(JdbcTemplate jdbc) { this.guardJdbc=jdbc; }
+    private MealNutritionVariantService nutritionVariants;
+    @Autowired(required=false)
+    public void setNutritionVariants(MealNutritionVariantService service) { this.nutritionVariants=service; }
     private DietaryProfileService dietaryProfiles;
     @Autowired(required=false)
     public void setDietaryProfileService(DietaryProfileService profiles) { this.dietaryProfiles=profiles; }
@@ -88,6 +92,8 @@ public class MealService {
         MealItemRow row = toRow(null, SourceMode.PERSONAL, userId, request);
         mealMapper.insert(row);
         saveKnowledge(row.getId(), request);
+        if (request.nutritionVariant()!=null && nutritionVariants!=null)
+            nutritionVariants.savePersonal(userId,row.getId(),request.nutritionVariant());
         return attachKnowledge(List.of(toMealItem(row))).get(0);
     }
 
@@ -118,6 +124,10 @@ public class MealService {
                 union(all.stream().flatMap(item -> item.slots().convenience().stream()).toList()));
         var known=mergeKnowledge(all);
         if (known!=null) merged.knowledge(known);
+        merged.nutritionVariant(request.nutritionVariant());
+        if (nutritionVariants!=null)
+            for (int i=1;i<matches.size();i++)
+                nutritionVariants.movePersonal(userId,matches.get(i).id(),primary.id());
         MealItem updated=updatePersonalMeal(userId,primary.id(),merged);
         for (int i=1;i<matches.size();i++) {
             MealItem extra=matches.get(i);
@@ -180,7 +190,11 @@ public class MealService {
         if (updated == 0) {
             throw new DietException("个人餐食不存在或无权限修改");
         }
+        if (nutritionVariants!=null && existing!=null)
+            nutritionVariants.clearWhenTemplateChanges(userId,mealId,existing.getName(),request.name());
         saveKnowledge(mealId, request);
+        if (request.nutritionVariant()!=null && nutritionVariants!=null)
+            nutritionVariants.savePersonal(userId,mealId,request.nutritionVariant());
         if (renamed && sameNamedPersonal(userId,existing.getName()).isEmpty())
             releaseMealName(userId,existing.getName());
         return attachKnowledge(List.of(toMealItem(mealMapper.findPersonalById(mealId, userId)))).get(0);
@@ -233,7 +247,7 @@ public class MealService {
                 jsonService.toJsonArray(slots.scene()),
                 jsonService.toJsonArray(slots.healthGoal()),
                 jsonService.toJsonArray(slots.cuisine()),
-                jsonService.toJsonArray(slots.taste()),
+                jsonService.toJsonArray(SpicyTasteMatcher.expandForSearch(slots.taste())),
                 jsonService.toJsonArray(slots.convenience()),
                 jsonService.toJsonArray(safeConstraints.requiredIngredients()),
                 jsonService.toJsonArray(safeConstraints.excludedIngredients()),

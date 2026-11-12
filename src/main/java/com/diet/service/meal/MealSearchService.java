@@ -6,6 +6,7 @@ import com.diet.model.MealSearchRequest;
 import com.diet.enums.SourceMode;
 import org.springframework.stereotype.Service;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 餐食检索服务（Orchestrator 推荐流水线第一层）。
@@ -38,6 +39,11 @@ public class MealSearchService {
         }
 
         // MealService.search：MySQL JSON_OVERLAPS
-        return mealService.search(request.sourceMode(), request.userId(), request.slots(), request.constraints());
+        var slots=request.slots();
+        if(slots!=null && slots.healthGoal().stream().anyMatch(Set.of("控碳水","低糖","减脂","高蛋白","增肌")::contains))
+            slots=new com.diet.model.SlotBundle(slots.mealTime(),slots.mood(),slots.scene(),
+                    slots.healthGoal().stream().filter(value->!Set.of("控碳水","低糖","减脂","高蛋白","增肌").contains(value)).toList(),
+                    slots.cuisine(),slots.taste(),slots.convenience());
+        return mealService.search(request.sourceMode(), request.userId(), slots, request.constraints());
     }
 }

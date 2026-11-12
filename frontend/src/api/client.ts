@@ -2,6 +2,7 @@ import type {
   ChatRequest, ChatResponse, CreateSessionResponse, EvaluationReport, EvaluationRequest,
   FeedbackRequest, Meal, MealDraft, MealRequest, SlotOptions, Trace, TraceFilters,
   TraceLabelRequest, MemoryItem, MemoryPatch, MemorySnapshot, DietaryProfile,
+  NutritionDraft, NutritionEstimate, NutritionVariant, NutritionVariantInput,
 } from './types'
 
 const BASE = '/api/v1/diet'
@@ -65,6 +66,14 @@ export function createApi(userId: string) {
     chat: (payload: ChatRequest) => request<ChatResponse>('/chat', 'POST', payload),
     listPersonalMeals: () => request<Meal[]>('/meals/personal'),
     generateMealDraft: (text: string) => request<MealDraft>('/meals/personal/draft', 'POST', { text }),
+    suggestNutrition: (name: string, text: string) => request<NutritionDraft>('/meals/nutrition/suggest','POST',{ name,text }),
+    previewNutrition: (templateCode: string,selections: Record<string,string>) =>
+      request<NutritionEstimate>('/meals/nutrition/preview','POST',{ templateCode,selections }),
+    listPersonalVariants: (mealId: number) => request<NutritionVariant[]>(`/meals/personal/${mealId}/variants`),
+    savePersonalVariant: (mealId: number,payload: NutritionVariantInput) =>
+      request<NutritionVariant>(`/meals/personal/${mealId}/variants`,'POST',payload),
+    deletePersonalVariant: (mealId: number,variantId: number) =>
+      request<null>(`/meals/personal/${mealId}/variants/${variantId}`,'DELETE'),
     createPersonalMeal: (payload: MealRequest) => request<Meal>('/meals/personal', 'POST', payload),
     mergePersonalMeal: (payload: MealRequest) => request<Meal>('/meals/personal/merge', 'POST', payload),
     updatePersonalMeal: (mealId: number | string, payload: MealRequest) => request<Meal>(`/meals/personal/${encodeURIComponent(mealId)}`, 'PUT', payload),

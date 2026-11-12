@@ -68,6 +68,15 @@ export const api = {
   deleteMeal: (id: number) => request(`/api/v1/diet/meals/personal/${id}`, 'DELETE'),
   slotOptions: () => request<Record<string, string[]>>('/api/v1/diet/slot-options'),
   generateMealDraft: (text: string) => request<MealDraft>('/api/v1/diet/meals/personal/draft', 'POST', { text }),
+  suggestNutrition: (name: string, text: string) => request<NutritionDraft>('/api/v1/diet/meals/nutrition/suggest','POST',{ name,text }),
+  previewNutrition: (templateCode: string, selections: Record<string,string>) =>
+    request<NutritionEstimate>('/api/v1/diet/meals/nutrition/preview','POST',{ templateCode,selections }),
+  personalVariants: (id: number) => request<NutritionVariant[]>(`/api/v1/diet/meals/personal/${id}/variants`),
+  publicVariants: (id: number) => request<NutritionVariant[]>(`/api/v1/diet/meals/public/${id}/variants`),
+  saveVariant: (id: number, variant: NutritionVariantInput) =>
+    request<NutritionVariant>(`/api/v1/diet/meals/personal/${id}/variants`,'POST',variant),
+  deleteVariant: (id: number, variantId: number) =>
+    request(`/api/v1/diet/meals/personal/${id}/variants/${variantId}`,'DELETE'),
   dietaryProfile: () => request<DietaryProfile>('/api/v1/diet/profile'),
   saveDietaryProfile: (body: DietaryProfile) => request<DietaryProfile>('/api/v1/diet/profile', 'PUT', body),
   skipDietaryProfile: () => request<DietaryProfile>('/api/v1/diet/profile/skip', 'POST'),
@@ -78,9 +87,20 @@ export const api = {
 export interface Meal {
   id: number; name: string; sourceType: 'PUBLIC' | 'PERSONAL';
   mealTime: string[]; mood: string[]; scene: string[]; healthGoal: string[];
-  cuisine: string[]; taste: string[]; convenience: string[]
+  cuisine: string[]; taste: string[]; convenience: string[];
+  nutritionVariant?: NutritionVariant | null
 }
-export type MealInput = Omit<Meal, 'id' | 'sourceType'>
+export type MealInput = Omit<Meal, 'id' | 'sourceType' | 'nutritionVariant'> & { nutritionVariant?: NutritionVariantInput }
+export interface NutritionEstimate {
+  kcalLow: number; kcalHigh: number; carbsLow: number; carbsHigh: number;
+  proteinLow: number; proteinHigh: number; fatLow: number; fatHigh: number;
+  fiberLow: number; fiberHigh: number; method: string; assumptions: string[]
+}
+export interface NutritionVariantInput { label: string; templateCode: string; selections: Record<string,string> }
+export interface NutritionVariant extends NutritionVariantInput { id: number; mealId: number; estimate: NutritionEstimate }
+export interface NutritionDraft { templateCode: string; questions: {
+  key: string; label: string; options: { value: string; label: string }[] }[];
+  selections: Record<string,string>; estimate: NutritionEstimate | null }
 export interface DietaryProfile {
   allergens: string[]; avoidedFoods: string[]; dislikedFoods: string[];
   spicePreference: 'UNSET' | 'NEVER' | 'MILD' | 'OK';

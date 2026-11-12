@@ -14,3 +14,9 @@ input { box-sizing: border-box; width: 100%; height: 78rpx; padding: 0 18rpx; bo
 .edit-card .tag { width: auto; min-height: 66rpx; margin: 0; padding: 7rpx 20rpx; border: 3rpx solid #e9d8c8; background: #fff; color: #725447; box-shadow: 0 4rpx 0 #e9d8c8; font-size: 23rpx; }
 .edit-card .tag.selected { border-color: #d94b2b; background: #fff1df; color: #a93420; box-shadow: 0 4rpx 0 #f3c785; }
 .edit-error { margin: 22rpx 0; font-size: 24rpx; }
+.nutrition-section { margin: 28rpx 0; padding-top: 22rpx; border-top: 2rpx solid #efddcc; }
+.nutrition-estimate { margin-top: 20rpx; padding: 22rpx; border-radius: 18rpx; background: #fff1df; font-size: 25rpx; font-weight: 700; }
+.nutrition-estimate .muted { margin-top: 8rpx; font-size: 21rpx; font-weight: 400; }
+.saved-variant { margin: 14rpx 0; padding: 18rpx; border: 2rpx solid #e9d8c8; border-radius: 18rpx; font-size: 24rpx; }
+.variant-actions { display: flex; gap: 12rpx; margin-top: 10rpx; }
+.edit-card .variant-actions button { flex: 1; min-height: 62rpx; font-size: 20rpx; }

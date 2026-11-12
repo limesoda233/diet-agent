@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.LinkedHashMap;
 import com.diet.service.slot.SlotOptionService;
+import com.diet.service.meal.nutrition.MealNutritionVariantService;
 
 @Service
 public class MealDraftSaveService {
@@ -29,6 +30,11 @@ public class MealDraftSaveService {
     }
     @Transactional
     public SessionState save(Long userId,String draftId,SessionState state,Map<?,?> reviewedTags,boolean merge) {
+        return save(userId,draftId,state,reviewedTags,merge,null);
+    }
+    @Transactional
+    public SessionState save(Long userId,String draftId,SessionState state,Map<?,?> reviewedTags,boolean merge,
+                             MealNutritionVariantService.Input nutritionVariant) {
         if (state == null || userId == null || !Objects.equals(userId,state.userId())
                 || draftId == null || draftId.isBlank()) throw new DietException("餐食草稿不属于当前用户，请重新录入。");
         MealDraft requested = state.mealDraft();
@@ -50,8 +56,10 @@ public class MealDraftSaveService {
                 || !complete(draft) || (merge && draft.status()!=MealDraftStatus.AWAITING_MERGE))
             throw new DietException("请先补齐菜名和餐次，再确认保存。");
         MealDraft reviewed = reviewedTags == null ? draft : withReviewedTags(draft,reviewedTags);
-        Long mealId = (merge ? meals.mergePersonalMeal(userId,reviewed.data().toMealRequest())
-                : meals.createPersonalMeal(userId,reviewed.data().toMealRequest())).id();
+        var request=reviewed.data().toMealRequest();
+        request.nutritionVariant(nutritionVariant);
+        Long mealId = (merge ? meals.mergePersonalMeal(userId,request)
+                : meals.createPersonalMeal(userId,request)).id();
         SessionState saved = current.withMealDraft(reviewed.saved(mealId));
         sessions.save(saved);
         return saved;

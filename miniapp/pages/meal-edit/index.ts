@@ -1,4 +1,4 @@
-import { api, ApiError, type MealInput } from '../../services/api'
+import { api, ApiError, type MealInput, type NutritionDraft, type NutritionVariant } from '../../services/api'
 
 const fields = ['mealTime', 'mood', 'scene', 'healthGoal', 'cuisine', 'taste', 'convenience'] as const
 type Field = typeof fields[number]
@@ -10,7 +10,10 @@ const empty = (): Record<Field, string[]> => ({ mealTime: [], mood: [], scene: [
 Page({
   data: { id: 0, name: '', description: '', selected: empty(),
     groups: [] as { field: Field; label: string; choices: { value: string; selected: boolean }[] }[],
-    options: {} as Record<string, string[]>, saving: false, generating: false, error: '' },
+    options: {} as Record<string, string[]>, saving: false, generating: false, error: '',
+    nutritionDraft: null as NutritionDraft | null,
+    nutritionGroups: [] as { key: string; label: string; choices: { value: string; label: string; selected: boolean }[] }[],
+    savedVariants: [] as NutritionVariant[] },
   async onLoad(options: { id?: string }) {
     try {
       const choices = await api.slotOptions()
@@ -21,7 +24,8 @@ Page({
         if (!meal) throw new Error('餐食不存在')
         const selected = empty()
         for (const field of fields) selected[field] = meal[field]
-        this.setData({ id, name: meal.name, selected })
+        const savedVariants = await api.personalVariants(id)
+        this.setData({ id, name: meal.name, selected, savedVariants })
       }
       this.renderGroups()
     } catch (error) { this.setData({ error: error instanceof Error ? error.message : '标签加载失败' }) }
@@ -32,7 +36,16 @@ Page({
         .map(value => ({ value, selected: this.data.selected[field].includes(value) })) }))
     this.setData({ groups })
   },
-  onName(event: { detail: { value: string } }) { this.setData({ name: event.detail.value }) },
+  renderNutrition() {
+    const draft = this.data.nutritionDraft
+    this.setData({ nutritionGroups: draft ? draft.questions.map(question => ({ key: question.key,
+      label: question.label, choices: question.options.map(choice => ({ ...choice,
+        selected: draft.selections[question.key] === choice.value })) })) : [] })
+  },
+  onName(event: { detail: { value: string } }) {
+    if (event.detail.value !== this.data.name) this.setData({ nutritionDraft: null, nutritionGroups: [] })
+    this.setData({ name: event.detail.value })
+  },
   onDescription(event: { detail: { value: string } }) { this.setData({ description: event.detail.value }) },
   toggleTag(event: { currentTarget: { dataset: { field: Field; value: string } } }) {
     const { field, value } = event.currentTarget.dataset
@@ -41,6 +54,36 @@ Page({
       current.filter(item => item !== value) : [...current, value] } })
     this.renderGroups()
   },
+  async chooseNutrition(event: { currentTarget: { dataset: { key: string; value: string } } }) {
+    const old = this.data.nutritionDraft
+    if (!old || this.data.saving) return
+    const selections = { ...old.selections, [event.currentTarget.dataset.key]: event.currentTarget.dataset.value }
+    this.setData({ nutritionDraft: { ...old, selections } })
+    this.renderNutrition()
+    try {
+      const estimate = await api.previewNutrition(old.templateCode, selections)
+      if (JSON.stringify(this.data.nutritionDraft?.selections) === JSON.stringify(selections))
+        this.setData({ nutritionDraft: { ...this.data.nutritionDraft!, estimate } })
+    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '热量估算暂不可用' }) }
+  },
+  async editVariant(event: { currentTarget: { dataset: { id: number } } }) {
+    const variant = this.data.savedVariants.find(item => item.id === event.currentTarget.dataset.id)
+    if (!variant) return
+    try {
+      const draft = await api.suggestNutrition(this.data.name, this.data.description || this.data.name)
+      this.setData({ nutritionDraft: { ...draft, selections: variant.selections, estimate: variant.estimate } })
+      this.renderNutrition()
+    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '搭配版本加载失败' }) }
+  },
+  async removeVariant(event: { currentTarget: { dataset: { id: number } } }) {
+    const confirmed = await new Promise<boolean>(resolve => wx.showModal({ title: '删除搭配版本？',
+      content: '餐食本身会保留。', success: result => resolve(result.confirm) }))
+    if (!confirmed) return
+    try {
+      await api.deleteVariant(this.data.id, event.currentTarget.dataset.id)
+      this.setData({ savedVariants: await api.personalVariants(this.data.id) })
+    } catch (error) { this.setData({ error: error instanceof Error ? error.message : '删除失败' }) }
+  },
   async generate() {
     if (this.data.generating || this.data.saving) return
     const name = this.data.name.trim()
@@ -48,11 +91,18 @@ Page({
     this.setData({ generating: true, error: '' })
     try {
       const text = `餐食名称：${name}${this.data.description.trim() ? '；' + this.data.description.trim() : ''}`
-      const draft = await api.generateMealDraft(text)
-      const selected = { ...this.data.selected }
-      for (const field of fields) selected[field] = [...new Set([...selected[field], ...draft.data[field]])]
-      this.setData({ selected })
-      this.renderGroups()
+      const [mealResult,nutritionResult] = await Promise.allSettled([
+        api.generateMealDraft(text),api.suggestNutrition(name,text)])
+      if (mealResult.status === 'fulfilled') {
+        const selected = { ...this.data.selected }
+        for (const field of fields) selected[field] = [...new Set([...selected[field], ...mealResult.value.data[field]])]
+        this.setData({ selected }); this.renderGroups()
+      }
+      if (nutritionResult.status === 'fulfilled' && nutritionResult.value.questions.length) {
+        this.setData({ nutritionDraft: nutritionResult.value }); this.renderNutrition()
+      }
+      if (mealResult.status === 'rejected' && nutritionResult.status === 'rejected')
+        throw mealResult.reason
     } catch (error) { this.setData({ error: error instanceof Error ? error.message : '解析失败，请手动选择标签' }) }
     finally { this.setData({ generating: false }) }
   },
@@ -61,7 +111,10 @@ Page({
     const name = this.data.name.trim()
     if (!name) { this.setData({ error: '请填写餐食名称' }); return }
     if (this.data.selected.mealTime.length === 0) { this.setData({ error: '请至少选择一个餐次' }); return }
-    const meal = { name, ...this.data.selected } as MealInput
+    const nutrition = this.data.nutritionDraft
+    const variant = nutrition && nutrition.estimate ? { label: this.variantLabel(),
+      templateCode: nutrition.templateCode, selections: nutrition.selections } : undefined
+    const meal = { name, ...this.data.selected, ...(variant ? { nutritionVariant: variant } : {}) } as MealInput
     this.setData({ saving: true, error: '' })
     try {
       if (this.data.id) await api.updateMeal(this.data.id, meal)
@@ -81,5 +134,12 @@ Page({
       wx.switchTab({ url: '/pages/meals/index' })
     } catch (error) { this.setData({ error: error instanceof Error ? error.message : '保存失败' }) }
     finally { this.setData({ saving: false }) }
+  },
+  variantLabel() {
+    const draft = this.data.nutritionDraft
+    if (!draft) return '常吃搭配'
+    return draft.questions.filter(item => ['size','starch','spice'].includes(item.key))
+      .map(item => item.options.find(option => option.value === draft.selections[item.key])?.label)
+      .filter(Boolean).join(' · ').slice(0, 64) || '常吃搭配'
   },
 })

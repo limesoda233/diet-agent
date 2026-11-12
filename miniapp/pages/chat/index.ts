@@ -1,4 +1,4 @@
-import { api, type ChatResponse, type Meal, type MealDraft } from '../../services/api'
+import { api, type ChatResponse, type Meal, type MealDraft, type NutritionDraft } from '../../services/api'
 import { clearSession, getSession, saveSession } from '../../services/session'
 
 const tagFields = ['mealTime', 'mood', 'scene', 'healthGoal', 'cuisine', 'taste', 'convenience'] as const
@@ -21,6 +21,8 @@ Page({
     draftIngredients: [] as string[], draftPreparation: '',
     options: {} as Record<string,string[]>, draftTags: null as DraftTags | null,
     draftGroups: [] as { field: TagField; label: string; choices: { value: string; selected: boolean }[] }[],
+    nutritionDraft: null as NutritionDraft | null,
+    nutritionGroups: [] as { key: string; label: string; choices: { value: string; label: string; selected: boolean }[] }[],
   },
   async onLoad() {
     try { this.setData({ options: await api.slotOptions() }); this.renderDraftGroups() }
@@ -41,6 +43,31 @@ Page({
       [field]: old.includes(value) ? old.filter(item => item !== value) : [...old, value] } })
     this.renderDraftGroups()
   },
+  renderNutrition() {
+    const draft = this.data.nutritionDraft
+    this.setData({ nutritionGroups: draft ? draft.questions.map(question => ({ key: question.key,
+      label: question.label, choices: question.options.map(option => ({ ...option,
+        selected: draft.selections[question.key] === option.value })) })) : [] })
+  },
+  async loadNutrition(draft: MealDraft) {
+    if (!draft.data.name || !['READY','NEEDS_INPUT','AWAITING_MERGE'].includes(draft.status)) return
+    try {
+      const result = await api.suggestNutrition(draft.data.name, draft.originalText)
+      if (this.data.draft?.draftId !== draft.draftId || !result?.questions?.length) return
+      this.setData({ nutritionDraft: result }); this.renderNutrition()
+    } catch { /* A meal can still be saved without a nutrition estimate. */ }
+  },
+  async chooseNutrition(event: { currentTarget: { dataset: { key: string; value: string } } }) {
+    const old = this.data.nutritionDraft
+    if (!old || this.data.sending) return
+    const selections = { ...old.selections, [event.currentTarget.dataset.key]: event.currentTarget.dataset.value }
+    this.setData({ nutritionDraft: { ...old, selections } }); this.renderNutrition()
+    try {
+      const estimate = await api.previewNutrition(old.templateCode, selections)
+      if (JSON.stringify(this.data.nutritionDraft?.selections) === JSON.stringify(selections))
+        this.setData({ nutritionDraft: { ...this.data.nutritionDraft!, estimate } })
+    } catch { wx.showToast({ title: '热量估算暂不可用', icon: 'none' }) }
+  },
   switchSource(sourceMode: 'PUBLIC' | 'PERSONAL') {
     if (this.data.sending || this.data.sourceMode === sourceMode) return
     this.restart()
@@ -50,7 +77,8 @@ Page({
     if (this.data.sending) return
     clearSession()
     this.setData({ message: '', messages: [welcome()], draft: null,
-      draftMissing: [], draftWarnings: [], draftIngredients: [], draftPreparation: '', draftTags: null, draftGroups: [] })
+      draftMissing: [], draftWarnings: [], draftIngredients: [], draftPreparation: '', draftTags: null,
+      draftGroups: [], nutritionDraft: null, nutritionGroups: [] })
   },
   usePublic() { this.switchSource('PUBLIC') },
   usePersonal() { this.switchSource('PERSONAL') },
@@ -71,8 +99,10 @@ Page({
       draftWarnings: draft?.warnings || [],
       draftIngredients: draft?.data.knowledge?.ingredients || [],
       draftPreparation: draft?.data.knowledge?.preparation || '',
-      draftTags: draft && ['READY','NEEDS_INPUT','AWAITING_MERGE'].includes(draft.status) ? tagsOf(draft) : null })
+      draftTags: draft && ['READY','NEEDS_INPUT','AWAITING_MERGE'].includes(draft.status) ? tagsOf(draft) : null,
+      nutritionDraft: null, nutritionGroups: [] })
     this.renderDraftGroups()
+    if (draft) void this.loadNutrition(draft)
   },
   async send() {
     const message = this.data.message.trim()
@@ -105,7 +135,13 @@ Page({
       const reply = await api.chat({ sessionId, sourceMode: this.data.sourceMode,
         message: action === 'SAVE' ? '确认保存' : action === 'MERGE' ? '确认合并' : '取消录入',
         context: { mealDraftAction: { draftId: draft.draftId, action,
-          ...(action !== 'CANCEL' ? { tags: this.data.draftTags } : {}) } } })
+          ...(action !== 'CANCEL' ? { tags: this.data.draftTags,
+            ...(this.data.nutritionDraft?.estimate ? { nutritionVariant: {
+              label: this.data.nutritionDraft.questions.filter(question => ['size','starch','spice'].includes(question.key))
+                .map(question => question.options.find(option => option.value === this.data.nutritionDraft!.selections[question.key])?.label)
+                .filter(Boolean).join(' · ').slice(0,64) || '常吃搭配',
+              templateCode: this.data.nutritionDraft.templateCode,
+              selections: this.data.nutritionDraft.selections } } : {}) } : {}) } } })
       this.showReply(reply)
     } catch (error) {
       wx.showToast({ title: error instanceof Error ? error.message : '草稿操作失败', icon: 'none' })

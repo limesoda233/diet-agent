@@ -12,8 +12,33 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
+import org.mockito.ArgumentCaptor;
 
 class PlanningMealSearchTest {
+    @Test void broadSpicyRequestRecallsMildButNotNonSpicyMeals() {
+        var mapper=mock(MealMapper.class);
+        var service=new MealService(mapper,mock(SlotOptionService.class),
+                new JsonService(new com.fasterxml.jackson.databind.ObjectMapper()));
+        var slots=new SlotBundle(List.of("晚餐"),List.of(),List.of(),List.of(),
+                List.of(),List.of("辣"),List.of());
+        service.searchFrozen(SourceMode.PERSONAL,1L,slots,MealConstraints.empty());
+        var taste=ArgumentCaptor.forClass(String.class);
+        verify(mapper).search(eq(SourceMode.PERSONAL),eq(1L),any(),any(),any(),any(),any(),
+                taste.capture(),any(),any(),any(),anyInt());
+        assertTrue(taste.getValue().contains("微辣"));
+        assertFalse(taste.getValue().contains("不辣"));
+    }
+    @Test void specificMildRequestDoesNotExpandToStrongerHeat() {
+        var mapper=mock(MealMapper.class);
+        var service=new MealService(mapper,mock(SlotOptionService.class),
+                new JsonService(new com.fasterxml.jackson.databind.ObjectMapper()));
+        var slots=new SlotBundle(List.of("晚餐"),List.of(),List.of(),List.of(),
+                List.of(),List.of("微辣"),List.of());
+        service.searchFrozen(SourceMode.PERSONAL,1L,slots,MealConstraints.empty());
+        var taste=ArgumentCaptor.forClass(String.class);
+        verify(mapper).search(any(),any(),any(),any(),any(),any(),any(),taste.capture(),any(),any(),any(),anyInt());
+        assertEquals("[\"微辣\"]",taste.getValue());
+    }
     @Test void frozenSearchAttachesIngredientEvidenceWithoutReadingLiveMemory() {
         var mapper=mock(MealMapper.class);
         var row=new MealItemRow();row.setId(3L);row.setName("鸡蛋面");row.setSourceType("PUBLIC");

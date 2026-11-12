@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import { ApiRequestError } from '../../api/client'
-import type { Meal, MealDraft, MealKnowledge, MealRequest, SlotKey, SlotOptions } from '../../api/types'
+import type { Meal, MealDraft, MealKnowledge, MealRequest, NutritionDraft, NutritionVariant, SlotKey, SlotOptions } from '../../api/types'
 import MealEditor, { SLOT_KEYS, SLOT_LABELS, type EditorValue } from './MealEditor'
+import { nutritionVariantOf } from './NutritionChoices'
 import './meals.css'
 
 const EMPTY_OPTIONS: SlotOptions = {}
@@ -60,6 +61,8 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
   const [editor, setEditor] = useState<EditorValue>(EMPTY_EDITOR)
   const [editing, setEditing] = useState<Meal | null>(null)
   const [draft, setDraft] = useState<MealDraft | null>(null)
+  const [nutrition, setNutrition] = useState<NutritionDraft | null>(null)
+  const [variants, setVariants] = useState<NutritionVariant[]>([])
   const [text, setText] = useState('')
   const [formError, setFormError] = useState('')
   const [generating, setGenerating] = useState(false)
@@ -114,6 +117,8 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
     setEditor(EMPTY_EDITOR)
     setEditing(null)
     setDraft(null)
+    setNutrition(null)
+    setVariants([])
     setMergePayload(null)
     setText('')
     setFormError('')
@@ -125,12 +130,14 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
     clearEditor()
     setEditing(meal)
     setEditor(fromMeal(meal))
+    if (api.listPersonalVariants) void api.listPersonalVariants(meal.id).then(setVariants).catch(() => setVariants([]))
   }
 
   function changeEditor(next: EditorValue) {
     editorEpoch.current++
     setMergePayload(null)
     setEditor(next)
+    if (next.name !== editor.name) setNutrition(null)
   }
 
   function changeText(next: string) {
@@ -140,8 +147,8 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
 
   async function generate() {
     if (busy.current || mutationBusy.current || editing) return
-    const description = text.trim()
-    if (!description || description.length > 4000) { setFormError('请描述一道餐食，最多 4000 字'); return }
+    const description = text.trim() || editor.name.trim()
+    if (!description || description.length > 4000) { setFormError('请先输入餐食名称或描述，最多 4000 字'); return }
     const epoch = editorEpoch.current
     const operation = ++operationEpoch.current
     busy.current = true
@@ -150,12 +157,55 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
     setDraft(null)
     try {
       const result = await api.generateMealDraft(description)
-      if (mounted.current && epoch === editorEpoch.current) { setDraft(result); setEditor(fromDraft(result)) }
+      if (mounted.current && epoch === editorEpoch.current) {
+        setDraft(result); setEditor(fromDraft(result))
+        if (api.suggestNutrition && result.data.name) void api.suggestNutrition(result.data.name,description)
+          .then(value => { if (mounted.current && epoch === editorEpoch.current) setNutrition(value) })
+          .catch(() => {})
+      }
     } catch (error) {
       if (mounted.current && epoch === editorEpoch.current) setFormError(errorText(error, '整理失败，已保留表单内容'))
     } finally {
       if (mounted.current && operation === operationEpoch.current) { busy.current = false; setGenerating(false) }
     }
+  }
+
+  async function suggestNutrition() {
+    const name=editor.name.trim()
+    if (!name || !api.suggestNutrition) return
+    const epoch=editorEpoch.current
+    setFormError('')
+    try {
+      const result=await api.suggestNutrition(name,`${name}；${text.trim()}；${editor.description.trim()}`)
+      if (mounted.current && epoch === editorEpoch.current) setNutrition(result)
+    } catch (error) { if (mounted.current && epoch === editorEpoch.current) setFormError(errorText(error,'搭配解析失败')) }
+  }
+
+  async function chooseNutrition(key:string,value:string) {
+    if (!nutrition || !api.previewNutrition) return
+    const selections={ ...nutrition.selections,[key]:value }
+    setNutrition({ ...nutrition,selections })
+    try {
+      const estimate=await api.previewNutrition(nutrition.templateCode,selections)
+      setNutrition(old => old && JSON.stringify(old.selections)===JSON.stringify(selections) ? { ...old,estimate } : old)
+    } catch (error) { setFormError(errorText(error,'热量估算失败')) }
+  }
+
+  async function editVariant(variant:NutritionVariant) {
+    if (!api.suggestNutrition) return
+    try {
+      const result=await api.suggestNutrition(editor.name,editor.name)
+      setNutrition({ ...result,selections:variant.selections,estimate:variant.estimate })
+    } catch (error) { setFormError(errorText(error,'搭配版本加载失败')) }
+  }
+
+  async function deleteVariant(variant:NutritionVariant) {
+    if (!editing || !api.deletePersonalVariant) return
+    try {
+      await api.deletePersonalVariant(editing.id,variant.id)
+      setVariants(items => items.filter(item => item.id!==variant.id))
+      await reload()
+    } catch (error) { setFormError(errorText(error,'删除搭配版本失败')) }
   }
 
   async function save() {
@@ -170,6 +220,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
       setFormError('描述最多 2000 字，我的做法最多 4000 字'); return
     }
     const payload = requestOf(editor, editing, draft !== null)
+    if (nutrition?.estimate) payload.nutritionVariant=nutritionVariantOf(nutrition)
     const epoch = editorEpoch.current
     const operation = ++operationEpoch.current
     busy.current = true
@@ -266,6 +317,7 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
         <p className="meal-empty">{query || tag ? '没有符合条件的餐食，请调整筛选。' : publicOnly ? '公共餐食暂无数据。' : '暂无餐食，可以先新增一道常吃的菜。'}</p> :
         <div className="meal-list">{visible.map(meal => <article className="meal-card" key={meal.id} aria-label={meal.name}>
           <div className="meal-card-top"><h2>{meal.name}</h2><span>{meal.sourceType === 'PUBLIC' ? '公共' : '个人'}</span></div>
+          {meal.nutritionVariant?.estimate && <p className="nutrition-card-hint">{meal.nutritionVariant.label} · 约 {meal.nutritionVariant.estimate.kcalLow}–{meal.nutritionVariant.estimate.kcalHigh} 千卡/份（粗估）</p>}
           <div className="meal-chips">{SLOT_KEYS.flatMap(key => (meal[key] ?? []).map(value => <span key={`${key}:${value}`} className="meal-chip">{SLOT_LABELS[key]} · {value}</span>))}</div>
           {!publicOnly && <div className="meal-actions"><button className="meal-button meal-button-soft" onClick={() => editMeal(meal)}>编辑</button>
             <button className="meal-button meal-button-ghost" onClick={() => setDeleteTarget(meal)}>删除</button></div>}
@@ -285,7 +337,10 @@ export function MealsPage({ publicOnly = false }: { publicOnly?: boolean }) {
     </section>
     {!publicOnly && <MealEditor value={editor} onChange={changeEditor} options={options} draft={draft} text={text}
       onTextChange={changeText} onGenerate={() => void generate()} onSave={() => void save()} onClear={clearEditor}
-      editing={editing !== null} generating={generating} saving={saving} mutationLocked={deleting} error={formError} />}
+      editing={editing !== null} generating={generating} saving={saving} mutationLocked={deleting} error={formError}
+      nutrition={nutrition} variants={variants} onSuggestNutrition={() => { void suggestNutrition() }}
+      onChooseNutrition={(key,value) => { void chooseNutrition(key,value) }} onEditVariant={variant => { void editVariant(variant) }}
+      onDeleteVariant={variant => { void deleteVariant(variant) }} />}
   </div>
 }
 

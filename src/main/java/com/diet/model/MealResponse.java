@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.diet.enums.SourceMode;
 import com.diet.service.meal.knowledge.MealKnowledge;
+import com.diet.service.meal.nutrition.MealNutritionVariantService;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 
 import lombok.AllArgsConstructor;
@@ -29,6 +30,13 @@ public class MealResponse {
     private List<String> convenience;
     private double matchScore;
     private MealKnowledge knowledge;
+    private MealNutritionVariantService.Variant nutritionVariant;
+
+    public MealResponse(Long id, SourceMode sourceType, String name, List<String> mealTime, List<String> mood,
+                        List<String> scene, List<String> healthGoal, List<String> cuisine, List<String> taste,
+                        List<String> convenience, double matchScore, MealKnowledge knowledge) {
+        this(id,sourceType,name,mealTime,mood,scene,healthGoal,cuisine,taste,convenience,matchScore,knowledge,null);
+    }
 
     public MealResponse(Long id, SourceMode sourceType, String name, List<String> mealTime, List<String> mood,
                         List<String> scene, List<String> healthGoal, List<String> cuisine, List<String> taste,

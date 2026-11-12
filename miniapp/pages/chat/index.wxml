@@ -20,7 +20,8 @@
       <view class="message-author" wx:if="{{item.role === '小狗'}}"><image src="../../assets/dog.jpg" mode="aspectFill" />小狗</view>
       <view class="message-author" wx:elif="{{item.role === '系统'}}">系统提示</view>
       <view class="message-bubble">{{item.text}}</view>
-      <view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="id" class="meal"><view class="meal-name">{{meal.name}}</view><view class="meal-hint">餐食推荐</view></view>
+      <view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="id" class="meal"><view class="meal-name">{{meal.name}}</view><view class="meal-hint">餐食推荐</view>
+        <view wx:if="{{meal.nutritionVariant.estimate}}" class="meal-hint">{{meal.nutritionVariant.label}} · 约 {{meal.nutritionVariant.estimate.kcalLow}}–{{meal.nutritionVariant.estimate.kcalHigh}} 千卡/份（粗估）</view></view>
       <view wx:for="{{item.details}}" wx:for-item="detail" wx:key="index" class="detail">{{detail}}</view>
     </view>
     <view wx:if="{{draft}}" class="draft-card">
@@ -35,6 +36,16 @@
           <button wx:for="{{item.choices}}" wx:for-item="choice" wx:key="value"
             class="draft-tag {{choice.selected ? 'selected' : ''}}" data-field="{{item.field}}" data-value="{{choice.value}}" bindtap="toggleDraftTag">{{choice.value}}</button>
         </view>
+      </view>
+      <view wx:if="{{nutritionGroups.length}}" class="draft-nutrition">
+        <view class="draft-tag-label">这顿怎么搭配？</view>
+        <view class="draft-review-hint">按平时的一份选择；热量是粗估范围。</view>
+        <view wx:for="{{nutritionGroups}}" wx:key="key" class="draft-tag-group">
+          <view class="draft-tag-label">{{item.label}}</view>
+          <view class="draft-tag-list"><button wx:for="{{item.choices}}" wx:for-item="choice" wx:key="value"
+            class="draft-tag {{choice.selected ? 'selected' : ''}}" data-key="{{item.key}}" data-value="{{choice.value}}" bindtap="chooseNutrition">{{choice.label}}</button></view>
+        </view>
+        <view wx:if="{{nutritionDraft.estimate}}" class="draft-meta">每份约 {{nutritionDraft.estimate.kcalLow}}–{{nutritionDraft.estimate.kcalHigh}} 千卡 · 碳水 {{nutritionDraft.estimate.carbsLow}}–{{nutritionDraft.estimate.carbsHigh}} g</view>
       </view>
       <view wx:if="{{draftIngredients.length}}" class="draft-meta">食材：{{draftIngredients}}</view>
       <view wx:if="{{draftPreparation}}" class="draft-meta">做法：{{draftPreparation}}</view>

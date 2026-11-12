@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.diet.service.meal.knowledge.MealKnowledge;
+import com.diet.service.meal.nutrition.MealNutritionVariantService;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -29,6 +30,7 @@ public class MealRequest {
     private MealKnowledge knowledge;
     @JsonIgnore
     private boolean knowledgeProvided;
+    private MealNutritionVariantService.Input nutritionVariant;
 
     @JsonSetter("knowledge")
     public MealRequest knowledge(MealKnowledge value) {
@@ -37,7 +39,7 @@ public class MealRequest {
 
     public MealRequest(String name, List<String> mealTime, List<String> mood, List<String> scene,
                        List<String> healthGoal, List<String> cuisine, List<String> taste, List<String> convenience) {
-        this(name, mealTime, mood, scene, healthGoal, cuisine, taste, convenience, null, false);
+        this(name, mealTime, mood, scene, healthGoal, cuisine, taste, convenience, null, false, null);
     }
 
     public SlotBundle toSlots() {

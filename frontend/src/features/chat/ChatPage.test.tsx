@@ -9,6 +9,8 @@ const app = vi.hoisted(() => ({
     createSession: vi.fn(),
     chat: vi.fn(),
     saveFeedback: vi.fn(),
+    suggestNutrition: vi.fn(),
+    previewNutrition: vi.fn(),
   },
   refreshMeals: vi.fn(),
 }))
@@ -52,10 +54,33 @@ beforeEach(() => {
   app.api.createSession.mockReset().mockResolvedValue({ sessionId: 's1' })
   app.api.chat.mockReset().mockResolvedValue(answer())
   app.api.saveFeedback.mockReset().mockResolvedValue(null)
+  app.api.suggestNutrition.mockReset().mockResolvedValue({ templateCode: 'UNKNOWN', questions: [], selections: {}, estimate: null })
+  app.api.previewNutrition.mockReset()
   app.refreshMeals.mockReset()
 })
 
 describe('chat interaction', () => {
+  it('sends reviewed portion choices when saving a spoken meal draft', async () => {
+    const draft={ draftId: 'portion-draft', originalText: '录入麻辣烫，不辣，晚上吃', status: 'READY',
+      missingFields: [], warnings: [], savedMealId: null,
+      data: { name: '麻辣烫', mealTime: ['晚餐'], mood: [], scene: [], healthGoal: [], cuisine: [], taste: ['不辣'], convenience: [], knowledge: null } }
+    const estimate={ kcalLow: 300, kcalHigh: 500, carbsLow: 15, carbsHigh: 35,
+      proteinLow: 10, proteinHigh: 25, fatLow: 10, fatHigh: 25, fiberLow: 2, fiberHigh: 7, method: 'APPROX_RULE_V1', assumptions: [] }
+    app.api.chat.mockResolvedValueOnce(answer({ responseType: 'MEAL_DRAFT', mealDraft: draft }))
+    app.api.suggestNutrition.mockResolvedValueOnce({ templateCode: 'MALATANG',
+      questions: [{ key: 'spice', label: '辣度', options: [{ value: 'NONE', label: '不辣' }, { value: 'MILD', label: '微辣' }] }],
+      selections: { spice: 'NONE' }, estimate })
+    render(<ChatPage />)
+    await userEvent.type(screen.getByRole('textbox', { name: '消息' }), draft.originalText)
+    await userEvent.click(screen.getByRole('button', { name: '发送' }))
+    expect(await screen.findByRole('region', { name: '这顿怎么搭配' })).toHaveTextContent('不辣')
+    await userEvent.click(screen.getByRole('button', { name: '确认保存' }))
+    await waitFor(() => expect(app.api.chat).toHaveBeenLastCalledWith(expect.objectContaining({ context: {
+      mealDraftAction: expect.objectContaining({ nutritionVariant: expect.objectContaining({
+        templateCode: 'MALATANG', selections: { spice: 'NONE' },
+      }) }),
+    } })))
+  })
   it('keeps planned dinners grouped by date without duplicating legacy meal blocks', async () => {
     app.api.chat.mockResolvedValueOnce(answer({ responseType: 'PLAN', mealPlan: mealPlan(),
       displayBlocks: [{ id: 99, name: '重复旧卡片' }], planBlocks: [{ mealTime: '早餐', meals: [{ id: 98, name: '多余早餐' }] }] }))
